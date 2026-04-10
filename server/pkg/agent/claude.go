@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -33,24 +34,7 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 	}
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 
-	args := []string{
-		"--output-format", "stream-json",
-		"--verbose",
-		"--permission-mode", "bypassPermissions",
-	}
-	if opts.Model != "" {
-		args = append(args, "--model", opts.Model)
-	}
-	if opts.MaxTurns > 0 {
-		args = append(args, "--max-turns", fmt.Sprintf("%d", opts.MaxTurns))
-	}
-	if opts.SystemPrompt != "" {
-		args = append(args, "--append-system-prompt", opts.SystemPrompt)
-	}
-	if opts.ResumeSessionID != "" {
-		args = append(args, "--resume", opts.ResumeSessionID)
-	}
-	args = append(args, "-p", prompt)
+	args := buildClaudeArgs(opts)
 
 	cmd := exec.CommandContext(runCtx, execPath, args...)
 	if opts.Cwd != "" {
@@ -74,6 +58,17 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 		cancel()
 		return nil, fmt.Errorf("start claude: %w", err)
 	}
+	if err := writeClaudeInput(stdin, prompt); err != nil {
+		_ = stdin.Close()
+		cancel()
+		_ = cmd.Wait()
+		return nil, fmt.Errorf("write claude input: %w", err)
+	}
+	if err := stdin.Close(); err != nil {
+		cancel()
+		_ = cmd.Wait()
+		return nil, fmt.Errorf("close claude stdin: %w", err)
+	}
 
 	b.cfg.Logger.Info("claude started", "pid", cmd.Process.Pid, "cwd", opts.Cwd, "model", opts.Model)
 
@@ -84,13 +79,13 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 		defer cancel()
 		defer close(msgCh)
 		defer close(resCh)
-		defer stdin.Close()
 
 		startTime := time.Now()
 		var output strings.Builder
 		var sessionID string
 		finalStatus := "completed"
 		var finalError string
+		usage := make(map[string]TokenUsage)
 
 		scanner := bufio.NewScanner(stdout)
 		scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
@@ -108,7 +103,7 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 
 			switch msg.Type {
 			case "assistant":
-				b.handleAssistant(msg, msgCh, &output)
+				b.handleAssistant(msg, msgCh, &output, usage)
 			case "user":
 				b.handleUser(msg, msgCh)
 			case "system":
@@ -134,8 +129,6 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 						Content: msg.Log.Message,
 					})
 				}
-			case "control_request":
-				b.handleControlRequest(msg, stdin)
 			}
 		}
 
@@ -162,16 +155,27 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 			Error:      finalError,
 			DurationMs: duration.Milliseconds(),
 			SessionID:  sessionID,
+			Usage:      usage,
 		}
 	}()
 
 	return &Session{Messages: msgCh, Result: resCh}, nil
 }
 
-func (b *claudeBackend) handleAssistant(msg claudeSDKMessage, ch chan<- Message, output *strings.Builder) {
+func (b *claudeBackend) handleAssistant(msg claudeSDKMessage, ch chan<- Message, output *strings.Builder, usage map[string]TokenUsage) {
 	var content claudeMessageContent
 	if err := json.Unmarshal(msg.Message, &content); err != nil {
 		return
+	}
+
+	// Accumulate token usage per model.
+	if content.Usage != nil && content.Model != "" {
+		u := usage[content.Model]
+		u.InputTokens += content.Usage.InputTokens
+		u.OutputTokens += content.Usage.OutputTokens
+		u.CacheReadTokens += content.Usage.CacheReadInputTokens
+		u.CacheWriteTokens += content.Usage.CacheCreationInputTokens
+		usage[content.Model] = u
 	}
 
 	for _, block := range content.Content {
@@ -287,8 +291,17 @@ type claudeLogEntry struct {
 }
 
 type claudeMessageContent struct {
-	Role    string             `json:"role"`
+	Role    string               `json:"role"`
+	Model   string               `json:"model"`
 	Content []claudeContentBlock `json:"content"`
+	Usage   *claudeUsage         `json:"usage,omitempty"`
+}
+
+type claudeUsage struct {
+	InputTokens              int64 `json:"input_tokens"`
+	OutputTokens             int64 `json:"output_tokens"`
+	CacheReadInputTokens     int64 `json:"cache_read_input_tokens"`
+	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens"`
 }
 
 type claudeContentBlock struct {
@@ -318,12 +331,84 @@ func trySend(ch chan<- Message, msg Message) {
 	}
 }
 
+func buildClaudeArgs(opts ExecOptions) []string {
+	args := []string{
+		"-p",
+		"--output-format", "stream-json",
+		"--input-format", "stream-json",
+		"--verbose",
+		"--strict-mcp-config",
+		"--permission-mode", "bypassPermissions",
+	}
+	if opts.Model != "" {
+		args = append(args, "--model", opts.Model)
+	}
+	if opts.MaxTurns > 0 {
+		args = append(args, "--max-turns", fmt.Sprintf("%d", opts.MaxTurns))
+	}
+	if opts.SystemPrompt != "" {
+		args = append(args, "--append-system-prompt", opts.SystemPrompt)
+	}
+	if opts.ResumeSessionID != "" {
+		args = append(args, "--resume", opts.ResumeSessionID)
+	}
+	return args
+}
+
+func writeClaudeInput(w io.Writer, prompt string) error {
+	data, err := buildClaudeInput(prompt)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func buildClaudeInput(prompt string) ([]byte, error) {
+	payload := map[string]any{
+		"type": "user",
+		"message": map[string]any{
+			"role": "user",
+			"content": []map[string]string{
+				{
+					"type": "text",
+					"text": prompt,
+				},
+			},
+		},
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal claude input: %w", err)
+	}
+	return append(data, '\n'), nil
+}
+
 func buildEnv(extra map[string]string) []string {
-	env := os.Environ()
+	return mergeEnv(os.Environ(), extra)
+}
+
+func mergeEnv(base []string, extra map[string]string) []string {
+	env := make([]string, 0, len(base)+len(extra))
+	for _, entry := range base {
+		key, _, _ := strings.Cut(entry, "=")
+		if isFilteredChildEnvKey(key) {
+			continue
+		}
+		env = append(env, entry)
+	}
 	for k, v := range extra {
 		env = append(env, k+"="+v)
 	}
 	return env
+}
+
+func isFilteredChildEnvKey(key string) bool {
+	return key == "CLAUDECODE" ||
+		strings.HasPrefix(key, "CLAUDECODE_") ||
+		strings.HasPrefix(key, "CLAUDE_CODE_")
 }
 
 func detectCLIVersion(ctx context.Context, execPath string) (string, error) {

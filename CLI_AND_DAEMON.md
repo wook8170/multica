@@ -8,7 +8,7 @@ The `multica` CLI connects your local machine to Multica. It handles authenticat
 
 ```bash
 brew tap multica-ai/tap
-brew install multica-cli
+brew install multica
 ```
 
 ### Build from Source
@@ -162,11 +162,16 @@ Agent-specific overrides:
 
 ### Self-Hosted Server
 
-When connecting to a self-hosted Multica instance, point the CLI to your server before logging in:
+When connecting to a self-hosted Multica instance, you **must** point the CLI to your server before logging in. The CLI defaults to the hosted Multica service — skipping this step means the daemon will authenticate against the wrong server.
 
 ```bash
-export MULTICA_APP_URL=https://app.example.com
-export MULTICA_SERVER_URL=wss://api.example.com/ws
+# Local Docker Compose (default ports):
+export MULTICA_APP_URL=http://localhost:3000
+export MULTICA_SERVER_URL=ws://localhost:8080/ws
+
+# Production with TLS:
+# export MULTICA_APP_URL=https://app.example.com
+# export MULTICA_SERVER_URL=wss://api.example.com/ws
 
 multica login
 multica daemon start
@@ -175,8 +180,8 @@ multica daemon start
 Or set them persistently:
 
 ```bash
-multica config set app_url https://app.example.com
-multica config set server_url wss://api.example.com/ws
+multica config set app_url http://localhost:3000
+multica config set server_url ws://localhost:8080/ws
 ```
 
 ### Profiles
@@ -288,6 +293,23 @@ multica issue comment add <issue-id> --parent <comment-id> --content "Thanks!"
 # Delete a comment
 multica issue comment delete <comment-id>
 ```
+
+### Execution History
+
+```bash
+# List all execution runs for an issue
+multica issue runs <issue-id>
+multica issue runs <issue-id> --output json
+
+# View messages for a specific execution run
+multica issue run-messages <task-id>
+multica issue run-messages <task-id> --output json
+
+# Incremental fetch (only messages after a given sequence number)
+multica issue run-messages <task-id> --since 42 --output json
+```
+
+The `runs` command shows all past and current executions for an issue, including running tasks. The `run-messages` command shows the detailed message log (tool calls, thinking, text, errors) for a single run. Use `--since` for efficient polling of in-progress runs.
 
 ## Configuration
 

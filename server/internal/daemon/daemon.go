@@ -35,6 +35,10 @@ type Daemon struct {
 	workspaces   map[string]*workspaceState
 	runtimeIndex map[string]Runtime // runtimeID -> Runtime for provider lookups
 	reloading    sync.Mutex         // prevents concurrent reloadWorkspaces
+
+	cancelFunc    context.CancelFunc // set by Run(); called by triggerRestart
+	restartBinary string             // non-empty after a successful update; path to the new binary
+	updating      atomic.Bool        // prevents concurrent update attempts
 }
 
 // New creates a new Daemon instance.
@@ -52,6 +56,10 @@ func New(cfg Config, logger *slog.Logger) *Daemon {
 
 // Run starts the daemon: resolves auth, registers runtimes, then polls for tasks.
 func (d *Daemon) Run(ctx context.Context) error {
+	// Wrap context so handleUpdate can cancel the daemon for restart.
+	ctx, cancel := context.WithCancel(ctx)
+	d.cancelFunc = cancel
+
 	// Bind health port early to detect another running daemon.
 	healthLn, err := d.listenHealth()
 	if err != nil {
@@ -62,7 +70,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	for name := range d.cfg.Agents {
 		agentNames = append(agentNames, name)
 	}
-	logFields := []any{"agents", agentNames, "server", d.cfg.ServerBaseURL}
+	logFields := []any{"version", d.cfg.CLIVersion, "agents", agentNames, "server", d.cfg.ServerBaseURL}
 	if d.cfg.Profile != "" {
 		logFields = append(logFields, "profile", d.cfg.Profile)
 	}
@@ -96,6 +104,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 	go d.usageScanLoop(ctx)
 	go d.serveHealth(ctx, healthLn, time.Now())
 	return d.pollLoop(ctx)
+}
+
+// RestartBinary returns the path to the new binary if the daemon needs to restart
+// after a successful update, or empty string if no restart is needed.
+func (d *Daemon) RestartBinary() string {
+	return d.restartBinary
 }
 
 // deregisterRuntimes notifies the server that all runtimes are going offline.
@@ -221,6 +235,10 @@ func (d *Daemon) registerRuntimesForWorkspace(ctx context.Context, workspaceID s
 			d.logger.Warn("skip registering runtime", "name", name, "error", err)
 			continue
 		}
+		if err := agent.CheckMinVersion(name, version); err != nil {
+			d.logger.Warn("skip registering runtime: version too old", "name", name, "version", version, "error", err)
+			continue
+		}
 		displayName := strings.ToUpper(name[:1]) + name[1:]
 		if d.cfg.DeviceName != "" {
 			displayName = fmt.Sprintf("%s (%s)", displayName, d.cfg.DeviceName)
@@ -240,6 +258,7 @@ func (d *Daemon) registerRuntimesForWorkspace(ctx context.Context, workspaceID s
 		"workspace_id": workspaceID,
 		"daemon_id":    d.cfg.DaemonID,
 		"device_name":  d.cfg.DeviceName,
+		"cli_version":  d.cfg.CLIVersion,
 		"runtimes":     runtimes,
 	}
 
@@ -440,6 +459,11 @@ func (d *Daemon) heartbeatLoop(ctx context.Context) {
 						go d.handlePing(ctx, *rt, resp.PendingPing.ID)
 					}
 				}
+
+				// Handle pending update requests.
+				if resp.PendingUpdate != nil {
+					go d.handleUpdate(ctx, rid, resp.PendingUpdate)
+				}
 			}
 		}
 	}
@@ -516,6 +540,88 @@ func (d *Daemon) handlePing(ctx context.Context, rt Runtime, pingID string) {
 			"error":       errMsg,
 			"duration_ms": durationMs,
 		})
+	}
+}
+
+// handleUpdate performs the CLI update when triggered by the server via heartbeat.
+func (d *Daemon) handleUpdate(ctx context.Context, runtimeID string, update *PendingUpdate) {
+	// Prevent concurrent update attempts.
+	if !d.updating.CompareAndSwap(false, true) {
+		d.logger.Warn("update already in progress, ignoring", "runtime_id", runtimeID, "update_id", update.ID)
+		return
+	}
+	defer d.updating.Store(false)
+
+	d.logger.Info("CLI update requested", "runtime_id", runtimeID, "update_id", update.ID, "target_version", update.TargetVersion)
+
+	// Report running status.
+	d.client.ReportUpdateResult(ctx, runtimeID, update.ID, map[string]any{
+		"status": "running",
+	})
+
+	// Try Homebrew first, fall back to direct download.
+	var output string
+	if cli.IsBrewInstall() {
+		d.logger.Info("updating CLI via Homebrew...")
+		var err error
+		output, err = cli.UpdateViaBrew()
+		if err != nil {
+			d.logger.Error("CLI update failed", "error", err, "output", output)
+			d.client.ReportUpdateResult(ctx, runtimeID, update.ID, map[string]any{
+				"status": "failed",
+				"error":  fmt.Sprintf("brew upgrade failed: %v", err),
+			})
+			return
+		}
+	} else {
+		d.logger.Info("updating CLI via direct download...", "target_version", update.TargetVersion)
+		var err error
+		output, err = cli.UpdateViaDownload(update.TargetVersion)
+		if err != nil {
+			d.logger.Error("CLI update failed", "error", err)
+			d.client.ReportUpdateResult(ctx, runtimeID, update.ID, map[string]any{
+				"status": "failed",
+				"error":  fmt.Sprintf("download update failed: %v", err),
+			})
+			return
+		}
+	}
+
+	d.logger.Info("CLI update completed successfully", "output", output)
+	d.client.ReportUpdateResult(ctx, runtimeID, update.ID, map[string]any{
+		"status": "completed",
+		"output": fmt.Sprintf("Updated to %s", update.TargetVersion),
+	})
+
+	// Trigger daemon restart with the new binary.
+	d.triggerRestart()
+}
+
+// triggerRestart initiates a graceful daemon restart after a successful CLI update.
+// For brew installs, it keeps the symlink path (e.g. /opt/homebrew/bin/multica)
+// so the restarted daemon picks up the new Cellar version automatically.
+// For non-brew installs, it resolves to the absolute path of the replaced binary.
+// The caller (cmd_daemon.go) checks RestartBinary() and launches the new process.
+func (d *Daemon) triggerRestart() {
+	newBin, err := os.Executable()
+	if err != nil {
+		d.logger.Error("could not resolve executable path for restart", "error", err)
+		return
+	}
+	// Only resolve symlinks for non-brew installs. Brew uses a symlink that
+	// points to the latest Cellar version, so we must preserve it.
+	if !cli.IsBrewInstall() {
+		if resolved, err := filepath.EvalSymlinks(newBin); err == nil {
+			newBin = resolved
+		}
+	}
+
+	d.logger.Info("scheduling daemon restart", "new_binary", newBin)
+	d.restartBinary = newBin
+
+	// Cancel the main context to trigger graceful shutdown.
+	if d.cancelFunc != nil {
+		d.cancelFunc()
 	}
 }
 
@@ -626,7 +732,11 @@ func (d *Daemon) pollLoop(ctx context.Context) error {
 				continue
 			}
 			if task != nil {
-				d.logger.Info("task received", "task", shortID(task.ID), "issue", task.IssueID)
+				taskTarget := task.IssueID
+				if taskTarget == "" && task.ChatSessionID != "" {
+					taskTarget = "chat:" + shortID(task.ChatSessionID)
+				}
+				d.logger.Info("task received", "task", shortID(task.ID), "target", taskTarget)
 				wg.Add(1)
 				go func(t Task) {
 					defer wg.Done()
@@ -670,7 +780,11 @@ func (d *Daemon) handleTask(ctx context.Context, task Task) {
 	if task.Agent != nil {
 		agentName = task.Agent.Name
 	}
-	taskLog.Info("picked task", "issue", task.IssueID, "agent", agentName, "provider", provider)
+	if task.ChatSessionID != "" {
+		taskLog.Info("picked chat task", "chat_session", shortID(task.ChatSessionID), "agent", agentName, "provider", provider)
+	} else {
+		taskLog.Info("picked task", "issue", task.IssueID, "agent", agentName, "provider", provider)
+	}
 
 	if err := d.client.StartTask(ctx, task.ID); err != nil {
 		taskLog.Error("start task failed", "error", err)
@@ -735,6 +849,13 @@ func (d *Daemon) handleTask(ctx context.Context, task Task) {
 		return
 	}
 
+	// Report usage independently so it's captured even for failed/blocked tasks.
+	if len(result.Usage) > 0 {
+		if err := d.client.ReportTaskUsage(ctx, task.ID, result.Usage); err != nil {
+			taskLog.Warn("report task usage failed", "error", err)
+		}
+	}
+
 	switch result.Status {
 	case "blocked":
 		if err := d.client.FailTask(ctx, task.ID, result.Comment); err != nil {
@@ -776,6 +897,7 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, taskLo
 		AgentInstructions: instructions,
 		AgentSkills:       convertSkillsForEnv(skills),
 		Repos:             convertReposForEnv(task.Repos),
+		ChatSessionID:     task.ChatSessionID,
 	}
 
 	// Try to reuse the workdir from a previous task on the same (agent, issue) pair.
@@ -818,6 +940,14 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, taskLo
 		"MULTICA_AGENT_NAME":   agentName,
 		"MULTICA_AGENT_ID":     task.AgentID,
 		"MULTICA_TASK_ID":      task.ID,
+	}
+	// Ensure the multica CLI is on PATH inside the agent's environment.
+	// Some runtimes (e.g. Codex) run in an isolated sandbox that may not
+	// inherit the daemon's PATH. Prepend the directory of the running
+	// multica binary so that `multica` commands in the agent always resolve.
+	if selfBin, err := os.Executable(); err == nil {
+		binDir := filepath.Dir(selfBin)
+		agentEnv["PATH"] = binDir + string(os.PathListSeparator) + os.Getenv("PATH")
 	}
 	// Point Codex to the per-task CODEX_HOME so it discovers skills natively
 	// without polluting the system ~/.codex/skills/.
@@ -995,6 +1125,22 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, taskLo
 		"tools", toolCount.Load(),
 	)
 
+	// Convert agent usage map to task usage entries.
+	var usageEntries []TaskUsageEntry
+	for model, u := range result.Usage {
+		if u.InputTokens == 0 && u.OutputTokens == 0 && u.CacheReadTokens == 0 && u.CacheWriteTokens == 0 {
+			continue
+		}
+		usageEntries = append(usageEntries, TaskUsageEntry{
+			Provider:         provider,
+			Model:            model,
+			InputTokens:      u.InputTokens,
+			OutputTokens:     u.OutputTokens,
+			CacheReadTokens:  u.CacheReadTokens,
+			CacheWriteTokens: u.CacheWriteTokens,
+		})
+	}
+
 	switch result.Status {
 	case "completed":
 		if result.Output == "" {
@@ -1005,6 +1151,7 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, taskLo
 			Comment:   result.Output,
 			SessionID: result.SessionID,
 			WorkDir:   env.WorkDir,
+			Usage:     usageEntries,
 		}, nil
 	case "timeout":
 		return TaskResult{}, fmt.Errorf("%s timed out after %s", provider, d.cfg.AgentTimeout)
@@ -1013,7 +1160,7 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, taskLo
 		if errMsg == "" {
 			errMsg = fmt.Sprintf("%s execution %s", provider, result.Status)
 		}
-		return TaskResult{Status: "blocked", Comment: errMsg}, nil
+		return TaskResult{Status: "blocked", Comment: errMsg, Usage: usageEntries}, nil
 	}
 }
 

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -76,6 +75,26 @@ func TestCommentMentionsOthersButNotAssignee(t *testing.T) {
 			content: fmt.Sprintf("[@Agent](mention://agent/%s) and [@Other](mention://agent/%s)", agentAssigneeID, otherAgentID),
 			want:    false,
 		},
+		{
+			name:    "@all mention → suppress (broadcast, not directed at agent)",
+			content: "[@All](mention://all/all) heads up everyone",
+			want:    true,
+		},
+		{
+			name:    "@all with assignee mention → suppress (@all takes precedence)",
+			content: fmt.Sprintf("[@All](mention://all/all) [@Agent](mention://agent/%s) fyi", agentAssigneeID),
+			want:    true,
+		},
+		{
+			name:    "issue mention only → allow trigger (cross-reference, not @person)",
+			content: "[PAN-1](mention://issue/44c266e7-f6dd-4be3-9140-5ac40233f79c) is related",
+			want:    false,
+		},
+		{
+			name:    "issue mention + other agent → suppress (agent mention matters)",
+			content: fmt.Sprintf("[PAN-1](mention://issue/44c266e7-f6dd-4be3-9140-5ac40233f79c) cc [@Other](mention://agent/%s)", otherAgentID),
+			want:    true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -107,8 +126,20 @@ func TestIsReplyToMemberThread(t *testing.T) {
 	h := &Handler{}
 	issue := issueWithAgentAssignee()
 
-	memberParent := &db.Comment{AuthorType: "member", AuthorID: testUUID(memberID)}
-	agentParent := &db.Comment{AuthorType: "agent", AuthorID: testUUID(agentAssigneeID)}
+	memberParent := &db.Comment{AuthorType: "member", AuthorID: testUUID(memberID), Content: "plain thread starter"}
+	agentParent := &db.Comment{AuthorType: "agent", AuthorID: testUUID(agentAssigneeID), Content: "agent thread starter"}
+	// Member-started thread root that @mentions the assignee agent.
+	memberParentMentioningAssignee := &db.Comment{
+		AuthorType: "member",
+		AuthorID:   testUUID(memberID),
+		Content:    fmt.Sprintf("[@Agent](mention://agent/%s) can you look at this?", agentAssigneeID),
+	}
+	// Member-started thread root that @mentions a non-assignee agent.
+	memberParentMentioningOther := &db.Comment{
+		AuthorType: "member",
+		AuthorID:   testUUID(memberID),
+		Content:    fmt.Sprintf("[@Other](mention://agent/%s) what do you think?", otherAgentID),
+	}
 
 	tests := []struct {
 		name    string
@@ -158,6 +189,18 @@ func TestIsReplyToMemberThread(t *testing.T) {
 			content: fmt.Sprintf("[@Other](mention://agent/%s) take a look", otherAgentID),
 			want:    true,
 		},
+		{
+			name:    "reply to member thread that @mentioned assignee, no re-mention → allow",
+			parent:  memberParentMentioningAssignee,
+			content: "here is more context for you",
+			want:    false,
+		},
+		{
+			name:    "reply to member thread that @mentioned other agent, no re-mention → suppress",
+			parent:  memberParentMentioningOther,
+			content: "here is more context",
+			want:    true, // parent mentioned other agent, not assignee — still suppress on_comment
+		},
 	}
 
 	for _, tt := range tests {
@@ -178,8 +221,13 @@ func TestOnCommentTriggerDecision(t *testing.T) {
 	h := &Handler{}
 	issue := issueWithAgentAssignee()
 
-	memberParent := &db.Comment{AuthorType: "member", AuthorID: testUUID(memberID)}
-	agentParent := &db.Comment{AuthorType: "agent", AuthorID: testUUID(agentAssigneeID)}
+	memberParent := &db.Comment{AuthorType: "member", AuthorID: testUUID(memberID), Content: "plain thread starter"}
+	agentParent := &db.Comment{AuthorType: "agent", AuthorID: testUUID(agentAssigneeID), Content: "agent thread starter"}
+	memberParentMentioningAssignee := &db.Comment{
+		AuthorType: "member",
+		AuthorID:   testUUID(memberID),
+		Content:    fmt.Sprintf("[@Agent](mention://agent/%s) help me", agentAssigneeID),
+	}
 
 	// Simulates the combined check from CreateComment:
 	//   !commentMentionsOthersButNotAssignee && !isReplyToMemberThread
@@ -203,6 +251,10 @@ func TestOnCommentTriggerDecision(t *testing.T) {
 		{"reply member thread, no mention", memberParent, "agreed", false},
 		{"reply member thread, mention other member", memberParent, fmt.Sprintf("[@Bob](mention://member/%s) ok", memberID), false},
 		{"reply member thread, mention assignee", memberParent, fmt.Sprintf("[@Agent](mention://agent/%s) help", agentAssigneeID), true},
+		{"reply member thread that @mentioned assignee, no re-mention", memberParentMentioningAssignee, "here is more info", true},
+		{"top-level, @all broadcast", nil, "[@All](mention://all/all) heads up team", false},
+		{"reply agent thread, @all broadcast", agentParent, "[@All](mention://all/all) update for everyone", false},
+		{"reply member thread, @all broadcast", memberParent, "[@All](mention://all/all) fyi", false},
 	}
 
 	for _, tt := range tests {
@@ -215,119 +267,3 @@ func TestOnCommentTriggerDecision(t *testing.T) {
 	}
 }
 
-// -------------------------------------------------------------------
-// agentHasTriggerEnabled
-// -------------------------------------------------------------------
-
-func TestAgentHasTriggerEnabled(t *testing.T) {
-	tests := []struct {
-		name        string
-		raw         []byte
-		triggerType string
-		want        bool
-	}{
-		{
-			name:        "nil triggers → enabled (backwards compat)",
-			raw:         nil,
-			triggerType: "on_comment",
-			want:        true,
-		},
-		{
-			name:        "empty byte slice → enabled",
-			raw:         []byte{},
-			triggerType: "on_comment",
-			want:        true,
-		},
-		{
-			name:        "empty JSON array → enabled (backwards compat)",
-			raw:         []byte("[]"),
-			triggerType: "on_comment",
-			want:        true,
-		},
-		{
-			name:        "on_comment explicitly enabled",
-			raw:         mustJSON([]agentTriggerSnapshot{{Type: "on_comment", Enabled: true}}),
-			triggerType: "on_comment",
-			want:        true,
-		},
-		{
-			name:        "on_comment explicitly disabled",
-			raw:         mustJSON([]agentTriggerSnapshot{{Type: "on_comment", Enabled: false}}),
-			triggerType: "on_comment",
-			want:        false,
-		},
-		{
-			name:        "on_mention not configured but others are → enabled by default",
-			raw:         mustJSON([]agentTriggerSnapshot{{Type: "on_comment", Enabled: true}}),
-			triggerType: "on_mention",
-			want:        true,
-		},
-		{
-			name:        "invalid JSON → disabled (fail safe)",
-			raw:         []byte("{bad json"),
-			triggerType: "on_comment",
-			want:        false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := agentHasTriggerEnabled(tt.raw, tt.triggerType)
-			if got != tt.want {
-				t.Errorf("agentHasTriggerEnabled() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-// -------------------------------------------------------------------
-// defaultAgentTriggers
-// -------------------------------------------------------------------
-
-func TestDefaultAgentTriggers(t *testing.T) {
-	raw := defaultAgentTriggers()
-
-	var triggers []agentTriggerSnapshot
-	if err := json.Unmarshal(raw, &triggers); err != nil {
-		t.Fatalf("failed to unmarshal default triggers: %v", err)
-	}
-
-	if len(triggers) != 3 {
-		t.Fatalf("expected 3 default triggers, got %d", len(triggers))
-	}
-
-	expected := map[string]bool{
-		"on_assign":  true,
-		"on_comment": true,
-		"on_mention": true,
-	}
-	for _, tr := range triggers {
-		want, ok := expected[tr.Type]
-		if !ok {
-			t.Errorf("unexpected trigger type: %s", tr.Type)
-			continue
-		}
-		if tr.Enabled != want {
-			t.Errorf("trigger %s: enabled = %v, want %v", tr.Type, tr.Enabled, want)
-		}
-		delete(expected, tr.Type)
-	}
-	for typ := range expected {
-		t.Errorf("missing trigger type: %s", typ)
-	}
-
-	// Verify all triggers are enabled via agentHasTriggerEnabled
-	for _, typ := range []string{"on_assign", "on_comment", "on_mention"} {
-		if !agentHasTriggerEnabled(raw, typ) {
-			t.Errorf("agentHasTriggerEnabled(default, %q) = false, want true", typ)
-		}
-	}
-}
-
-func mustJSON(v any) []byte {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}

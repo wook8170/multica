@@ -23,7 +23,7 @@ import (
 
 var daemonCmd = &cobra.Command{
 	Use:   "daemon",
-	Short: "Manage the local agent runtime daemon",
+	Short: "Control the local agent runtime daemon",
 }
 
 var daemonStartCmd = &cobra.Command{
@@ -163,13 +163,14 @@ func runDaemonBackground(cmd *cobra.Command) error {
 		return fmt.Errorf("start daemon: %w", err)
 	}
 	logFile.Close()
+	pid := child.Process.Pid
 
 	// Detach: we don't Wait() on the child — it runs independently.
 	child.Process.Release()
 
 	// Write PID file.
 	pidPath := daemonPIDPathForProfile(profile)
-	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(child.Process.Pid)), 0o644); err != nil {
+	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(pid)), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not write PID file: %v\n", err)
 	}
 
@@ -184,9 +185,9 @@ func runDaemonBackground(cmd *cobra.Command) error {
 	}
 
 	if profile != "" {
-		fmt.Fprintf(os.Stderr, "Daemon [%s] started (pid %d)\n", profile, child.Process.Pid)
+		fmt.Fprintf(os.Stderr, "Daemon [%s] started (pid %d, version %s)\n", profile, pid, version)
 	} else {
-		fmt.Fprintf(os.Stderr, "Daemon started (pid %d)\n", child.Process.Pid)
+		fmt.Fprintf(os.Stderr, "Daemon started (pid %d, version %s)\n", pid, version)
 	}
 	fmt.Fprintf(os.Stderr, "Logs: %s\n", logPath)
 	return nil
@@ -263,6 +264,7 @@ func runDaemonForeground(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
+	cfg.CLIVersion = version
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -280,6 +282,39 @@ func runDaemonForeground(cmd *cobra.Command) error {
 	if err := d.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
+
+	// Check if the daemon needs to restart after a CLI update.
+	if restartBin := d.RestartBinary(); restartBin != "" {
+		logger.Info("restarting daemon with updated binary", "path", restartBin)
+
+		args := buildDaemonStartArgs(cmd)
+		child := exec.Command(restartBin, args...)
+
+		logPath := daemonLogPathForProfile(profile)
+		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		if err != nil {
+			logger.Error("failed to open log file for restart", "error", err)
+			return nil
+		}
+		child.Stdout = logFile
+		child.Stderr = logFile
+		child.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+		if err := child.Start(); err != nil {
+			logFile.Close()
+			logger.Error("failed to start new daemon", "error", err)
+			return nil
+		}
+		logFile.Close()
+		child.Process.Release()
+
+		// Write new PID file.
+		pidPath := daemonPIDPathForProfile(profile)
+		os.WriteFile(pidPath, []byte(strconv.Itoa(child.Process.Pid)), 0o644)
+
+		logger.Info("new daemon started", "pid", child.Process.Pid)
+	}
+
 	return nil
 }
 

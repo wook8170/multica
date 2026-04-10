@@ -1,5 +1,10 @@
 -- name: ListAgents :many
 SELECT * FROM agent
+WHERE workspace_id = $1 AND archived_at IS NULL
+ORDER BY created_at ASC;
+
+-- name: ListAllAgents :many
+SELECT * FROM agent
 WHERE workspace_id = $1
 ORDER BY created_at ASC;
 
@@ -15,8 +20,8 @@ WHERE id = $1 AND workspace_id = $2;
 INSERT INTO agent (
     workspace_id, name, description, avatar_url, runtime_mode,
     runtime_config, runtime_id, visibility, max_concurrent_tasks, owner_id,
-    tools, triggers, instructions
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    instructions
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING *;
 
 -- name: UpdateAgent :one
@@ -30,15 +35,20 @@ UPDATE agent SET
     visibility = COALESCE(sqlc.narg('visibility'), visibility),
     status = COALESCE(sqlc.narg('status'), status),
     max_concurrent_tasks = COALESCE(sqlc.narg('max_concurrent_tasks'), max_concurrent_tasks),
-    tools = COALESCE(sqlc.narg('tools'), tools),
-    triggers = COALESCE(sqlc.narg('triggers'), triggers),
     instructions = COALESCE(sqlc.narg('instructions'), instructions),
     updated_at = now()
 WHERE id = $1
 RETURNING *;
 
--- name: DeleteAgent :exec
-DELETE FROM agent WHERE id = $1;
+-- name: ArchiveAgent :one
+UPDATE agent SET archived_at = now(), archived_by = $2, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: RestoreAgent :one
+UPDATE agent SET archived_at = NULL, archived_by = NULL, updated_at = now()
+WHERE id = $1
+RETURNING *;
 
 -- name: ListAgentTasks :many
 SELECT * FROM agent_task_queue
@@ -55,16 +65,35 @@ UPDATE agent_task_queue
 SET status = 'cancelled'
 WHERE issue_id = $1 AND status IN ('queued', 'dispatched', 'running');
 
+-- name: CancelAgentTasksByAgent :exec
+UPDATE agent_task_queue
+SET status = 'cancelled'
+WHERE agent_id = $1 AND status IN ('queued', 'dispatched', 'running');
+
 -- name: GetAgentTask :one
 SELECT * FROM agent_task_queue
 WHERE id = $1;
 
 -- name: ClaimAgentTask :one
+-- Claims the next queued task for an agent, enforcing per-(issue, agent) serialization:
+-- a task is only claimable when no other task for the same issue AND same agent is
+-- already dispatched or running. This allows different agents to work on the same
+-- issue in parallel while preventing a single agent from running duplicate tasks.
+-- Chat tasks (issue_id IS NULL) use chat_session_id for serialization instead.
 UPDATE agent_task_queue
 SET status = 'dispatched', dispatched_at = now()
 WHERE id = (
     SELECT atq.id FROM agent_task_queue atq
     WHERE atq.agent_id = $1 AND atq.status = 'queued'
+      AND NOT EXISTS (
+          SELECT 1 FROM agent_task_queue active
+          WHERE active.agent_id = atq.agent_id
+            AND active.status IN ('dispatched', 'running')
+            AND (
+              (atq.issue_id IS NOT NULL AND active.issue_id = atq.issue_id)
+              OR (atq.chat_session_id IS NOT NULL AND active.chat_session_id = atq.chat_session_id)
+            )
+      )
     ORDER BY atq.priority DESC, atq.created_at ASC
     LIMIT 1
     FOR UPDATE SKIP LOCKED

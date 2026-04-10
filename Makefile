@@ -1,4 +1,4 @@
-.PHONY: dev daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down storage-up storage-down
+.PHONY: dev server daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down
 
 MAIN_ENV_FILE ?= .env
 WORKTREE_ENV_FILE ?= .env.worktree
@@ -45,7 +45,6 @@ setup:
 	@echo "==> Installing dependencies..."
 	pnpm install
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
-	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
 	@echo "==> Running migrations..."
 	cd server && go run ./cmd/migrate up
 	@echo ""
@@ -58,7 +57,6 @@ start:
 	@echo "Backend: http://localhost:$(PORT)"
 	@echo "Frontend: http://localhost:$(FRONTEND_PORT)"
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
-	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
 	@echo "Starting backend and frontend..."
 	@trap 'kill 0' EXIT; \
 		(cd server && go run ./cmd/server) & \
@@ -71,7 +69,12 @@ stop:
 	@echo "Stopping services..."
 	@-lsof -ti:$(PORT) | xargs kill -9 2>/dev/null
 	@-lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null
-	@echo "✓ App processes stopped. Shared PostgreSQL is still running on localhost:5432."
+	@case "$(DATABASE_URL)" in \
+		""|*@localhost:*|*@localhost/*|*@127.0.0.1:*|*@127.0.0.1/*|*@\[::1\]:*|*@\[::1\]/*) \
+			echo "✓ App processes stopped. Shared PostgreSQL is still running on localhost:$(POSTGRES_PORT)." ;; \
+		*) \
+			echo "✓ App processes stopped. Remote PostgreSQL was not affected." ;; \
+	esac
 
 # Full verification: typecheck + unit tests + Go tests + E2E
 check:
@@ -83,12 +86,6 @@ db-up:
 
 db-down:
 	@$(COMPOSE) down
-
-storage-up:
-	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
-
-storage-down:
-	@$(COMPOSE) stop minio minio-init
 
 worktree-env:
 	@bash scripts/init-worktree-env.sh .env.worktree
@@ -106,8 +103,12 @@ check-main:
 	@ENV_FILE=$(MAIN_ENV_FILE) bash scripts/check.sh
 
 setup-worktree:
-	@echo "==> Generating $(WORKTREE_ENV_FILE) with unique ports..."
-	@FORCE=1 bash scripts/init-worktree-env.sh $(WORKTREE_ENV_FILE)
+	@if [ ! -f "$(WORKTREE_ENV_FILE)" ]; then \
+		echo "==> Generating $(WORKTREE_ENV_FILE) with unique ports..."; \
+		bash scripts/init-worktree-env.sh $(WORKTREE_ENV_FILE); \
+	else \
+		echo "==> Using existing $(WORKTREE_ENV_FILE)"; \
+	fi
 	@$(MAKE) setup ENV_FILE=$(WORKTREE_ENV_FILE)
 
 start-worktree:
@@ -121,8 +122,12 @@ check-worktree:
 
 # ---------- Individual commands ----------
 
-# Go server
+# One-command dev: auto-setup env/deps/db/migrations, then start all services
 dev:
+	@bash scripts/dev.sh
+
+# Go server only
+server:
 	$(REQUIRE_ENV)
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
 	cd server && go run ./cmd/server
@@ -142,10 +147,12 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 build:
 	cd server && go build -o bin/server ./cmd/server
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)" -o bin/multica ./cmd/multica
+	cd server && go build -o bin/migrate ./cmd/migrate
 
 test:
 	$(REQUIRE_ENV)
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	cd server && go run ./cmd/migrate up
 	cd server && go test ./...
 
 # Database

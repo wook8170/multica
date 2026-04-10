@@ -2,8 +2,6 @@ package handler
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,43 +11,23 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
-const maxUploadSize = 10 << 20 // 10 MB
-
-// Allowed MIME type prefixes and exact types for uploads.
-var allowedContentTypes = map[string]bool{
-	"image/png":        true,
-	"image/jpeg":       true,
-	"image/gif":        true,
-	"image/webp":       true,
-	"image/svg+xml":    true,
-	"application/pdf":  true,
-	"text/plain":       true,
-	"text/csv":         true,
-	"application/json": true,
-	"video/mp4":        true,
-	"video/webm":       true,
-	"audio/mpeg":       true,
-	"audio/wav":        true,
-	"application/zip":  true,
-	// Microsoft Office documents
-	"application/vnd.ms-excel":                                             true, // .xls
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":    true, // .xlsx
-	"application/msword":                                                   true, // .doc
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true, // .docx
-	"application/vnd.ms-powerpoint":                                        true, // .ppt
-	"application/vnd.openxmlformats-officedocument.presentationml.presentation": true, // .pptx
+// extContentTypes overrides http.DetectContentType for extensions it gets wrong.
+// Go's sniffer returns text/xml for SVG, text/plain for CSS/JS, etc.
+var extContentTypes = map[string]string{
+	".svg":  "image/svg+xml",
+	".css":  "text/css",
+	".js":   "application/javascript",
+	".mjs":  "application/javascript",
+	".json": "application/json",
+	".wasm": "application/wasm",
 }
 
-func isContentTypeAllowed(ct string) bool {
-	// Normalize: take only the media type, strip parameters like charset.
-	ct = strings.TrimSpace(strings.SplitN(ct, ";", 2)[0])
-	ct = strings.ToLower(ct)
-	return allowedContentTypes[ct]
-}
+const maxUploadSize = 100 << 20 // 100 MB
 
 // ---------------------------------------------------------------------------
 // Response types
@@ -84,7 +62,7 @@ func (h *Handler) attachmentToResponse(a db.Attachment) AttachmentResponse {
 		CreatedAt:    a.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 	}
 	if h.CFSigner != nil {
-		resp.DownloadURL = h.CFSigner.SignedURL(a.Url, time.Now().Add(5*time.Minute))
+		resp.DownloadURL = h.CFSigner.SignedURL(a.Url, time.Now().Add(30*time.Minute))
 	}
 	if a.IssueID.Valid {
 		s := uuidToString(a.IssueID)
@@ -155,9 +133,9 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	contentType := http.DetectContentType(buf[:n])
-	if !isContentTypeAllowed(contentType) {
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("file type not allowed: %s", contentType))
-		return
+	// Override with extension-based type when the sniffer gets it wrong.
+	if ct, ok := extContentTypes[strings.ToLower(path.Ext(header.Filename))]; ok {
+		contentType = ct
 	}
 	// Seek back so the full file is uploaded.
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
@@ -171,13 +149,14 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		slog.Error("failed to generate file key", "error", err)
+	// Generate a UUIDv7 to use as both the attachment ID and S3 key.
+	id, err := uuid.NewV7()
+	if err != nil {
+		slog.Error("failed to generate uuid", "error", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	key := hex.EncodeToString(b) + path.Ext(header.Filename)
+	key := id.String() + path.Ext(header.Filename)
 
 	link, err := h.Storage.Upload(r.Context(), key, data, contentType, header.Filename)
 	if err != nil {
@@ -191,6 +170,7 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		uploaderType, uploaderID := h.resolveActor(r, userID, workspaceID)
 
 		params := db.CreateAttachmentParams{
+			ID:           pgtype.UUID{Bytes: id, Valid: true},
 			WorkspaceID:  parseUUID(workspaceID),
 			UploaderType: uploaderType,
 			UploaderID:   parseUUID(uploaderID),
@@ -255,6 +235,30 @@ func (h *Handler) ListAttachments(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---------------------------------------------------------------------------
+// GetAttachmentByID — GET /api/attachments/{id}
+// ---------------------------------------------------------------------------
+
+func (h *Handler) GetAttachmentByID(w http.ResponseWriter, r *http.Request) {
+	attachmentID := chi.URLParam(r, "id")
+	workspaceID := resolveWorkspaceID(r)
+	if workspaceID == "" {
+		writeError(w, http.StatusBadRequest, "workspace_id is required")
+		return
+	}
+
+	att, err := h.Queries.GetAttachment(r.Context(), db.GetAttachmentParams{
+		ID:          parseUUID(attachmentID),
+		WorkspaceID: parseUUID(workspaceID),
+	})
+	if err != nil {
+		writeError(w, http.StatusNotFound, "attachment not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, h.attachmentToResponse(att))
+}
+
+// ---------------------------------------------------------------------------
 // DeleteAttachment — DELETE /api/attachments/{id}
 // ---------------------------------------------------------------------------
 
@@ -307,6 +311,22 @@ func (h *Handler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 // Attachment linking
 // ---------------------------------------------------------------------------
+
+// linkAttachmentsByIssueIDs links the given attachment IDs to an issue.
+// Only updates attachments that have no issue_id yet.
+func (h *Handler) linkAttachmentsByIssueIDs(ctx context.Context, issueID, workspaceID pgtype.UUID, ids []string) {
+	uuids := make([]pgtype.UUID, len(ids))
+	for i, id := range ids {
+		uuids[i] = parseUUID(id)
+	}
+	if err := h.Queries.LinkAttachmentsToIssue(ctx, db.LinkAttachmentsToIssueParams{
+		IssueID:     issueID,
+		WorkspaceID: workspaceID,
+		Column3:     uuids,
+	}); err != nil {
+		slog.Error("failed to link attachments to issue", "error", err)
+	}
+}
 
 // linkAttachmentsByIDs links the given attachment IDs to a comment.
 // Only updates attachments that belong to the same issue and have no comment_id yet.

@@ -17,9 +17,10 @@ const (
 	EventIssueReactionRemoved   = "issue_reaction:removed"
 
 	// Agent events
-	EventAgentStatus  = "agent:status"
-	EventAgentCreated = "agent:created"
-	EventAgentDeleted = "agent:deleted"
+	EventAgentStatus   = "agent:status"
+	EventAgentCreated  = "agent:created"
+	EventAgentArchived = "agent:archived"
+	EventAgentRestored = "agent:restored"
 
 	// Task events (server <-> daemon)
 	EventTaskDispatch  = "task:dispatch"
@@ -56,6 +57,19 @@ const (
 	EventSkillCreated = "skill:created"
 	EventSkillUpdated = "skill:updated"
 	EventSkillDeleted = "skill:deleted"
+
+	// Chat events
+	EventChatMessage = "chat:message"
+	EventChatDone    = "chat:done"
+
+	// Project events
+	EventProjectCreated = "project:created"
+	EventProjectUpdated = "project:updated"
+	EventProjectDeleted = "project:deleted"
+
+	// Pin events
+	EventPinCreated = "pin:created"
+	EventPinDeleted = "pin:deleted"
 
 	// Daemon events
 	EventDaemonHeartbeat = "daemon:heartbeat"

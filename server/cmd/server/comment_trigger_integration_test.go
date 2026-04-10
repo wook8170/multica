@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,14 +14,10 @@ import (
 // causing the server to resolve the actor as an agent instead of a member.
 func authRequestWithAgent(t *testing.T, method, path string, body any, agentID string) *http.Response {
 	t.Helper()
-	resp := authRequest(t, method, path, body)
-	// We can't add headers after authRequest, so we build it manually:
-	resp.Body.Close()
-
 	var bodyReader io.Reader
 	if body != nil {
 		b, _ := json.Marshal(body)
-		bodyReader = &readCloserWrapper{data: b}
+		bodyReader = bytes.NewReader(b)
 	}
 	req, err := http.NewRequest(method, testServer.URL+path, bodyReader)
 	if err != nil {
@@ -36,20 +33,6 @@ func authRequestWithAgent(t *testing.T, method, path string, body any, agentID s
 		t.Fatalf("request failed: %v", err)
 	}
 	return r
-}
-
-type readCloserWrapper struct {
-	data []byte
-	pos  int
-}
-
-func (r *readCloserWrapper) Read(p []byte) (int, error) {
-	if r.pos >= len(r.data) {
-		return 0, io.EOF
-	}
-	n := copy(p, r.data[r.pos:])
-	r.pos += n
-	return n, nil
 }
 
 // countPendingTasks returns the number of queued/dispatched tasks for an issue.
@@ -247,6 +230,49 @@ func TestCommentTriggerOnComment(t *testing.T) {
 			t.Errorf("expected 1 pending task (assignee mentioned in member thread), got %d", n)
 		}
 	})
+
+	t.Run("reply to member thread that @mentioned assignee triggers without re-mention", func(t *testing.T) {
+		clearTasks(t, issueID)
+		// Member starts a thread that @mentions the assignee agent.
+		content := fmt.Sprintf("[@Agent](mention://agent/%s) can you review this?", agentID)
+		threadID := postComment(t, issueID, content, nil)
+		// Clear the task created by the top-level mention.
+		clearTasks(t, issueID)
+		// Reply in the thread WITHOUT re-mentioning the assignee.
+		postComment(t, issueID, "Here is more context for you", strPtr(threadID))
+		if n := countPendingTasks(t, issueID); n != 1 {
+			t.Errorf("expected 1 pending task (assignee mentioned in thread root), got %d", n)
+		}
+	})
+}
+
+// TestCommentTriggerAtAllSuppression verifies that @all mentions do not
+// trigger agent execution — @all is a broadcast, not a direct request.
+func TestCommentTriggerAtAllSuppression(t *testing.T) {
+	agentID := getAgentID(t)
+	issueID := createIssueAssignedToAgent(t, "@all suppression test", agentID)
+	t.Cleanup(func() {
+		clearTasks(t, issueID)
+		resp := authRequest(t, "DELETE", "/api/issues/"+issueID, nil)
+		resp.Body.Close()
+	})
+
+	t.Run("top-level @all comment suppresses on_comment", func(t *testing.T) {
+		clearTasks(t, issueID)
+		postComment(t, issueID, "[@All](mention://all/all) heads up everyone", nil)
+		if n := countPendingTasks(t, issueID); n != 0 {
+			t.Errorf("expected 0 pending tasks (@all should not trigger agent), got %d", n)
+		}
+	})
+
+	t.Run("@all in agent thread suppresses on_comment", func(t *testing.T) {
+		clearTasks(t, issueID)
+		threadID := postCommentAsAgent(t, issueID, "Here is my analysis.", agentID, nil)
+		postComment(t, issueID, "[@All](mention://all/all) FYI for the team", strPtr(threadID))
+		if n := countPendingTasks(t, issueID); n != 0 {
+			t.Errorf("expected 0 pending tasks (@all in agent thread), got %d", n)
+		}
+	})
 }
 
 // TestCommentTriggerOnAssignNoStatusGate verifies that assigning an agent to
@@ -311,6 +337,80 @@ func TestCommentTriggerOnMentionNoStatusGate(t *testing.T) {
 	}
 }
 
+// TestCommentTriggerThreadInheritedMention verifies that when a top-level
+// comment @mentions an agent (not the assignee), replies in that thread
+// also trigger the mentioned agent — even without explicitly re-mentioning it.
+func TestCommentTriggerThreadInheritedMention(t *testing.T) {
+	agentID := getAgentID(t)
+
+	// Create an issue NOT assigned to the agent, so on_comment won't fire.
+	issueID := createIssue(t, "Thread-inherited mention test")
+	t.Cleanup(func() {
+		clearTasks(t, issueID)
+		resp := authRequest(t, "DELETE", "/api/issues/"+issueID, nil)
+		resp.Body.Close()
+	})
+
+	t.Run("reply in thread inherits parent mention", func(t *testing.T) {
+		clearTasks(t, issueID)
+		// Top-level comment @mentions the agent.
+		content := fmt.Sprintf("[@Agent](mention://agent/%s) can you review this?", agentID)
+		threadID := postComment(t, issueID, content, nil)
+		if n := countPendingTasks(t, issueID); n != 1 {
+			t.Fatalf("expected 1 pending task after initial mention, got %d", n)
+		}
+		// Clear the task so we can test the reply independently.
+		clearTasks(t, issueID)
+		// Reply in the thread WITHOUT mentioning the agent.
+		postComment(t, issueID, "Here is more context for you", strPtr(threadID))
+		if n := countPendingTasks(t, issueID); n != 1 {
+			t.Errorf("expected 1 pending task from thread-inherited mention, got %d", n)
+		}
+	})
+
+	t.Run("reply does not double-trigger when re-mentioning same agent", func(t *testing.T) {
+		clearTasks(t, issueID)
+		// Top-level comment @mentions the agent.
+		content := fmt.Sprintf("[@Agent](mention://agent/%s) help", agentID)
+		threadID := postComment(t, issueID, content, nil)
+		clearTasks(t, issueID)
+		// Reply also @mentions the same agent — should still be just 1 task.
+		reply := fmt.Sprintf("[@Agent](mention://agent/%s) any update?", agentID)
+		postComment(t, issueID, reply, strPtr(threadID))
+		if n := countPendingTasks(t, issueID); n != 1 {
+			t.Errorf("expected 1 pending task (no duplicate), got %d", n)
+		}
+	})
+
+	t.Run("reply mentioning only a member does not inherit agent mention", func(t *testing.T) {
+		clearTasks(t, issueID)
+		// Top-level comment @mentions the agent.
+		content := fmt.Sprintf("[@Agent](mention://agent/%s) can you help?", agentID)
+		threadID := postComment(t, issueID, content, nil)
+		clearTasks(t, issueID)
+		// Reply mentions only a member — should NOT inherit parent's agent mention.
+		reply := fmt.Sprintf("cc [@Someone](mention://member/%s)", testUserID)
+		postComment(t, issueID, reply, strPtr(threadID))
+		if n := countPendingTasks(t, issueID); n != 0 {
+			t.Errorf("expected 0 pending tasks (member-only reply should not inherit agent mention), got %d", n)
+		}
+	})
+
+	t.Run("reply mentioning agent and member still inherits", func(t *testing.T) {
+		clearTasks(t, issueID)
+		// Top-level comment @mentions the agent.
+		content := fmt.Sprintf("[@Agent](mention://agent/%s) review this", agentID)
+		threadID := postComment(t, issueID, content, nil)
+		clearTasks(t, issueID)
+		// Reply mentions both agent and member — should still trigger.
+		reply := fmt.Sprintf("[@Agent](mention://agent/%s) and cc [@Someone](mention://member/%s)", agentID, testUserID)
+		postComment(t, issueID, reply, strPtr(threadID))
+		if n := countPendingTasks(t, issueID); n != 1 {
+			t.Errorf("expected 1 pending task (reply mentions agent explicitly), got %d", n)
+		}
+	})
+}
+
 // TestCommentTriggerCoalescing verifies that rapid-fire comments don't create
 // duplicate tasks (coalescing dedup).
 func TestCommentTriggerCoalescing(t *testing.T) {
@@ -328,5 +428,35 @@ func TestCommentTriggerCoalescing(t *testing.T) {
 
 	if n := countPendingTasks(t, issueID); n != 1 {
 		t.Errorf("expected 1 pending task (coalescing), got %d", n)
+	}
+}
+
+// TestCommentTriggerMentionAssigneeDoneIssue verifies that @mentioning the
+// assigned agent on a done issue still triggers execution. Previously the
+// assignee was unconditionally skipped in the mention path (assuming
+// on_comment handled it), but on_comment is suppressed for terminal statuses.
+func TestCommentTriggerMentionAssigneeDoneIssue(t *testing.T) {
+	agentID := getAgentID(t)
+
+	// Create an issue assigned to the agent, then mark it done.
+	issueID := createIssueAssignedToAgent(t, "Mention-assignee-done test", agentID)
+	clearTasks(t, issueID) // clear any tasks from assignment
+	resp := authRequest(t, "PUT", "/api/issues/"+issueID, map[string]any{
+		"status": "done",
+	})
+	resp.Body.Close()
+
+	t.Cleanup(func() {
+		clearTasks(t, issueID)
+		resp := authRequest(t, "DELETE", "/api/issues/"+issueID, nil)
+		resp.Body.Close()
+	})
+
+	// @mention the assigned agent on the done issue — should trigger.
+	content := fmt.Sprintf("[@Agent](mention://agent/%s) reopen this please", agentID)
+	postComment(t, issueID, content, nil)
+
+	if n := countPendingTasks(t, issueID); n != 1 {
+		t.Errorf("expected 1 pending task after @mention of assignee on done issue, got %d", n)
 	}
 }

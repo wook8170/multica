@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -22,10 +23,11 @@ type DaemonRegisterRequest struct {
 	WorkspaceID string `json:"workspace_id"`
 	DaemonID    string `json:"daemon_id"`
 	DeviceName  string `json:"device_name"`
+	CLIVersion  string `json:"cli_version"` // multica CLI version
 	Runtimes    []struct {
 		Name    string `json:"name"`
 		Type    string `json:"type"`
-		Version string `json:"version"`
+		Version string `json:"version"` // agent CLI version (claude/codex)
 		Status  string `json:"status"`
 	} `json:"runtimes"`
 }
@@ -55,7 +57,8 @@ func (h *Handler) DaemonRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify the caller is a member of the target workspace.
-	if _, ok := h.requireWorkspaceMember(w, r, req.WorkspaceID, "workspace not found"); !ok {
+	member, ok := h.requireWorkspaceMember(w, r, req.WorkspaceID, "workspace not found")
+	if !ok {
 		return
 	}
 
@@ -89,7 +92,8 @@ func (h *Handler) DaemonRegister(w http.ResponseWriter, r *http.Request) {
 			status = "offline"
 		}
 		metadata, _ := json.Marshal(map[string]any{
-			"version": runtime.Version,
+			"version":     runtime.Version,
+			"cli_version": req.CLIVersion,
 		})
 
 		registered, err := h.Queries.UpsertAgentRuntime(r.Context(), db.UpsertAgentRuntimeParams{
@@ -101,6 +105,7 @@ func (h *Handler) DaemonRegister(w http.ResponseWriter, r *http.Request) {
 			Status:      status,
 			DeviceInfo:  deviceInfo,
 			Metadata:    metadata,
+			OwnerID:     member.UserID,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to register runtime: "+err.Error())
@@ -203,6 +208,14 @@ func (h *Handler) DaemonHeartbeat(w http.ResponseWriter, r *http.Request) {
 		resp["pending_ping"] = map[string]string{"id": pending.ID}
 	}
 
+	// Check for pending update requests for this runtime.
+	if pending := h.UpdateStore.PopPending(req.RuntimeID); pending != nil {
+		resp["pending_update"] = map[string]string{
+			"id":             pending.ID,
+			"target_version": pending.TargetVersion,
+		}
+	}
+
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -236,25 +249,58 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Include workspace ID and repos so the daemon can set up worktrees.
-	if issue, err := h.Queries.GetIssue(r.Context(), task.IssueID); err == nil {
-		resp.WorkspaceID = uuidToString(issue.WorkspaceID)
-		if ws, err := h.Queries.GetWorkspace(r.Context(), issue.WorkspaceID); err == nil && ws.Repos != nil {
-			var repos []RepoData
-			if json.Unmarshal(ws.Repos, &repos) == nil && len(repos) > 0 {
-				resp.Repos = repos
+	if task.IssueID.Valid {
+		if issue, err := h.Queries.GetIssue(r.Context(), task.IssueID); err == nil {
+			resp.WorkspaceID = uuidToString(issue.WorkspaceID)
+			if ws, err := h.Queries.GetWorkspace(r.Context(), issue.WorkspaceID); err == nil && ws.Repos != nil {
+				var repos []RepoData
+				if json.Unmarshal(ws.Repos, &repos) == nil && len(repos) > 0 {
+					resp.Repos = repos
+				}
+			}
+		}
+
+		// Look up the prior session for this (agent, issue) pair so the daemon
+		// can resume the Claude Code conversation context.
+		if prior, err := h.Queries.GetLastTaskSession(r.Context(), db.GetLastTaskSessionParams{
+			AgentID: task.AgentID,
+			IssueID: task.IssueID,
+		}); err == nil && prior.SessionID.Valid {
+			resp.PriorSessionID = prior.SessionID.String
+			if prior.WorkDir.Valid {
+				resp.PriorWorkDir = prior.WorkDir.String
 			}
 		}
 	}
 
-	// Look up the prior session for this (agent, issue) pair so the daemon
-	// can resume the Claude Code conversation context.
-	if prior, err := h.Queries.GetLastTaskSession(r.Context(), db.GetLastTaskSessionParams{
-		AgentID: task.AgentID,
-		IssueID: task.IssueID,
-	}); err == nil && prior.SessionID.Valid {
-		resp.PriorSessionID = prior.SessionID.String
-		if prior.WorkDir.Valid {
-			resp.PriorWorkDir = prior.WorkDir.String
+	// Chat task: populate workspace/session info from the chat_session table.
+	if task.ChatSessionID.Valid {
+		if cs, err := h.Queries.GetChatSession(r.Context(), task.ChatSessionID); err == nil {
+			resp.WorkspaceID = uuidToString(cs.WorkspaceID)
+			resp.ChatSessionID = uuidToString(cs.ID)
+			if ws, err := h.Queries.GetWorkspace(r.Context(), cs.WorkspaceID); err == nil && ws.Repos != nil {
+				var repos []RepoData
+				if json.Unmarshal(ws.Repos, &repos) == nil && len(repos) > 0 {
+					resp.Repos = repos
+				}
+			}
+			// Resume from the chat session's persistent session.
+			if cs.SessionID.Valid {
+				resp.PriorSessionID = cs.SessionID.String
+			}
+			if cs.WorkDir.Valid {
+				resp.PriorWorkDir = cs.WorkDir.String
+			}
+			// Load the latest user message for the chat prompt.
+			if msgs, err := h.Queries.ListChatMessages(r.Context(), cs.ID); err == nil && len(msgs) > 0 {
+				// Find the last user message.
+				for i := len(msgs) - 1; i >= 0; i-- {
+					if msgs[i].Role == "user" {
+						resp.ChatMessage = msgs[i].Content
+						break
+					}
+				}
+			}
 		}
 	}
 
@@ -357,6 +403,45 @@ func (h *Handler) CompleteTask(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, taskToResponse(*task))
 }
 
+// ReportTaskUsage stores per-task token usage. Called independently of
+// complete/fail so usage is captured even when tasks fail or are blocked.
+type TaskUsagePayload struct {
+	Provider         string `json:"provider"`
+	Model            string `json:"model"`
+	InputTokens      int64  `json:"input_tokens"`
+	OutputTokens     int64  `json:"output_tokens"`
+	CacheReadTokens  int64  `json:"cache_read_tokens"`
+	CacheWriteTokens int64  `json:"cache_write_tokens"`
+}
+
+func (h *Handler) ReportTaskUsage(w http.ResponseWriter, r *http.Request) {
+	taskID := chi.URLParam(r, "taskId")
+
+	var req struct {
+		Usage []TaskUsagePayload `json:"usage"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	for _, u := range req.Usage {
+		if err := h.Queries.UpsertTaskUsage(r.Context(), db.UpsertTaskUsageParams{
+			TaskID:           parseUUID(taskID),
+			Provider:         u.Provider,
+			Model:            u.Model,
+			InputTokens:      u.InputTokens,
+			OutputTokens:     u.OutputTokens,
+			CacheReadTokens:  u.CacheReadTokens,
+			CacheWriteTokens: u.CacheWriteTokens,
+		}); err != nil {
+			slog.Warn("upsert task usage failed", "task_id", taskID, "model", u.Model, "error", err)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 // GetTaskStatus returns the current status of a task.
 // Used by the daemon to check whether a task was cancelled mid-execution.
 func (h *Handler) GetTaskStatus(w http.ResponseWriter, r *http.Request) {
@@ -432,8 +517,15 @@ func (h *Handler) ReportTaskMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	workspaceID := ""
-	if issue, err := h.Queries.GetIssue(r.Context(), task.IssueID); err == nil {
-		workspaceID = uuidToString(issue.WorkspaceID)
+	if task.IssueID.Valid {
+		if issue, err := h.Queries.GetIssue(r.Context(), task.IssueID); err == nil {
+			workspaceID = uuidToString(issue.WorkspaceID)
+		}
+	}
+	if workspaceID == "" && task.ChatSessionID.Valid {
+		if cs, err := h.Queries.GetChatSession(r.Context(), task.ChatSessionID); err == nil {
+			workspaceID = uuidToString(cs.WorkspaceID)
+		}
 	}
 
 	for _, msg := range req.Messages {
@@ -483,7 +575,20 @@ func (h *Handler) ListTaskMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	messages, err := h.Queries.ListTaskMessages(r.Context(), parseUUID(taskID))
+	var messages []db.TaskMessage
+	if sinceStr := r.URL.Query().Get("since"); sinceStr != "" {
+		sinceSeq, parseErr := strconv.Atoi(sinceStr)
+		if parseErr != nil {
+			writeError(w, http.StatusBadRequest, "invalid since parameter")
+			return
+		}
+		messages, err = h.Queries.ListTaskMessagesSince(r.Context(), db.ListTaskMessagesSinceParams{
+			TaskID: parseUUID(taskID),
+			Seq:    int32(sinceSeq),
+		})
+	} else {
+		messages, err = h.Queries.ListTaskMessages(r.Context(), parseUUID(taskID))
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list task messages")
 		return
@@ -512,17 +617,22 @@ func (h *Handler) ListTaskMessages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// GetActiveTaskForIssue returns the currently running task for an issue, if any.
+// GetActiveTaskForIssue returns all currently active tasks for an issue.
+// Returns { tasks: [...] } array (may be empty).
 func (h *Handler) GetActiveTaskForIssue(w http.ResponseWriter, r *http.Request) {
 	issueID := chi.URLParam(r, "id")
 
 	tasks, err := h.Queries.ListActiveTasksByIssue(r.Context(), parseUUID(issueID))
-	if err != nil || len(tasks) == 0 {
-		writeJSON(w, http.StatusOK, map[string]any{"task": nil})
-		return
+	if err != nil {
+		tasks = nil
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"task": taskToResponse(tasks[0])})
+	resp := make([]AgentTaskResponse, len(tasks))
+	for i, t := range tasks {
+		resp[i] = taskToResponse(t)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"tasks": resp})
 }
 
 // CancelTask cancels a running or queued task by ID.
@@ -556,4 +666,23 @@ func (h *Handler) ListTasksByIssue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// GetIssueUsage returns aggregated token usage for all tasks belonging to an issue.
+func (h *Handler) GetIssueUsage(w http.ResponseWriter, r *http.Request) {
+	issueID := chi.URLParam(r, "id")
+
+	row, err := h.Queries.GetIssueUsageSummary(r.Context(), parseUUID(issueID))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get issue usage")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"total_input_tokens":       row.TotalInputTokens,
+		"total_output_tokens":      row.TotalOutputTokens,
+		"total_cache_read_tokens":  row.TotalCacheReadTokens,
+		"total_cache_write_tokens": row.TotalCacheWriteTokens,
+		"task_count":               row.TaskCount,
+	})
 }

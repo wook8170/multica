@@ -19,8 +19,15 @@ import (
 	"github.com/multica-ai/multica/server/internal/realtime"
 	"github.com/multica-ai/multica/server/internal/service"
 	"github.com/multica-ai/multica/server/internal/storage"
+	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
+
+var defaultOrigins = []string{
+	"http://localhost:3000", // Next.js dev
+	"http://localhost:5173", // electron-vite dev
+	"http://localhost:5174", // electron-vite dev (fallback port)
+}
 
 func allowedOrigins() []string {
 	raw := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
@@ -28,7 +35,7 @@ func allowedOrigins() []string {
 		raw = strings.TrimSpace(os.Getenv("FRONTEND_ORIGIN"))
 	}
 	if raw == "" {
-		return []string{"http://localhost:3000"}
+		return defaultOrigins
 	}
 
 	parts := strings.Split(raw, ",")
@@ -40,7 +47,7 @@ func allowedOrigins() []string {
 		}
 	}
 	if len(origins) == 0 {
-		return []string{"http://localhost:3000"}
+		return defaultOrigins
 	}
 	return origins
 }
@@ -75,13 +82,15 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 
 	// WebSocket
 	mc := &membershipChecker{queries: queries}
+	pr := &patResolver{queries: queries}
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-		realtime.HandleWebSocket(hub, mc, w, r)
+		realtime.HandleWebSocket(hub, mc, pr, w, r)
 	})
 
 	// Auth (public)
 	r.Post("/auth/send-code", h.SendCode)
 	r.Post("/auth/verify-code", h.VerifyCode)
+	r.Post("/auth/google", h.GoogleLogin)
 
 	// Daemon API routes (all require a valid token)
 	r.Route("/api/daemon", func(r chi.Router) {
@@ -95,12 +104,14 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 		r.Get("/runtimes/{runtimeId}/tasks/pending", h.ListPendingTasksByRuntime)
 		r.Post("/runtimes/{runtimeId}/usage", h.ReportRuntimeUsage)
 		r.Post("/runtimes/{runtimeId}/ping/{pingId}/result", h.ReportPingResult)
+		r.Post("/runtimes/{runtimeId}/update/{updateId}/result", h.ReportUpdateResult)
 
 		r.Get("/tasks/{taskId}/status", h.GetTaskStatus)
 		r.Post("/tasks/{taskId}/start", h.StartTask)
 		r.Post("/tasks/{taskId}/progress", h.ReportTaskProgress)
 		r.Post("/tasks/{taskId}/complete", h.CompleteTask)
 		r.Post("/tasks/{taskId}/fail", h.FailTask)
+		r.Post("/tasks/{taskId}/usage", h.ReportTaskUsage)
 		r.Post("/tasks/{taskId}/messages", h.ReportTaskMessages)
 		r.Get("/tasks/{taskId}/messages", h.ListTaskMessages)
 	})
@@ -152,8 +163,12 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireWorkspaceMember(queries))
 
+			// Assignee frequency
+			r.Get("/api/assignee-frequency", h.GetAssigneeFrequency)
+
 			// Issues
 			r.Route("/api/issues", func(r chi.Router) {
+				r.Get("/search", h.SearchIssues)
 				r.Get("/", h.ListIssues)
 				r.Post("/", h.CreateIssue)
 				r.Post("/batch-update", h.BatchUpdateIssues)
@@ -171,13 +186,36 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 					r.Get("/active-task", h.GetActiveTaskForIssue)
 					r.Post("/tasks/{taskId}/cancel", h.CancelTask)
 					r.Get("/task-runs", h.ListTasksByIssue)
+					r.Get("/usage", h.GetIssueUsage)
 					r.Post("/reactions", h.AddIssueReaction)
 					r.Delete("/reactions", h.RemoveIssueReaction)
 					r.Get("/attachments", h.ListAttachments)
+					r.Get("/children", h.ListChildIssues)
 				})
 			})
 
+			// Projects
+			r.Route("/api/projects", func(r chi.Router) {
+				r.Get("/search", h.SearchProjects)
+				r.Get("/", h.ListProjects)
+				r.Post("/", h.CreateProject)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetProject)
+					r.Put("/", h.UpdateProject)
+					r.Delete("/", h.DeleteProject)
+				})
+			})
+
+			// Pins
+			r.Route("/api/pins", func(r chi.Router) {
+				r.Get("/", h.ListPins)
+				r.Post("/", h.CreatePin)
+				r.Put("/reorder", h.ReorderPins)
+				r.Delete("/{itemType}/{itemId}", h.DeletePin)
+			})
+
 			// Attachments
+			r.Get("/api/attachments/{id}", h.GetAttachmentByID)
 			r.Delete("/api/attachments/{id}", h.DeleteAttachment)
 
 			// Comments
@@ -195,7 +233,8 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", h.GetAgent)
 					r.Put("/", h.UpdateAgent)
-					r.Delete("/", h.DeleteAgent)
+					r.Post("/archive", h.ArchiveAgent)
+					r.Post("/restore", h.RestoreAgent)
 					r.Get("/tasks", h.ListAgentTasks)
 					r.Get("/skills", h.ListAgentSkills)
 					r.Put("/skills", h.SetAgentSkills)
@@ -217,13 +256,38 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 				})
 			})
 
+			// Usage
+			r.Route("/api/usage", func(r chi.Router) {
+				r.Get("/daily", h.GetWorkspaceUsageByDay)
+				r.Get("/summary", h.GetWorkspaceUsageSummary)
+			})
+
 			// Runtimes
 			r.Route("/api/runtimes", func(r chi.Router) {
 				r.Get("/", h.ListAgentRuntimes)
-				r.Get("/{runtimeId}/usage", h.GetRuntimeUsage)
-				r.Get("/{runtimeId}/activity", h.GetRuntimeTaskActivity)
-				r.Post("/{runtimeId}/ping", h.InitiatePing)
-				r.Get("/{runtimeId}/ping/{pingId}", h.GetPing)
+				r.Route("/{runtimeId}", func(r chi.Router) {
+					r.Get("/usage", h.GetRuntimeUsage)
+					r.Get("/activity", h.GetRuntimeTaskActivity)
+					r.Post("/ping", h.InitiatePing)
+					r.Get("/ping/{pingId}", h.GetPing)
+					r.Post("/update", h.InitiateUpdate)
+					r.Get("/update/{updateId}", h.GetUpdate)
+					r.Delete("/", h.DeleteAgentRuntime)
+				})
+			})
+
+			// Tasks (user-facing, with ownership check)
+			r.Post("/api/tasks/{taskId}/cancel", h.CancelTaskByUser)
+
+			r.Route("/api/chat/sessions", func(r chi.Router) {
+				r.Post("/", h.CreateChatSession)
+				r.Get("/", h.ListChatSessions)
+				r.Route("/{sessionId}", func(r chi.Router) {
+					r.Get("/", h.GetChatSession)
+					r.Delete("/", h.ArchiveChatSession)
+					r.Post("/messages", h.SendChatMessage)
+					r.Get("/messages", h.ListChatMessages)
+				})
 			})
 
 			// Inbox
@@ -254,6 +318,22 @@ func (mc *membershipChecker) IsMember(ctx context.Context, userID, workspaceID s
 		WorkspaceID: parseUUID(workspaceID),
 	})
 	return err == nil
+}
+
+// patResolver implements realtime.PATResolver using database queries.
+type patResolver struct {
+	queries *db.Queries
+}
+
+func (pr *patResolver) ResolveToken(ctx context.Context, token string) (string, bool) {
+	hash := auth.HashToken(token)
+	pat, err := pr.queries.GetPersonalAccessTokenByHash(ctx, hash)
+	if err != nil {
+		return "", false
+	}
+	// Best-effort: update last_used_at
+	go pr.queries.UpdatePersonalAccessTokenLastUsed(context.Background(), pat.ID)
+	return util.UUIDToString(pat.UserID), true
 }
 
 func parseUUID(s string) pgtype.UUID {

@@ -12,119 +12,71 @@ Multica is an AI-native task management platform — like Linear, but with AI ag
 
 ## Architecture
 
-**Go backend + standalone Next.js frontend.**
+**Go backend + monorepo frontend (pnpm workspaces + Turborepo) with shared packages.**
 
 - `server/` — Go backend (Chi router, sqlc for DB, gorilla/websocket for real-time)
-- `apps/web/` — Next.js 16 frontend (App Router) — self-contained, no shared package dependencies
+- `apps/web/` — Next.js frontend (App Router)
+- `apps/desktop/` — Electron desktop app (electron-vite)
+- `packages/core/` — Headless business logic (zero react-dom, all-platform reuse)
+- `packages/ui/` — Atomic UI components (zero business logic)
+- `packages/views/` — Shared business pages/components (zero next/* imports, zero react-router imports)
+- `packages/tsconfig/` — Shared TypeScript configuration
 
-### Web App Structure (`apps/web/`)
+### Key Architectural Decisions
 
-The frontend uses a **feature-based architecture** with four layers:
+**Internal Packages pattern** — all shared packages export raw `.ts`/`.tsx` files (no pre-compilation). The consuming app's bundler compiles them directly. This gives zero-config HMR and instant go-to-definition.
 
-```
-apps/web/
-├── app/          # Routing layer (thin shells — import from features/)
-├── features/     # Business logic, organized by domain
-├── shared/       # Cross-feature utilities (api client, types, logger)
-```
+**Dependency direction:** `views/ → core/ + ui/`. Core and UI are independent of each other. No package imports from `next/*`, `react-router-dom`, or app-specific code.
 
-**`app/`** — Next.js App Router pages. Route files should be thin: import and re-export from `features/`. Layout components and route-specific glue (redirects, auth guards) live here. Shared layout components (e.g. `app-sidebar`) stay in `app/(dashboard)/_components/`.
+**Platform bridge:** `packages/core/platform/` provides `CoreProvider` — initializes API client, auth/workspace stores, WS connection, and QueryClient. Each app wraps its root with `<CoreProvider>` and provides its own `NavigationAdapter` for routing.
 
-**`features/`** — Domain modules, each with its own components, hooks, stores, and config:
-
-| Feature | Purpose | Exports |
-|---|---|---|
-| `features/auth/` | Authentication state | `useAuthStore`, `AuthInitializer` |
-| `features/workspace/` | Workspace, members, agents | `useWorkspaceStore`, `useActorName` |
-| `features/issues/` | Issue state, components, config | `useIssueStore`, icons, pickers, status/priority config |
-| `features/inbox/` | Inbox notification state | `useInboxStore` |
-| `features/realtime/` | WebSocket connection + sync | `WSProvider`, `useWSEvent`, `useRealtimeSync` |
-| `features/modals/` | Modal registry and state | Modal store and components |
-| `features/skills/` | Skill management | Skill components |
-
-**`shared/`** — Code used across multiple features:
-- `shared/api/` — `ApiClient` (REST) and `WSClient` (WebSocket) for backend communication, plus the `api` singleton.
-- `shared/types/` — Domain types (Issue, Agent, Workspace, etc.) and WebSocket event types.
-- `shared/logger.ts` — Logger utility.
+**pnpm catalog** — `pnpm-workspace.yaml` defines `catalog:` for version pinning. All shared deps use `catalog:` references to guarantee a single version across all packages. When adding new shared deps (including test deps), add to catalog first.
 
 ### State Management
 
-- **Zustand** for global client state — one store per feature domain (`features/auth/store.ts`, `features/workspace/store.ts`, `features/issues/store.ts`, `features/inbox/store.ts`).
-- **React Context** only for connection lifecycle (`WSProvider` in `features/realtime/`).
-- **Local `useState`** for component-scoped UI state (forms, modals, filters).
-- Do not use React Context for data that can be a zustand store.
+The architecture relies on a strict split between server state and client state. Mixing them is the most common way to break it.
 
-**Store conventions:**
-- One store per feature domain. Import via `useAuthStore(selector)` or `useWorkspaceStore(selector)`.
-- Stores must not call `useRouter` or any React hooks — keep navigation in components.
-- Cross-store reads use `useOtherStore.getState()` inside actions (not hooks).
-- Dependency direction: `workspace` → `auth`, `realtime` → `auth`, `issues` → `workspace`. Never reverse.
+- **TanStack Query owns all server state.** Issues, users, workspaces, inbox — anything fetched from the API lives in the Query cache. WS events keep it fresh via invalidation; no polling, no `staleTime` workarounds.
+- **Zustand owns all client state.** UI selections, filters, drafts, modal state, navigation history. Stores live in `packages/core/` (never in `packages/views/`) so both apps share them.
+- **React Context** is reserved for cross-cutting platform plumbing — `WorkspaceIdProvider`, `NavigationProvider`. Don't reach for it for general state.
+- **Auth and workspace stores are the only stores allowed to call `api.*` directly**, because they manage critical state that must exist before queries can run. They're created via factory + injected dependencies, registered by the platform layer.
 
-### Import Aliases
+**Hard rules — these are how the architecture stays coherent:**
 
-Use `@/` alias (maps to `apps/web/`):
-```typescript
-import { api } from "@/shared/api";
-import type { Issue } from "@/shared/types";
-import { useAuthStore } from "@/features/auth";
-import { useWorkspaceStore } from "@/features/workspace";
-import { useIssueStore } from "@/features/issues";
-import { useInboxStore } from "@/features/inbox";
-import { useWSEvent } from "@/features/realtime";
-import { StatusIcon } from "@/features/issues/components";
-```
+- **Never duplicate server data into Zustand.** If it came from the API, it belongs in the Query cache. Copying it into a store creates two sources of truth and they will drift.
+- **Workspace-scoped queries must key on `wsId`.** This is what makes workspace switching automatic — the cache key changes, the right data appears, no manual invalidation needed.
+- **Mutations are optimistic by default.** Apply the change locally, send the request, roll back on failure, invalidate on settle. The user shouldn't wait for the server.
+- **WS events invalidate queries — they never write to stores directly.** This keeps the cache as the single source of truth and avoids race conditions.
+- **Persist what's worth preserving across restarts** (user preferences, drafts, tab layout). **Don't persist ephemeral UI state** (modal open/close, transient selections) or server data.
 
-Within a feature, use relative imports. Between features or to shared, use `@/`.
+**Common Zustand footguns to avoid:**
 
-### Data Flow
-
-```
-Browser → ApiClient (shared/api) → REST API (Chi handlers) → sqlc queries → PostgreSQL
-Browser ← WSClient (shared/api) ← WebSocket ← Hub.Broadcast() ← Handlers/TaskService
-```
-
-### Backend Structure (`server/`)
-
-- **Entry points** (`cmd/`): `server` (HTTP API), `multica` (CLI — daemon, agent management, config), `migrate`
-- **Handlers** (`internal/handler/`): One file per domain (issue, comment, agent, auth, daemon, etc.). Each handler holds `Queries`, `DB`, `Hub`, and `TaskService`.
-- **Real-time** (`internal/realtime/`): Hub manages WebSocket clients. Server broadcasts events; inbound WS message routing is still TODO.
-- **Auth** (`internal/auth/` + `internal/middleware/`): JWT (HS256). Middleware sets `X-User-ID` and `X-User-Email` headers. Login creates user on-the-fly if not found.
-- **Task lifecycle** (`internal/service/task.go`): Orchestrates agent work — enqueue → claim → start → complete/fail. Syncs issue status automatically and broadcasts WS events at each transition.
-- **Agent SDK** (`pkg/agent/`): Unified `Backend` interface for executing prompts via Claude Code or Codex. Each backend spawns its CLI and streams results via `Session.Messages` + `Session.Result` channels.
-- **Daemon** (`internal/daemon/`): Local agent runtime — auto-detects available CLIs (claude, codex), registers runtimes, polls for tasks, routes by provider.
-- **CLI** (`internal/cli/`): Shared helpers for the `multica` CLI — API client, config management, output formatting.
-- **Events** (`internal/events/`): Internal event bus for decoupled communication between handlers and services.
-- **Logging** (`internal/logger/`): Structured logging via slog. `LOG_LEVEL` env var controls level (debug, info, warn, error).
-- **Database**: PostgreSQL with pgvector extension (`pgvector/pgvector:pg17`). sqlc generates Go code from SQL in `pkg/db/queries/` → `pkg/db/generated/`. Migrations in `migrations/`.
-- **Routes** (`cmd/server/router.go`): Public routes (auth, health, ws) + protected routes (require JWT) + daemon routes (unauthenticated, separate auth model).
-
-### Multi-tenancy
-
-All queries filter by `workspace_id`. Membership checks gate access. `X-Workspace-ID` header routes requests to the correct workspace.
-
-### Agent Assignees
-
-Assignees are polymorphic — can be a member or an agent. `assignee_type` + `assignee_id` on issues. Agents render with distinct styling (purple background, robot icon).
+- Selectors must return stable references. Returning a freshly built object or array on every call (e.g. `s => ({ a: s.a, b: s.b })` or `s => s.items.map(...)`) triggers infinite re-renders. Either select primitives separately or use shallow comparison.
+- Hooks that need workspace context should accept `wsId` as a parameter, not call `useWorkspaceId()` internally — this lets them work outside the `WorkspaceIdProvider` (e.g. in a sidebar that renders before workspace is loaded).
 
 ## Commands
 
 ```bash
-# One-click setup & run
+# One-command dev (auto-setup + start everything)
+make dev              # Auto-creates env, installs deps, starts DB, migrates, launches app
+
+# Explicit setup & run (if you prefer separate steps)
 make setup            # First-time: ensure shared DB, create app DB, migrate
 make start            # Start backend + frontend together
 make stop             # Stop app processes for the current checkout
 make db-down          # Stop the shared PostgreSQL container
 
-# Frontend
+# Frontend (all commands go through Turborepo)
 pnpm install
 pnpm dev:web          # Next.js dev server (port 3000)
-pnpm build            # Build frontend
-pnpm typecheck        # TypeScript check
-pnpm lint             # ESLint via Next.js
-pnpm test             # TS tests (Vitest)
+pnpm dev:desktop      # Electron dev (electron-vite, HMR)
+pnpm build            # Build all frontend apps
+pnpm typecheck        # TypeScript check (all packages + apps via turbo)
+pnpm lint             # ESLint
+pnpm test             # TS tests (Vitest, all packages + apps via turbo)
 
 # Backend (Go)
-make dev              # Run Go server (port 8080)
+make server           # Run Go server only (port 8080)
 make daemon           # Run local daemon
 make build            # Build server + CLI binaries to server/bin/
 make cli ARGS="..."   # Run multica CLI (e.g. make cli ARGS="config")
@@ -133,14 +85,23 @@ make sqlc             # Regenerate sqlc code after editing SQL in server/pkg/db/
 make migrate-up       # Run database migrations
 make migrate-down     # Rollback migrations
 
+# Run a single TS test (works for any package with a test script)
+pnpm --filter @multica/views exec vitest run auth/login-page.test.tsx
+pnpm --filter @multica/core exec vitest run runtimes/version.test.ts
+pnpm --filter @multica/web exec vitest run app/\(auth\)/login/page.test.tsx
+
 # Run a single Go test
 cd server && go test ./internal/handler/ -run TestName
 
-# Run a single TS test
-pnpm --filter @multica/web exec vitest run src/path/to/file.test.ts
-
 # Run a single E2E test (requires backend + frontend running)
 pnpm exec playwright test e2e/tests/specific-test.spec.ts
+
+# Desktop build & package
+pnpm --filter @multica/desktop build      # Compile TS → JS (reads .env.production)
+pnpm --filter @multica/desktop package    # Package into .app/.dmg/.exe (current platform only)
+
+# shadcn — config lives in packages/ui/components.json (Base UI variant, base-nova style)
+pnpm ui:add badge                # Adds component to packages/ui/components/ui/
 
 # Infrastructure
 make db-up            # Start shared PostgreSQL (pgvector/pg17 image)
@@ -149,11 +110,13 @@ make db-down          # Stop shared PostgreSQL
 
 ### CI Requirements
 
-CI runs on Node 22 and Go 1.24 with a `pgvector/pgvector:pg17` PostgreSQL service. See `.github/workflows/ci.yml`.
+CI runs on Node 22 and Go 1.26.1 with a `pgvector/pgvector:pg17` PostgreSQL service. See `.github/workflows/ci.yml`.
 
 ### Worktree Support
 
 All checkouts share one PostgreSQL container. Isolation is at the database level — each worktree gets its own DB name and unique ports via `.env.worktree`. Main checkouts use `.env`.
+
+`make dev` auto-detects worktrees and handles everything. For explicit control:
 
 ```bash
 make worktree-env       # Generate .env.worktree with unique DB/ports
@@ -169,43 +132,129 @@ make start-worktree     # Start using .env.worktree
 - Prefer existing patterns/components over introducing parallel abstractions.
 - Unless the user explicitly asks for backwards compatibility, do **not** add compatibility layers, fallback paths, dual-write logic, legacy adapters, or temporary shims.
 - If a flow or API is being replaced and the product is not yet live, prefer removing the old path instead of preserving both old and new behavior.
-- Treat compatibility code as a maintenance cost, not a default safety mechanism. Avoid "just in case" branches that make the codebase harder to reason about.
 - Avoid broad refactors unless required by the task.
+
+### Package Boundary Rules
+
+These are hard constraints. Violating them breaks the cross-platform architecture:
+
+- `packages/core/` — zero react-dom, zero localStorage (use StorageAdapter), zero process.env, zero UI libraries. **All shared Zustand stores live here**, even view-related ones (filters, view modes) — stores are pure state, not UI.
+- `packages/ui/` — zero `@multica/core` imports (pure UI, no business logic).
+- `packages/views/` — zero `next/*` imports, zero `react-router-dom` imports, zero stores. Use `NavigationAdapter` for all routing.
+- `apps/web/platform/` — the only place for Next.js APIs (`next/navigation`).
+- `apps/desktop/src/renderer/src/platform/` — the only place for react-router-dom navigation wiring.
+
+### The No-Duplication Rule
+
+**If the same logic exists in both apps, it must be extracted to a shared package.**
+
+This applies to everything: components, hooks, guards, providers, utility functions. The decision process:
+
+1. Does this code depend on Next.js or Electron APIs? → Keep in the respective app.
+2. Does it depend on `react-router-dom` or `next/navigation`? → Keep in app's `platform/` layer.
+3. Everything else → belongs in `packages/core/` (headless logic) or `packages/views/` (UI components).
+
+When the two apps need different behavior for the same concept (e.g., different loading UI), extract the shared logic into a component with props/slots for the differences. Don't duplicate the logic.
+
+### Cross-Platform Development Rules
+
+When adding a new page or feature:
+
+1. **New page component** → add to `packages/views/<domain>/`. Never import from `next/*` or `react-router-dom`.
+2. **Wire it in both apps** → add a route in `apps/web/app/` (Next.js page file) AND in the desktop router.
+3. **Navigation** → use `useNavigation().push()` or `<AppLink>`. Never use framework-specific link/router APIs in shared code.
+4. **Shared guards/providers** → use `DashboardGuard` from `packages/views/layout/`. Don't create separate guard logic per app.
+5. **Platform-specific UI** → if a feature is web-only or desktop-only, keep it in the respective app. Use props slots (`extra`, `topSlot`) on shared layout components to inject platform-specific UI.
+6. **New hooks that need workspace context** → accept `wsId` as parameter instead of reading from `useWorkspaceId()` Context, so they work both inside and outside `WorkspaceIdProvider`.
+
+### CSS Architecture
+
+Both apps share the same CSS foundation from `packages/ui/styles/`.
+
+- **Design tokens** → use semantic tokens (`bg-background`, `text-muted-foreground`). Never use hardcoded Tailwind colors (`text-red-500`, `bg-gray-100`).
+- **Shared styles** → `packages/ui/styles/`. Never duplicate scrollbar styling, keyframes, or base layer rules in app CSS.
+- **`@source` directives** → both apps scan shared packages so Tailwind sees all class names.
 
 ## UI/UX Rules
 
-- Prefer shadcn components over custom implementations. Install missing components via `npx shadcn add`.
-- **Feature-specific components** → `features/<domain>/components/` — issue icons, pickers, and other domain-bound UI live inside their feature module.
-- Use shadcn design tokens for styling (e.g. `bg-primary`, `text-muted-foreground`, `text-destructive`). Avoid hardcoded color values (e.g. `text-red-500`, `bg-gray-100`).
-- Do not introduce extra state (useState, context, reducers) unless explicitly required by the design. Prefer zustand stores for shared state over React Context.
+- Prefer shadcn components over custom implementations. Install via `pnpm ui:add <component>` from project root — adds to `packages/ui/components/ui/`. All components use Base UI primitives (`@base-ui/react`), not Radix.
+- Use shadcn design tokens for styling. Avoid hardcoded color values.
+- Do not introduce extra state (useState, context, reducers) unless explicitly required by the design.
 - Pay close attention to **overflow** (truncate long text, scrollable containers), **alignment**, and **spacing** consistency.
-- When unsure about interaction or state design, ask — the user will provide direction.
+- **If a component is identical between web and desktop, it belongs in a shared package.** Do not copy-paste between apps.
 
 ## Testing Rules
 
-- **TypeScript**: Vitest. Mock external/third-party dependencies only.
-- **Go**: Standard `go test`. Tests should create their own fixture data in a test database.
+### Where to write tests
+
+Tests follow the code, not the app. This is the most important testing principle in this monorepo:
+
+| What you're testing | Where the test lives | Why |
+|---|---|---|
+| Shared business logic (stores, queries, hooks) | `packages/core/*.test.ts` | No DOM needed, pure logic |
+| Shared UI components (pages, forms, modals) | `packages/views/*.test.tsx` | jsdom, no framework mocks |
+| Platform-specific wiring (cookies, redirects, searchParams) | `apps/web/*.test.tsx` or `apps/desktop/` | Needs framework-specific mocks |
+| End-to-end user flows | `e2e/*.spec.ts` | Real browser, real backend |
+
+**Never test shared component behavior in an app's test file.** If a test requires mocking `next/navigation` or `react-router-dom` to test a component from `@multica/views`, the test is in the wrong place — move it to `packages/views/` and mock `@multica/core` instead.
+
+### Test infrastructure
+
+- `packages/core/` — Vitest, Node environment (no DOM)
+- `packages/views/` — Vitest, jsdom environment, `@testing-library/react`
+- `apps/web/` — Vitest, jsdom environment, framework-specific mocks
+- `e2e/` — Playwright
+- `server/` — Go standard `go test`
+
+All test deps are in the pnpm catalog for unified versioning.
+
+### Mocking conventions
+
+- Mock `@multica/core` stores with `vi.hoisted()` + `Object.assign(selectorFn, { getState })` pattern (Zustand stores are both callable and have `.getState()`).
+- Mock `@multica/core/api` for API calls.
+- In `packages/views/` tests: never mock `next/*` or `react-router-dom` — those don't exist here.
+- In `apps/web/` tests: mock framework-specific APIs only for platform-specific behavior.
+
+### TDD workflow
+
+1. Write failing test in the **correct package** first.
+2. Write implementation.
+3. Run `pnpm test` (Turborepo discovers all packages).
+4. Green → done.
+
+### Go tests
+
+Standard `go test`. Tests should create their own fixture data in a test database.
+
+### E2E tests
+
+E2E tests should be self-contained. Use the `TestApiClient` fixture for data setup/teardown:
+
+```typescript
+import { loginAsDefault, createTestApi } from "./helpers";
+import type { TestApiClient } from "./fixtures";
+
+let api: TestApiClient;
+
+test.beforeEach(async ({ page }) => {
+  api = await createTestApi();
+  await loginAsDefault(page);
+});
+
+test.afterEach(async () => {
+  await api.cleanup();
+});
+
+test("example", async ({ page }) => {
+  const issue = await api.createIssue("Test Issue");
+  await page.goto(`/issues/${issue.id}`);
+});
+```
 
 ## Commit Rules
 
 - Use atomic commits grouped by logical intent.
-- Conventional format:
-  - `feat(scope): ...`
-  - `fix(scope): ...`
-  - `refactor(scope): ...`
-  - `docs: ...`
-  - `test(scope): ...`
-  - `chore(scope): ...`
-
-## CLI Release
-
-**Prerequisite:** A CLI release must accompany every Production deployment. When deploying to Production, always release a new CLI version as part of the process.
-
-1. Create a tag on the `main` branch: `git tag v0.x.x`
-2. Push the tag: `git push origin v0.x.x`
-3. GitHub Actions automatically triggers `release.yml`: runs Go tests → GoReleaser builds multi-platform binaries → publishes to GitHub Releases + Homebrew tap
-
-By default, bump the patch version each release (e.g. `v0.1.12` → `v0.1.13`), unless the user specifies a specific version.
+- Conventional format: `feat(scope)`, `fix(scope)`, `refactor(scope)`, `docs`, `test(scope)`, `chore(scope)`.
 
 ## Minimum Pre-Push Checks
 
@@ -218,7 +267,7 @@ Run verification only when the user explicitly asks for it.
 For targeted checks when requested:
 ```bash
 pnpm typecheck        # TypeScript type errors only
-pnpm test             # TS unit tests only (Vitest)
+pnpm test             # TS unit tests only (Vitest, all packages)
 make test             # Go tests only
 pnpm exec playwright test   # E2E only (requires backend + frontend running)
 ```
@@ -231,43 +280,29 @@ After writing or modifying code, always run the full verification pipeline:
 make check
 ```
 
-This runs all checks in sequence:
-1. TypeScript typecheck (`pnpm typecheck`)
-2. TypeScript unit tests (`pnpm test`)
-3. Go tests (`go test ./...`)
-4. E2E tests (auto-starts backend + frontend if needed, runs Playwright)
-
 **Workflow:**
 - Write code to satisfy the requirement
 - Run `make check`
-- If any step fails, read the error output, fix the code, and re-run `make check`
+- If any step fails, read the error output, fix the code, and re-run
 - Repeat until all checks pass
 - Only then consider the task complete
 
 **Quick iteration:** If you know only TypeScript or Go is affected, run individual checks first for faster feedback, then finish with a full `make check` before marking work complete.
 
-## E2E Test Patterns
+## CLI Release
 
-E2E tests should be self-contained. Use the `TestApiClient` fixture for data setup/teardown:
+**Prerequisite:** A CLI release must accompany every Production deployment.
 
-```typescript
-import { loginAsDefault, createTestApi } from "./helpers";
-import type { TestApiClient } from "./fixtures";
+1. Create a tag on the `main` branch: `git tag v0.x.x`
+2. Push the tag: `git push origin v0.x.x`
+3. GitHub Actions automatically triggers `release.yml`: runs Go tests → GoReleaser builds multi-platform binaries → publishes to GitHub Releases + Homebrew tap
 
-let api: TestApiClient;
+By default, bump the patch version each release (e.g. `v0.1.12` → `v0.1.13`), unless the user specifies a specific version.
 
-test.beforeEach(async ({ page }) => {
-  api = await createTestApi();       // logged-in API client
-  await loginAsDefault(page);        // browser session
-});
+## Multi-tenancy
 
-test.afterEach(async () => {
-  await api.cleanup();               // delete any data created during the test
-});
+All queries filter by `workspace_id`. Membership checks gate access. `X-Workspace-ID` header routes requests to the correct workspace.
 
-test("example", async ({ page }) => {
-  const issue = await api.createIssue("Test Issue");  // create via API
-  await page.goto(`/issues/${issue.id}`);             // test via UI
-  // api.cleanup() in afterEach removes the issue
-});
-```
+## Agent Assignees
+
+Assignees are polymorphic — can be a member or an agent. `assignee_type` + `assignee_id` on issues. Agents render with distinct styling (purple background, robot icon).

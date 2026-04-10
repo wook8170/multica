@@ -19,7 +19,6 @@ type S3Storage struct {
 	client    *s3.Client
 	bucket    string
 	cdnDomain string // if set, returned URLs use this instead of bucket name
-	endpoint  string // custom endpoint (MinIO, etc.) — if set, use path-style URLs
 }
 
 // NewS3StorageFromEnv creates an S3Storage from environment variables.
@@ -28,9 +27,7 @@ type S3Storage struct {
 // Environment variables:
 //   - S3_BUCKET (required)
 //   - S3_REGION (default: us-west-2)
-//   - S3_ENDPOINT (optional; for MinIO or other S3-compatible services)
 //   - AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (optional; falls back to default credential chain)
-//   - CLOUDFRONT_DOMAIN (optional; for CDN URLs)
 func NewS3StorageFromEnv() *S3Storage {
 	bucket := os.Getenv("S3_BUCKET")
 	if bucket == "" {
@@ -61,23 +58,13 @@ func NewS3StorageFromEnv() *S3Storage {
 		return nil
 	}
 
-	endpoint := os.Getenv("S3_ENDPOINT")
 	cdnDomain := os.Getenv("CLOUDFRONT_DOMAIN")
 
-	var s3Opts []func(*s3.Options)
-	if endpoint != "" {
-		s3Opts = append(s3Opts, func(o *s3.Options) {
-			o.BaseEndpoint = aws.String(endpoint)
-			o.UsePathStyle = true // MinIO requires path-style URLs
-		})
-	}
-
-	slog.Info("S3 storage initialized", "bucket", bucket, "region", region, "endpoint", endpoint, "cdn_domain", cdnDomain)
+	slog.Info("S3 storage initialized", "bucket", bucket, "region", region, "cdn_domain", cdnDomain)
 	return &S3Storage{
-		client:    s3.NewFromConfig(cfg, s3Opts...),
+		client:    s3.NewFromConfig(cfg),
 		bucket:    bucket,
 		cdnDomain: cdnDomain,
-		endpoint:  endpoint,
 	}
 }
 
@@ -96,22 +83,15 @@ func sanitizeFilename(name string) string {
 	return b.String()
 }
 
-// KeyFromURL extracts the S3 object key from a CDN, bucket, or endpoint URL.
+// KeyFromURL extracts the S3 object key from a CDN or bucket URL.
 // e.g. "https://multica-static.copilothub.ai/abc123.png" → "abc123.png"
-// e.g. "http://localhost:9000/bucket/abc123.png" → "abc123.png" (MinIO path-style)
 func (s *S3Storage) KeyFromURL(rawURL string) string {
-	prefixes := []string{
+	// Strip the "https://domain/" prefix.
+	for _, prefix := range []string{
 		"https://" + s.cdnDomain + "/",
 		"https://" + s.bucket + "/",
-	}
-	if s.endpoint != "" {
-		// path-style MinIO URL: http://localhost:9000/bucket/key
-		prefixes = append(prefixes,
-			strings.TrimRight(s.endpoint, "/")+"/"+s.bucket+"/",
-		)
-	}
-	for _, prefix := range prefixes {
-		if prefix != "/" && strings.HasPrefix(rawURL, prefix) {
+	} {
+		if strings.HasPrefix(rawURL, prefix) {
 			return strings.TrimPrefix(rawURL, prefix)
 		}
 	}
@@ -143,34 +123,39 @@ func (s *S3Storage) DeleteKeys(ctx context.Context, keys []string) {
 	}
 }
 
+// isInlineContentType returns true for media types that browsers should
+// display inline (images, video, audio, PDF). Everything else triggers a
+// download via Content-Disposition: attachment.
+func isInlineContentType(ct string) bool {
+	return strings.HasPrefix(ct, "image/") ||
+		strings.HasPrefix(ct, "video/") ||
+		strings.HasPrefix(ct, "audio/") ||
+		ct == "application/pdf"
+}
+
 func (s *S3Storage) Upload(ctx context.Context, key string, data []byte, contentType string, filename string) (string, error) {
 	safe := sanitizeFilename(filename)
-	input := &s3.PutObjectInput{
+	disposition := "attachment"
+	if isInlineContentType(contentType) {
+		disposition = "inline"
+	}
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:             aws.String(s.bucket),
 		Key:                aws.String(key),
 		Body:               bytes.NewReader(data),
 		ContentType:        aws.String(contentType),
-		ContentDisposition: aws.String(fmt.Sprintf(`inline; filename="%s"`, safe)),
+		ContentDisposition: aws.String(fmt.Sprintf(`%s; filename="%s"`, disposition, safe)),
 		CacheControl:       aws.String("max-age=432000,public"),
-	}
-	// MinIO doesn't support IntelligentTiering storage class, so only set it for AWS S3
-	if s.endpoint == "" {
-		input.StorageClass = types.StorageClassIntelligentTiering
-	}
-	_, err := s.client.PutObject(ctx, input)
+		StorageClass:       types.StorageClassIntelligentTiering,
+	})
 	if err != nil {
 		return "", fmt.Errorf("s3 PutObject: %w", err)
 	}
 
-	var link string
-	switch {
-	case s.cdnDomain != "":
-		link = fmt.Sprintf("https://%s/%s", s.cdnDomain, key)
-	case s.endpoint != "":
-		// MinIO path-style: http://localhost:9000/bucket/key
-		link = fmt.Sprintf("%s/%s/%s", strings.TrimRight(s.endpoint, "/"), s.bucket, key)
-	default:
-		link = fmt.Sprintf("https://%s/%s", s.bucket, key)
+	domain := s.bucket
+	if s.cdnDomain != "" {
+		domain = s.cdnDomain
 	}
+	link := fmt.Sprintf("https://%s/%s", domain, key)
 	return link, nil
 }

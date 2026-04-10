@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/events"
+	"github.com/multica-ai/multica/server/internal/mention"
 	"github.com/multica-ai/multica/server/internal/realtime"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
@@ -42,6 +43,10 @@ func (s *TaskService) EnqueueTaskForIssue(ctx context.Context, issue db.Issue, t
 	if err != nil {
 		slog.Error("task enqueue failed", "issue_id", util.UUIDToString(issue.ID), "error", err)
 		return db.AgentTaskQueue{}, fmt.Errorf("load agent: %w", err)
+	}
+	if agent.ArchivedAt.Valid {
+		slog.Debug("task enqueue skipped: agent is archived", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agent.ID))
+		return db.AgentTaskQueue{}, fmt.Errorf("agent is archived")
 	}
 	if !agent.RuntimeID.Valid {
 		slog.Error("task enqueue failed", "issue_id", util.UUIDToString(issue.ID), "error", "agent has no runtime")
@@ -78,6 +83,10 @@ func (s *TaskService) EnqueueTaskForMention(ctx context.Context, issue db.Issue,
 		slog.Error("mention task enqueue failed: agent not found", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID), "error", err)
 		return db.AgentTaskQueue{}, fmt.Errorf("load agent: %w", err)
 	}
+	if agent.ArchivedAt.Valid {
+		slog.Debug("mention task enqueue skipped: agent is archived", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID))
+		return db.AgentTaskQueue{}, fmt.Errorf("agent is archived")
+	}
 	if !agent.RuntimeID.Valid {
 		slog.Error("mention task enqueue failed: agent has no runtime", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID))
 		return db.AgentTaskQueue{}, fmt.Errorf("agent has no runtime")
@@ -96,6 +105,36 @@ func (s *TaskService) EnqueueTaskForMention(ctx context.Context, issue db.Issue,
 	}
 
 	slog.Info("mention task enqueued", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID))
+	return task, nil
+}
+
+// EnqueueChatTask creates a queued task for a chat session.
+// Unlike issue tasks, chat tasks have no issue_id.
+func (s *TaskService) EnqueueChatTask(ctx context.Context, chatSession db.ChatSession) (db.AgentTaskQueue, error) {
+	agent, err := s.Queries.GetAgent(ctx, chatSession.AgentID)
+	if err != nil {
+		slog.Error("chat task enqueue failed", "chat_session_id", util.UUIDToString(chatSession.ID), "error", err)
+		return db.AgentTaskQueue{}, fmt.Errorf("load agent: %w", err)
+	}
+	if agent.ArchivedAt.Valid {
+		return db.AgentTaskQueue{}, fmt.Errorf("agent is archived")
+	}
+	if !agent.RuntimeID.Valid {
+		return db.AgentTaskQueue{}, fmt.Errorf("agent has no runtime")
+	}
+
+	task, err := s.Queries.CreateChatTask(ctx, db.CreateChatTaskParams{
+		AgentID:       chatSession.AgentID,
+		RuntimeID:     agent.RuntimeID,
+		Priority:      2, // medium priority for chat
+		ChatSessionID: chatSession.ID,
+	})
+	if err != nil {
+		slog.Error("chat task enqueue failed", "chat_session_id", util.UUIDToString(chatSession.ID), "error", err)
+		return db.AgentTaskQueue{}, fmt.Errorf("create chat task: %w", err)
+	}
+
+	slog.Info("chat task enqueued", "task_id", util.UUIDToString(task.ID), "chat_session_id", util.UUIDToString(chatSession.ID), "agent_id", util.UUIDToString(chatSession.AgentID))
 	return task, nil
 }
 
@@ -229,16 +268,38 @@ func (s *TaskService) CompleteTask(ctx context.Context, taskID pgtype.UUID, resu
 
 	slog.Info("task completed", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(task.IssueID))
 
-	// Post agent output as a comment, but only for assignment-triggered tasks.
+	// Post agent output as a comment, but only for issue tasks with assignment triggers.
 	// Comment-triggered tasks: the agent replies via CLI with --parent, so
 	// posting here would create a duplicate.
-	if !task.TriggerCommentID.Valid {
+	// Chat tasks: no comment posting needed.
+	if task.IssueID.Valid && !task.TriggerCommentID.Valid {
 		var payload protocol.TaskCompletedPayload
 		if err := json.Unmarshal(result, &payload); err == nil {
 			if payload.Output != "" {
 				s.createAgentComment(ctx, task.IssueID, task.AgentID, redact.Text(payload.Output), "comment", task.TriggerCommentID)
 			}
 		}
+	}
+
+	// For chat tasks, save assistant reply, update session, and broadcast chat:done.
+	if task.ChatSessionID.Valid {
+		var payload protocol.TaskCompletedPayload
+		if err := json.Unmarshal(result, &payload); err == nil && payload.Output != "" {
+			if _, err := s.Queries.CreateChatMessage(ctx, db.CreateChatMessageParams{
+				ChatSessionID: task.ChatSessionID,
+				Role:          "assistant",
+				Content:       redact.Text(payload.Output),
+				TaskID:        task.ID,
+			}); err != nil {
+				slog.Error("failed to save assistant chat message", "task_id", util.UUIDToString(task.ID), "error", err)
+			}
+		}
+		s.Queries.UpdateChatSessionSession(ctx, db.UpdateChatSessionSessionParams{
+			ID:        task.ChatSessionID,
+			SessionID: pgtype.Text{String: sessionID, Valid: sessionID != ""},
+			WorkDir:   pgtype.Text{String: workDir, Valid: workDir != ""},
+		})
+		s.broadcastChatDone(ctx, task)
 	}
 
 	// Reconcile agent status
@@ -276,7 +337,7 @@ func (s *TaskService) FailTask(ctx context.Context, taskID pgtype.UUID, errMsg s
 
 	slog.Warn("task failed", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(task.IssueID), "error", errMsg)
 
-	if errMsg != "" {
+	if errMsg != "" && task.IssueID.Valid {
 		s.createAgentComment(ctx, task.IssueID, task.AgentID, redact.Text(errMsg), "system", task.TriggerCommentID)
 	}
 	// Reconcile agent status
@@ -393,12 +454,9 @@ func (s *TaskService) broadcastTaskDispatch(ctx context.Context, task db.AgentTa
 	payload["task_id"] = util.UUIDToString(task.ID)
 	payload["runtime_id"] = util.UUIDToString(task.RuntimeID)
 
-	workspaceID := ""
-	if issue, err := s.Queries.GetIssue(ctx, task.IssueID); err == nil {
-		workspaceID = util.UUIDToString(issue.WorkspaceID)
-	}
+	workspaceID := s.resolveTaskWorkspaceID(ctx, task)
 	if workspaceID == "" {
-		return // Issue deleted; skip broadcast to avoid global leak
+		return
 	}
 	s.Bus.Publish(events.Event{
 		Type:        protocol.EventTaskDispatch,
@@ -410,23 +468,57 @@ func (s *TaskService) broadcastTaskDispatch(ctx context.Context, task db.AgentTa
 }
 
 func (s *TaskService) broadcastTaskEvent(ctx context.Context, eventType string, task db.AgentTaskQueue) {
-	workspaceID := ""
-	if issue, err := s.Queries.GetIssue(ctx, task.IssueID); err == nil {
-		workspaceID = util.UUIDToString(issue.WorkspaceID)
-	}
+	workspaceID := s.resolveTaskWorkspaceID(ctx, task)
 	if workspaceID == "" {
-		return // Issue deleted; skip broadcast to avoid global leak
+		return
+	}
+	payload := map[string]any{
+		"task_id":  util.UUIDToString(task.ID),
+		"agent_id": util.UUIDToString(task.AgentID),
+		"issue_id": util.UUIDToString(task.IssueID),
+		"status":   task.Status,
+	}
+	if task.ChatSessionID.Valid {
+		payload["chat_session_id"] = util.UUIDToString(task.ChatSessionID)
 	}
 	s.Bus.Publish(events.Event{
 		Type:        eventType,
 		WorkspaceID: workspaceID,
 		ActorType:   "system",
 		ActorID:     "",
-		Payload: map[string]any{
-			"task_id":  util.UUIDToString(task.ID),
-			"agent_id": util.UUIDToString(task.AgentID),
-			"issue_id": util.UUIDToString(task.IssueID),
-			"status":   task.Status,
+		Payload:     payload,
+	})
+}
+
+// resolveTaskWorkspaceID determines the workspace ID for a task.
+// For issue tasks, it comes from the issue. For chat tasks, from the chat session.
+func (s *TaskService) resolveTaskWorkspaceID(ctx context.Context, task db.AgentTaskQueue) string {
+	if task.IssueID.Valid {
+		if issue, err := s.Queries.GetIssue(ctx, task.IssueID); err == nil {
+			return util.UUIDToString(issue.WorkspaceID)
+		}
+	}
+	if task.ChatSessionID.Valid {
+		if cs, err := s.Queries.GetChatSession(ctx, task.ChatSessionID); err == nil {
+			return util.UUIDToString(cs.WorkspaceID)
+		}
+	}
+	return ""
+}
+
+func (s *TaskService) broadcastChatDone(ctx context.Context, task db.AgentTaskQueue) {
+	workspaceID := s.resolveTaskWorkspaceID(ctx, task)
+	if workspaceID == "" {
+		return
+	}
+	s.Bus.Publish(events.Event{
+		Type:        protocol.EventChatDone,
+		WorkspaceID: workspaceID,
+		ActorType:   "system",
+		ActorID:     "",
+		Payload: protocol.ChatDonePayload{
+			ChatSessionID: util.UUIDToString(task.ChatSessionID),
+			TaskID:        util.UUIDToString(task.ID),
 		},
 	})
 }
@@ -454,6 +546,13 @@ func (s *TaskService) createAgentComment(ctx context.Context, issueID, agentID p
 	if content == "" {
 		return
 	}
+	// Look up issue to get workspace ID for mention expansion and broadcasting.
+	issue, err := s.Queries.GetIssue(ctx, issueID)
+	if err != nil {
+		return
+	}
+	// Expand bare issue identifiers (e.g. MUL-117) into mention links.
+	content = mention.ExpandIssueIdentifiers(ctx, s.Queries, issue.WorkspaceID, content)
 	comment, err := s.Queries.CreateComment(ctx, db.CreateCommentParams{
 		IssueID:    issueID,
 		AuthorType: "agent",
@@ -462,11 +561,6 @@ func (s *TaskService) createAgentComment(ctx context.Context, issueID, agentID p
 		Type:       commentType,
 		ParentID:   parentID,
 	})
-	if err != nil {
-		return
-	}
-	// Look up issue to get workspace ID for broadcasting
-	issue, err := s.Queries.GetIssue(ctx, issueID)
 	if err != nil {
 		return
 	}
@@ -520,14 +614,6 @@ func agentToMap(a db.Agent) map[string]any {
 	if a.RuntimeConfig != nil {
 		json.Unmarshal(a.RuntimeConfig, &rc)
 	}
-	var tools any
-	if a.Tools != nil {
-		json.Unmarshal(a.Tools, &tools)
-	}
-	var triggers any
-	if a.Triggers != nil {
-		json.Unmarshal(a.Triggers, &triggers)
-	}
 	return map[string]any{
 		"id":                   util.UUIDToString(a.ID),
 		"workspace_id":         util.UUIDToString(a.WorkspaceID),
@@ -542,9 +628,9 @@ func agentToMap(a db.Agent) map[string]any {
 		"max_concurrent_tasks": a.MaxConcurrentTasks,
 		"owner_id":             util.UUIDToPtr(a.OwnerID),
 		"skills":               []any{},
-		"tools":                tools,
-		"triggers":             triggers,
 		"created_at":           util.TimestampToString(a.CreatedAt),
 		"updated_at":           util.TimestampToString(a.UpdatedAt),
+		"archived_at":          util.TimestampToPtr(a.ArchivedAt),
+		"archived_by":          util.UUIDToPtr(a.ArchivedBy),
 	}
 }

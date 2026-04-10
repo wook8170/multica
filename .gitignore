@@ -44,3 +44,6 @@ _features/
 *.dmg
 *.app
 server/server
+
+# local storage
+data/

@@ -1,4 +1,4 @@
-.PHONY: dev daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down
+.PHONY: dev daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down storage-up storage-down
 
 MAIN_ENV_FILE ?= .env
 WORKTREE_ENV_FILE ?= .env.worktree
@@ -45,6 +45,7 @@ setup:
 	@echo "==> Installing dependencies..."
 	pnpm install
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
 	@echo "==> Running migrations..."
 	cd server && go run ./cmd/migrate up
 	@echo ""
@@ -57,6 +58,7 @@ start:
 	@echo "Backend: http://localhost:$(PORT)"
 	@echo "Frontend: http://localhost:$(FRONTEND_PORT)"
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
 	@echo "Starting backend and frontend..."
 	@trap 'kill 0' EXIT; \
 		(cd server && go run ./cmd/server) & \
@@ -81,6 +83,12 @@ db-up:
 
 db-down:
 	@$(COMPOSE) down
+
+storage-up:
+	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
+
+storage-down:
+	@$(COMPOSE) stop minio minio-init
 
 worktree-env:
 	@bash scripts/init-worktree-env.sh .env.worktree

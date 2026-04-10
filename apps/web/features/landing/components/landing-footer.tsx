@@ -99,9 +99,9 @@ export function LandingFooter() {
                 className={cn(
                   "px-1.5 py-1 text-[12px] font-medium transition-colors",
                   l === locale
-                    ? "text-white/70"
-                    : "text-white/30 hover:text-white/50",
-                  i > 0 && "border-l border-white/16",
+                    ? "text-white/80"
+                    : "text-white/50 hover:text-white/70",
+                  i > 0 && "border-l border-white/20",
                 )}
               >
                 {localeLabels[l]}

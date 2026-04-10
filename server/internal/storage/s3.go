@@ -145,15 +145,19 @@ func (s *S3Storage) DeleteKeys(ctx context.Context, keys []string) {
 
 func (s *S3Storage) Upload(ctx context.Context, key string, data []byte, contentType string, filename string) (string, error) {
 	safe := sanitizeFilename(filename)
-	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+	input := &s3.PutObjectInput{
 		Bucket:             aws.String(s.bucket),
 		Key:                aws.String(key),
 		Body:               bytes.NewReader(data),
 		ContentType:        aws.String(contentType),
 		ContentDisposition: aws.String(fmt.Sprintf(`inline; filename="%s"`, safe)),
 		CacheControl:       aws.String("max-age=432000,public"),
-		StorageClass:       types.StorageClassIntelligentTiering,
-	})
+	}
+	// MinIO doesn't support IntelligentTiering storage class, so only set it for AWS S3
+	if s.endpoint == "" {
+		input.StorageClass = types.StorageClassIntelligentTiering
+	}
+	_, err := s.client.PutObject(ctx, input)
 	if err != nil {
 		return "", fmt.Errorf("s3 PutObject: %w", err)
 	}

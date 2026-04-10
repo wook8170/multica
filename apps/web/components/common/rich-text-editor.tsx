@@ -25,6 +25,7 @@ import { createMentionSuggestion } from "./mention-suggestion";
 import { CodeBlockView } from "./code-block-view";
 import "./rich-text-editor.css";
 
+
 const lowlight = createLowlight(common);
 
 // ---------------------------------------------------------------------------
@@ -155,12 +156,15 @@ function createMarkdownPasteExtension() {
                 const node = editor.schema.nodeFromJSON(json);
                 return Slice.maxOpen(node.content);
               }
+
               // Plain text fallback
-              const p = editor.schema.nodes.paragraph!;
-              const doc = editor.schema.nodes.doc!;
+              const p = editor.schema.nodes.paragraph;
+              const doc = editor.schema.nodes.doc;
+              // If paragraph or doc nodes are undefined, we can't process, so return an empty Slice to fallback safely.
+              if (!p || !doc) return Slice.empty;
               const paragraph = p.create(null, text ? editor.schema.text(text) : undefined);
               return new Slice(doc.create(null, paragraph).content, 0, 0);
-            },
+            }
           },
         }),
       ];
@@ -312,7 +316,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
     },
     ref,
   ) {
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const isSyncingFromPropsRef = useRef(false);
     const onUpdateRef = useRef(onUpdate);
     const onSubmitRef = useRef(onSubmit);
     const onBlurRef = useRef(onBlur);
@@ -357,7 +362,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
       );
     };
 
-    // Keep refs in sync without recreating editor
     onUpdateRef.current = onUpdate;
     onSubmitRef.current = onSubmit;
     onBlurRef.current = onBlur;
@@ -397,6 +401,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
       ],
       onUpdate: ({ editor: ed }) => {
         if (!onUpdateRef.current) return;
+        if (isSyncingFromPropsRef.current) return;
+
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
           onUpdateRef.current?.(ed.getMarkdown());
@@ -426,12 +432,38 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
       },
     });
 
-    // Cleanup debounce on unmount
     useEffect(() => {
       return () => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
       };
     }, []);
+
+    // ✅ 핵심: 외부 defaultValue 변경 시 에디터 내용 동기화
+    useEffect(() => {
+      if (!editor) return;
+
+      const next = defaultValue || "";
+      const current = editor.getMarkdown?.() ?? "";
+
+      if (current === next) return;
+
+      isSyncingFromPropsRef.current = true;
+      // Use markdown.parse() explicitly to convert markdown to ProseMirror JSON
+      if (next && editor.markdown) {
+        try {
+          const json = editor.markdown.parse(next);
+          editor.commands.setContent(json);
+        } catch (err) {
+          console.error("Failed to parse markdown:", err);
+          editor.commands.setContent(next);
+        }
+      } else {
+        editor.commands.setContent(next);
+      }
+      queueMicrotask(() => {
+        isSyncingFromPropsRef.current = false;
+      });
+    }, [editor, defaultValue]);
 
     useImperativeHandle(ref, () => ({
       getMarkdown: () => editor?.getMarkdown() ?? "",
@@ -452,7 +484,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
     }));
 
     if (!editor) return null;
-
     return <EditorContent editor={editor} />;
   },
 );

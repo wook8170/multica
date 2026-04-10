@@ -22,6 +22,13 @@ const ALLOWED_TYPES = new Set([
   "audio/mpeg",
   "audio/wav",
   "application/zip",
+  // Microsoft Office documents
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ]);
 
 function isAllowedType(type: string): boolean {

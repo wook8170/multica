@@ -35,6 +35,13 @@ var allowedContentTypes = map[string]bool{
 	"audio/mpeg":       true,
 	"audio/wav":        true,
 	"application/zip":  true,
+	// Microsoft Office documents
+	"application/vnd.ms-excel":                                             true, // .xls
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":    true, // .xlsx
+	"application/msword":                                                   true, // .doc
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true, // .docx
+	"application/vnd.ms-powerpoint":                                        true, // .ppt
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": true, // .pptx
 }
 
 func isContentTypeAllowed(ct string) bool {

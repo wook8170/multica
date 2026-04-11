@@ -1,23 +1,5 @@
 /**
  * Shared extension factory for ContentEditor.
- *
- * One function builds the extension array for BOTH edit and readonly modes.
- * This ensures visual consistency — the same extensions parse and render
- * content identically regardless of mode.
- *
- * Split:
- * - Both modes: StarterKit, CodeBlock, Link, Image, Table, Markdown, Mention
- * - Edit only: Typography, Placeholder, markdownPaste, submitShortcut,
- *   fileUpload, Mention suggestion popup
- *
- * Link config differs: edit mode has autolink (detects URLs while typing),
- * readonly does not (prevents false positives on display).
- *
- * Mention suggestion is only attached in edit mode — readonly doesn't need
- * the autocomplete popup.
- *
- * All link styling is controlled by content-editor.css (var(--brand) color),
- * not Tailwind HTMLAttributes, to keep a single source of truth.
  */
 import type { RefObject } from "react";
 import StarterKit from "@tiptap/starter-kit";
@@ -35,6 +17,7 @@ import { Markdown } from "@tiptap/markdown";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import type { AnyExtension } from "@tiptap/core";
 import type { UploadResult } from "@multica/core/hooks/use-file-upload";
+import Collaboration from "@tiptap/extension-collaboration";
 import { BaseMentionExtension } from "./mention-extension";
 import { createMentionSuggestion } from "./mention-suggestion";
 import { CodeBlockView } from "./code-block-view";
@@ -85,18 +68,26 @@ export interface EditorExtensionsOptions {
   onUploadFileRef?: RefObject<
     ((file: File) => Promise<UploadResult | null>) | undefined
   >;
+  // Collaboration — typed as any to avoid ydoc/HocuspocusProvider peer-dep type errors
+  ydoc?: any;
+  provider?: any;
+  user?: { name: string; color: string };
+  field?: string;
 }
 
 export function createEditorExtensions(
   options: EditorExtensionsOptions,
 ): AnyExtension[] {
-  const { editable, placeholder: placeholderText } = options;
+  const { editable, placeholder: placeholderText, ydoc } = options;
 
   const extensions: AnyExtension[] = [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
       link: false,
       codeBlock: false,
+      // Disable built-in history when collaborating (Collaboration extension provides undo/redo via Y.js)
+      // @ts-expect-error - history extension can be disabled via false
+      history: ydoc ? false : undefined,
     }),
     CodeBlockLowlight.extend({
       addNodeView() {
@@ -116,6 +107,15 @@ export function createEditorExtensions(
       ...(editable && options.queryClient ? { suggestion: createMentionSuggestion(options.queryClient) } : {}),
     }),
   ];
+
+  // Collaboration extension: binds Y.XmlFragment directly to ProseMirror state.
+  // Remote changes are applied as proper ProseMirror transactions — no setContent(),
+  // no manual observe(), no cursor mapping hacks needed.
+  if (ydoc) {
+    extensions.push(
+      Collaboration.configure({ document: ydoc, field: options.field || "content" }),
+    );
+  }
 
   if (editable) {
     extensions.push(

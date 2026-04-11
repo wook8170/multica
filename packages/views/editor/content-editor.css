@@ -458,3 +458,10 @@
 .rich-text-editor .image-toolbar button:hover {
   background: color-mix(in srgb, white 15%, transparent);
 }
+@keyframes remote-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.remote-cursor-caret {
+  animation: remote-cursor-blink 1.1s ease-in-out infinite;
+}

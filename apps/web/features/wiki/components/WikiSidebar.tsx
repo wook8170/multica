@@ -13,9 +13,7 @@ import {
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Button } from "@multica/ui/components/ui/button";
 import { Input } from "@multica/ui/components/ui/input";
-import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@multica/ui/components/ui/tooltip";
-import { useActorName } from "@multica/core/workspace/hooks";
+import { ActorAvatar } from "@multica/views/common/actor-avatar";
 import { useWikiStore } from "../store";
 import { cn } from "@multica/ui/lib/utils";
 
@@ -127,7 +125,6 @@ export function WikiSidebar({
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
   const isSelecting = multiSelected.size > 0;
   const totalCount = countNodes(nodes);
-  const { getActorName, getActorInitials, getActorAvatarUrl } = useActorName();
 
   // DnD state
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -373,9 +370,6 @@ export function WikiSidebar({
                   onToggleExpand={() => toggleNode(item.id)}
                   onToggleCheck={() => { if (canSelect) toggleMultiSelect(item.id); }}
                   onCreateChild={() => onCreateNew(item.id)}
-                  creatorName={item.createdBy ? getActorName("member", item.createdBy) : undefined}
-                  creatorInitials={item.createdBy ? getActorInitials("member", item.createdBy) : undefined}
-                  creatorAvatarUrl={item.createdBy ? getActorAvatarUrl("member", item.createdBy) : undefined}
                 />
               );
             })}
@@ -424,7 +418,6 @@ function WikiDndItem({
   item, isSelected, isChecked, canSelect, isDragging, isSelecting,
   isCollaborating, dropIndicator, expandedNodes,
   onSelect, onToggleExpand, onToggleCheck, onCreateChild,
-  creatorName, creatorInitials, creatorAvatarUrl,
 }: {
   item: FlatItem;
   isSelected: boolean;
@@ -439,9 +432,6 @@ function WikiDndItem({
   onToggleExpand: () => void;
   onToggleCheck: () => void;
   onCreateChild: () => void;
-  creatorName?: string;
-  creatorInitials?: string;
-  creatorAvatarUrl?: string | null;
 }) {
   const { attributes, listeners, setNodeRef: setDragRef, transform } = useDraggable({
     id: item.id,
@@ -512,59 +502,39 @@ function WikiDndItem({
         </div>
 
         {/* Avatar ↔ checkbox */}
-        <TooltipProvider delay={400}>
-          <Tooltip>
-            <TooltipTrigger>
-              <div
-                className="relative size-4 shrink-0 cursor-pointer"
-                onClick={(e) => { if (!canSelect) return; e.stopPropagation(); onToggleCheck(); }}
-              >
-                {/* Avatar (visible when not in select mode) */}
-                <div className={cn(
-                  "absolute inset-0 transition-opacity duration-100",
-                  isSelecting || isChecked ? "opacity-0" : canSelect ? "group-hover:opacity-0" : "",
-                )}>
-                  {creatorInitials ? (
-                    <ActorAvatar
-                      name={creatorName ?? ""}
-                      initials={creatorInitials}
-                      avatarUrl={creatorAvatarUrl}
-                      size={16}
-                      className={cn(
-                        "ring-1 transition-all",
-                        isSelected ? "ring-primary/40" : "ring-muted-foreground/20",
-                      )}
-                    />
-                  ) : (
-                    <FileText className={cn(
-                      "size-4",
-                      isSelected ? "text-primary" : "text-muted-foreground",
-                    )} />
-                  )}
-                </div>
-                {/* Checkbox (visible on hover / in select mode) */}
-                {canSelect && (
-                  <div className={cn(
-                    "absolute inset-0 flex items-center justify-center transition-opacity duration-100",
-                    isSelecting || isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-                  )}>
-                    <div className={cn(
-                      "size-4 rounded border-2 flex items-center justify-center transition-colors",
-                      isChecked ? "bg-primary border-primary" : "border-muted-foreground/40 bg-background",
-                    )}>
-                      {isChecked && <Check className="size-2.5 text-white stroke-[3]" />}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </TooltipTrigger>
-            {creatorName && !isSelecting && (
-              <TooltipContent side="right">
-                {creatorName}
-              </TooltipContent>
+        <div
+          className="relative size-5 shrink-0 cursor-pointer"
+          onClick={(e) => { if (!canSelect) return; e.stopPropagation(); onToggleCheck(); }}
+        >
+          {/* Avatar (visible when not in select mode) */}
+          <div className={cn(
+            "absolute inset-0 transition-opacity duration-100",
+            isSelecting || isChecked ? "opacity-0" : canSelect ? "group-hover:opacity-0" : "",
+          )}>
+            {item.createdBy ? (
+              <ActorAvatar actorType="member" actorId={item.createdBy} size={20} />
+            ) : (
+              <FileText className={cn(
+                "size-5",
+                isSelected ? "text-primary" : "text-muted-foreground",
+              )} />
             )}
-          </Tooltip>
-        </TooltipProvider>
+          </div>
+          {/* Checkbox (visible on hover / in select mode) */}
+          {canSelect && (
+            <div className={cn(
+              "absolute inset-0 flex items-center justify-center transition-opacity duration-100",
+              isSelecting || isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            )}>
+              <div className={cn(
+                "size-4 rounded border-2 flex items-center justify-center transition-colors",
+                isChecked ? "bg-primary border-primary" : "border-muted-foreground/40 bg-background",
+              )}>
+                {isChecked && <Check className="size-2.5 text-white stroke-[3]" />}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Title */}
         <span className={cn(

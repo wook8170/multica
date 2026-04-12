@@ -510,18 +510,6 @@ function WikiDndItem({
           </div>
         )}
 
-        {/* Expand/collapse — in flex flow, always visible for items with children */}
-        {item.hasChildren && !isSelecting ? (
-          <div
-            className="flex h-7 w-3 shrink-0 items-center justify-center rounded cursor-pointer text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
-            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-          >
-            {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-          </div>
-        ) : (
-          <div className="w-3 shrink-0" />
-        )}
-
         {/* Avatar ↔ checkbox */}
         <div
           className="relative shrink-0 cursor-pointer"
@@ -568,12 +556,9 @@ function WikiDndItem({
             )}>
               {item.title || "Untitled"}
             </span>
-            <div className="flex shrink-0 items-center gap-1">
-              {item.hasChildren && !isSelecting && (
-                <span className="text-xs text-muted-foreground/50 tabular-nums">{item.childCount}</span>
-              )}
+            <div className="flex shrink-0 items-center gap-0.5">
               {isSelected && isCollaborating && !isSelecting && (
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500" title="Multiple editors active" />
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500 mr-0.5" title="Multiple editors active" />
               )}
               {!isSelecting && !item.isPending && (
                 <Button
@@ -584,6 +569,14 @@ function WikiDndItem({
                 >
                   <Plus className="size-3" />
                 </Button>
+              )}
+              {item.hasChildren && !isSelecting && (
+                <button
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
+                  onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+                >
+                  {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                </button>
               )}
             </div>
           </div>

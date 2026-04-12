@@ -8,7 +8,7 @@ import {
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
   useSensor, useSensors, closestCenter,
-  type DragStartEvent, type DragOverEvent, type DragEndEvent,
+  type DragStartEvent, type DragMoveEvent, type DragEndEvent,
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Button } from "@multica/ui/components/ui/button";
@@ -177,19 +177,19 @@ export function WikiSidebar({
     setActiveDragId(String(active.id));
   }, []);
 
-  const handleDragOver = useCallback(({ over }: DragOverEvent) => {
+  // onDragMove fires on every pointer move — needed to re-evaluate before/child/after
+  // within the same target item (onDragOver only fires when the target changes).
+  const handleDragMove = useCallback(({ over }: DragMoveEvent) => {
     if (!over) {
-      setDropIndicator(null);
-      dropIndicatorRef.current = null;
+      if (dropIndicatorRef.current !== null) {
+        setDropIndicator(null);
+        dropIndicatorRef.current = null;
+      }
       return;
     }
     const overRect = over.rect;
-    if (!overRect) {
-      setDropIndicator(null);
-      dropIndicatorRef.current = null;
-      return;
-    }
-    // Use document-level pointer Y (tracked outside dnd-kit event capture)
+    if (!overRect) return;
+
     const relY = pointerYRef.current - overRect.top;
     const pct = relY / overRect.height;
 
@@ -198,7 +198,12 @@ export function WikiSidebar({
     else if (pct > 0.72) position = "after";
     else position = "child";
 
-    const indicator: DropIndicator = { overId: String(over.id), position };
+    const overId = String(over.id);
+    // Skip state update if nothing changed (avoids excessive re-renders)
+    const cur = dropIndicatorRef.current;
+    if (cur?.overId === overId && cur?.position === position) return;
+
+    const indicator: DropIndicator = { overId, position };
     setDropIndicator(indicator);
     dropIndicatorRef.current = indicator;
   }, []);
@@ -328,7 +333,7 @@ export function WikiSidebar({
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >

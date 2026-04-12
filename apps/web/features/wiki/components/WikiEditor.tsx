@@ -1,5 +1,5 @@
 import {
-  Save, History, Trash, Loader2, Check, AlertCircle, ChevronRight,
+  Save, History, Trash2, Loader2, Check, AlertCircle, ChevronRight,
   Maximize2, Minimize2
 } from "lucide-react";
 import { useRef } from "react";
@@ -134,7 +134,7 @@ export function WikiEditor({
             className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
             onClick={onDelete}
           >
-            <Trash className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>

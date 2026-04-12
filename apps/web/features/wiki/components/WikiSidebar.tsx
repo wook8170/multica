@@ -27,11 +27,16 @@ interface WikiSidebarProps {
   onDuplicateMultiple?: (ids: string[]) => void;
 }
 
+function countNodes(items: WikiNode[]): number {
+  return items.reduce((sum, n) => sum + 1 + countNodes(n.children ?? []), 0);
+}
+
 export function WikiSidebar({
   nodes, isLoading, onCreateNew, onSelect, selectedId, isCollaborating,
   onDeleteMultiple, onDuplicateMultiple,
 }: WikiSidebarProps) {
   const { searchQuery, setSearchQuery, expandedNodes, toggleNode } = useWikiStore();
+  const totalCount = countNodes(nodes);
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
   const isSelecting = multiSelected.size > 0;
 
@@ -155,6 +160,13 @@ export function WikiSidebar({
               {node.title || "Untitled"}
             </span>
 
+            {/* Child count */}
+            {hasChildren && !isSelecting && (
+              <span className="shrink-0 text-xs text-muted-foreground/50 tabular-nums">
+                {node.children!.length}
+              </span>
+            )}
+
             {/* Green dot — shown when 2+ people editing this document */}
             {isSelected && isCollaborating && !isSelecting && (
               <div className="h-2 w-2 shrink-0 rounded-full bg-green-500" title="Multiple editors active" />
@@ -188,7 +200,12 @@ export function WikiSidebar({
     <div className="flex flex-col h-full bg-background">
       {/* Header — matches PageListHeader style used by Inbox, Issues, etc. */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-        <h1 className="text-sm font-semibold">Documents</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-semibold">Documents</h1>
+          {totalCount > 0 && (
+            <span className="text-xs text-muted-foreground tabular-nums">{totalCount}</span>
+          )}
+        </div>
         <Button
           size="icon-xs"
           variant="ghost"

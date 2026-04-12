@@ -123,6 +123,13 @@ export function WikiView() {
 
   // Connect/disconnect collaboration provider whenever the selected doc changes
   useEffect(() => {
+    // Always clear state first so ContentEditor sees ydoc=null and remounts cleanly.
+    // Without this, navigating to "new" leaves stale (destroyed) ydoc in state,
+    // causing the ContentEditor key to not change and the editor to not remount.
+    setYdoc(null);
+    setProvider(null);
+    setCoEditorCount(0);
+
     // Clean up previous provider before connecting to a new one.
     // destroy() sets local awareness state to null first, so other clients
     // receive an explicit removal event rather than waiting for a TCP timeout.

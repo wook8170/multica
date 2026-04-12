@@ -145,7 +145,8 @@ export function WikiSidebar({
 }: WikiSidebarProps) {
   const { searchQuery, setSearchQuery, expandedNodes, toggleNode, setExpandedNodes } = useWikiStore();
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
-  const isSelecting = multiSelected.size > 0;
+  const [selectMode, setSelectMode] = useState(false);
+  const isSelecting = selectMode || multiSelected.size > 0;
   const totalCount = countNodes(nodes);
 
   // DnD state
@@ -174,7 +175,7 @@ export function WikiSidebar({
     });
   }, []);
 
-  const clearSelection = () => setMultiSelected(new Set());
+  const clearSelection = () => { setMultiSelected(new Set()); setSelectMode(false); };
 
   const handleDeleteMultiple = () => { onDeleteMultiple?.([...multiSelected]); clearSelection(); };
   const handleDuplicateMultiple = () => { onDuplicateMultiple?.([...multiSelected]); clearSelection(); };
@@ -413,21 +414,33 @@ export function WikiSidebar({
         )}
       </div>
 
-      {/* Multi-select action bar */}
-      {isSelecting && (
-        <div className="shrink-0 border-t px-4 py-2 flex items-center gap-1.5 bg-muted/40">
-          <span className="text-sm text-muted-foreground flex-1">{multiSelected.size} selected</span>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={handleDuplicateMultiple} title="Duplicate">
-            <Copy className="h-3.5 w-3.5" />
+      {/* Bottom bar — always visible: Select button or selection actions */}
+      <div className="shrink-0 border-t px-3 py-1.5 flex items-center gap-1.5 bg-muted/20">
+        {isSelecting ? (
+          <>
+            <span className="text-xs text-muted-foreground flex-1">{multiSelected.size} selected</span>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={handleDuplicateMultiple} title="Duplicate">
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={handleDeleteMultiple} title="Delete">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={clearSelection} title="Cancel">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-muted-foreground hover:text-foreground px-2"
+            onClick={() => setSelectMode(true)}
+          >
+            <Check className="h-3 w-3 mr-1" />
+            Select
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={handleDeleteMultiple} title="Delete">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={clearSelection} title="Clear">
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -512,14 +525,14 @@ function WikiDndItem({
 
         {/* Avatar ↔ checkbox */}
         <div
-          className="relative shrink-0 cursor-pointer"
+          className="relative shrink-0"
           style={{ width: 28, height: 28 }}
-          onClick={(e) => { if (!canSelect) return; e.stopPropagation(); onToggleCheck(); }}
+          onClick={(e) => { if (!isSelecting || !canSelect) return; e.stopPropagation(); onToggleCheck(); }}
         >
-          {/* Avatar */}
+          {/* Avatar — always visible outside select mode */}
           <div className={cn(
             "absolute inset-0 transition-opacity duration-100",
-            isSelecting || isChecked ? "opacity-0" : canSelect ? "group-hover:opacity-0" : "",
+            isSelecting ? "opacity-0" : "",
           )}>
             {item.createdBy ? (
               <ActorAvatar actorType="member" actorId={item.createdBy} size={28} />
@@ -529,11 +542,11 @@ function WikiDndItem({
               </div>
             )}
           </div>
-          {/* Checkbox */}
+          {/* Checkbox — only visible in select mode */}
           {canSelect && (
             <div className={cn(
               "absolute inset-0 flex items-center justify-center transition-opacity duration-100",
-              isSelecting || isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+              isSelecting ? "opacity-100" : "opacity-0",
             )}>
               <div className={cn(
                 "size-5 rounded border-2 flex items-center justify-center transition-colors",

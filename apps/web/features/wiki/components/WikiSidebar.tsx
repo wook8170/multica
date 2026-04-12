@@ -507,21 +507,17 @@ function WikiDndItem({
           </div>
         )}
 
-        {/* Expand/collapse — sits just before the avatar */}
-        <div
-          className={cn(
-            "absolute flex h-4 w-4 items-center justify-center rounded transition-colors",
-            item.hasChildren && !isSelecting
-              ? "cursor-pointer opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/10"
-              : "pointer-events-none opacity-0",
-          )}
-          style={{ left: `${16 + item.depth * 16}px` }}
-          onClick={(e) => { if (item.hasChildren && !isSelecting) { e.stopPropagation(); onToggleExpand(); } }}
-        >
-          {item.hasChildren && !isSelecting && (
-            isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />
-          )}
-        </div>
+        {/* Expand/collapse — in flex flow, always visible for items with children */}
+        {item.hasChildren && !isSelecting ? (
+          <div
+            className="flex h-7 w-4 shrink-0 items-center justify-center rounded cursor-pointer text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
+            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+          >
+            {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+          </div>
+        ) : (
+          <div className="w-4 shrink-0" />
+        )}
 
         {/* Avatar ↔ checkbox */}
         <div

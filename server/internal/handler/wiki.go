@@ -23,6 +23,7 @@ type WikiResponse struct {
 	SortOrder   int      `json:"sort_order"`
 	Tags        []string `json:"tags,omitempty"`
 	CreatedBy   string   `json:"created_by"`
+	UpdatedBy   string   `json:"updated_by"`
 	CreatedAt   string   `json:"created_at"`
 	UpdatedAt   string   `json:"updated_at"`
 }
@@ -50,7 +51,7 @@ func (h *Handler) ListWikis(w http.ResponseWriter, r *http.Request) {
 	wsUUID := parseUUID(wsID)
 
 	rows, err := h.DB.Query(ctx,
-		"SELECT id, workspace_id, parent_id, title, content, version, sort_order, created_by, created_at, updated_at FROM wikis WHERE workspace_id = $1 ORDER BY sort_order ASC, created_at ASC",
+		"SELECT id, workspace_id, parent_id, title, content, version, sort_order, created_by, updated_by, created_at, updated_at FROM wikis WHERE workspace_id = $1 ORDER BY sort_order ASC, created_at ASC",
 		wsUUID,
 	)
 	if err != nil {
@@ -64,12 +65,13 @@ func (h *Handler) ListWikis(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var (
 			id, workspaceID, createdBy pgtype.UUID
+			updatedBy                  pgtype.UUID
 			parentID                   pgtype.UUID
 			title, content             string
 			version, sortOrder         int
 			createdAt, updatedAt       time.Time
 		)
-		if err := rows.Scan(&id, &workspaceID, &parentID, &title, &content, &version, &sortOrder, &createdBy, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&id, &workspaceID, &parentID, &title, &content, &version, &sortOrder, &createdBy, &updatedBy, &createdAt, &updatedAt); err != nil {
 			continue
 		}
 		wikis = append(wikis, WikiResponse{
@@ -81,6 +83,7 @@ func (h *Handler) ListWikis(w http.ResponseWriter, r *http.Request) {
 			Version:     version,
 			SortOrder:   sortOrder,
 			CreatedBy:   uuidToString(createdBy),
+			UpdatedBy:   uuidToString(updatedBy),
 			CreatedAt:   createdAt.Format(time.RFC3339),
 			UpdatedAt:   updatedAt.Format(time.RFC3339),
 		})
@@ -181,16 +184,16 @@ func (h *Handler) UpdateWiki(w http.ResponseWriter, r *http.Request) {
 	if req.BaseVersion != nil {
 		tag, err = tx.Exec(ctx,
 			`UPDATE wikis
-			    SET title = $3, content = $4, parent_id = $5, updated_at = NOW(), version = version + 1
+			    SET title = $3, content = $4, parent_id = $5, updated_at = NOW(), updated_by = $7, version = version + 1
 			  WHERE id = $1 AND workspace_id = $2 AND version = $6`,
-			parseUUID(id), parseUUID(wsID), req.Title, req.Content, pID, *req.BaseVersion,
+			parseUUID(id), parseUUID(wsID), req.Title, req.Content, pID, *req.BaseVersion, parseUUID(userID),
 		)
 	} else {
 		tag, err = tx.Exec(ctx,
 			`UPDATE wikis
-			    SET title = $3, content = $4, parent_id = $5, updated_at = NOW(), version = version + 1
+			    SET title = $3, content = $4, parent_id = $5, updated_at = NOW(), updated_by = $6, version = version + 1
 			  WHERE id = $1 AND workspace_id = $2`,
-			parseUUID(id), parseUUID(wsID), req.Title, req.Content, pID,
+			parseUUID(id), parseUUID(wsID), req.Title, req.Content, pID, parseUUID(userID),
 		)
 	}
 	if err != nil {

@@ -24,6 +24,7 @@ interface WikiNode {
   parent_id?: string | null;
   sort_order?: number;
   created_by?: string;
+  updated_by?: string;
   created_at?: string;
   updated_at?: string;
   children?: WikiNode[];
@@ -39,6 +40,7 @@ interface FlatItem {
   hasChildren: boolean;
   childCount: number;
   createdBy?: string;
+  updatedBy?: string;
   createdAt?: string;
   updatedAt?: string;
   isPending?: boolean;
@@ -99,6 +101,7 @@ function flattenVisible(
       hasChildren,
       childCount: children.length,
       createdBy: item.created_by,
+      updatedBy: item.updated_by,
       createdAt: item.created_at,
       updatedAt: item.updated_at,
       isPending: item.isPending,
@@ -584,11 +587,18 @@ function WikiDndItem({
               )}
             </div>
           </div>
-          {/* Line 2: times */}
+          {/* Line 2: last editor avatar + relative time */}
           {!item.isPending && (
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground/60">
+            <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground/60">
+              {(item.updatedBy || item.createdBy) && (
+                <ActorAvatar
+                  actorType="member"
+                  actorId={(item.updatedBy || item.createdBy)!}
+                  size={14}
+                />
+              )}
               {item.updatedAt && item.updatedAt !== item.createdAt ? (
-                <span>edited {timeAgo(item.updatedAt)}</span>
+                <span>{timeAgo(item.updatedAt)}</span>
               ) : (
                 <span>{timeAgo(item.createdAt)}</span>
               )}

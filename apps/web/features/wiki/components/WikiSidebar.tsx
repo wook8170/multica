@@ -471,10 +471,11 @@ function WikiDndItem({
             nest inside ↩
           </span>
         )}
-        {/* Drag handle */}
+        {/* Drag handle — absolutely positioned over the indent padding, no layout space reserved */}
         {!item.isPending && (
           <div
-            className="opacity-0 group-hover:opacity-30 hover:!opacity-70 cursor-grab active:cursor-grabbing shrink-0 -ml-1 text-muted-foreground"
+            className="absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-30 hover:!opacity-70 cursor-grab active:cursor-grabbing text-muted-foreground z-10"
+            style={{ left: `${2 + item.depth * 14}px` }}
             {...attributes}
             {...listeners}
             onClick={(e) => e.stopPropagation()}

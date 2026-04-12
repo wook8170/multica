@@ -89,12 +89,12 @@ export function WikiSidebar({
               }
             }}
             className={cn(
-              "group relative flex w-full cursor-pointer items-center gap-2 py-2 px-3 rounded-md transition-colors select-none",
+              "group relative flex w-full cursor-pointer items-center gap-2 py-2 pr-3 transition-colors select-none",
               isSelected && !isSelecting ? "bg-primary/10" : "",
               isChecked ? "bg-primary/8" : "",
               !isChecked ? "hover:bg-muted" : "",
             )}
-            style={{ marginLeft: `${level * 14}px` }}
+            style={{ paddingLeft: `${16 + level * 14}px` }}
           >
             {/* Expand/collapse toggle */}
             <div
@@ -213,7 +213,7 @@ export function WikiSidebar({
       </div>
 
       {/* Document tree */}
-      <div className="flex-1 overflow-y-auto py-1 px-1">
+      <div className="flex-1 overflow-y-auto py-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-8 opacity-40">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

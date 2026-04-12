@@ -482,7 +482,7 @@ function WikiDndItem({
       <div
         onClick={onSelect}
         className={cn(
-          "group relative flex w-full cursor-pointer items-center gap-3 py-2.5 pr-3 transition-colors select-none",
+          "group relative flex w-full cursor-pointer items-center gap-2 py-2.5 pr-3 transition-colors select-none",
           isDragging ? "opacity-40" : "",
           dropIndicator?.position === "child" ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "",
           isSelected && !isSelecting && dropIndicator?.position !== "child" ? "bg-accent" : "",
@@ -513,13 +513,13 @@ function WikiDndItem({
         {/* Expand/collapse — in flex flow, always visible for items with children */}
         {item.hasChildren && !isSelecting ? (
           <div
-            className="flex h-7 w-4 shrink-0 items-center justify-center rounded cursor-pointer text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
+            className="flex h-7 w-3 shrink-0 items-center justify-center rounded cursor-pointer text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
             onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
           >
             {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
           </div>
         ) : (
-          <div className="w-4 shrink-0" />
+          <div className="w-3 shrink-0" />
         )}
 
         {/* Avatar ↔ checkbox */}

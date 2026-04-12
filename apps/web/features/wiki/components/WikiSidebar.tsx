@@ -24,6 +24,8 @@ interface WikiNode {
   parent_id?: string | null;
   sort_order?: number;
   created_by?: string;
+  created_at?: string;
+  updated_at?: string;
   children?: WikiNode[];
   isPending?: boolean;
 }
@@ -37,7 +39,22 @@ interface FlatItem {
   hasChildren: boolean;
   childCount: number;
   createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
   isPending?: boolean;
+}
+
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 type DropPosition = "before" | "child" | "after";
@@ -82,6 +99,8 @@ function flattenVisible(
       hasChildren,
       childCount: children.length,
       createdBy: item.created_by,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
       isPending: item.isPending,
     });
     if (hasChildren && expandedNodes.has(item.id)) {
@@ -460,14 +479,14 @@ function WikiDndItem({
       <div
         onClick={onSelect}
         className={cn(
-          "group relative flex w-full cursor-pointer items-center gap-2 py-2 pr-3 transition-colors select-none",
+          "group relative flex w-full cursor-pointer items-center gap-3 py-2.5 pr-3 transition-colors select-none",
           isDragging ? "opacity-40" : "",
           dropIndicator?.position === "child" ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "",
-          isSelected && !isSelecting && dropIndicator?.position !== "child" ? "bg-primary/10" : "",
+          isSelected && !isSelecting && dropIndicator?.position !== "child" ? "bg-accent" : "",
           isChecked ? "bg-primary/8" : "",
-          !isChecked && dropIndicator?.position !== "child" ? "hover:bg-muted" : "",
+          !isChecked && dropIndicator?.position !== "child" ? "hover:bg-accent/50" : "",
         )}
-        style={{ paddingLeft: `${16 + item.depth * 14}px` }}
+        style={{ paddingLeft: `${16 + item.depth * 16}px` }}
       >
         {/* Child-drop hint label */}
         {dropIndicator?.position === "child" && (
@@ -475,11 +494,11 @@ function WikiDndItem({
             nest inside ↩
           </span>
         )}
-        {/* Drag handle — absolutely positioned over the indent padding, no layout space reserved */}
+        {/* Drag handle — absolutely positioned over the indent padding */}
         {!item.isPending && (
           <div
             className="absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-30 hover:!opacity-70 cursor-grab active:cursor-grabbing text-muted-foreground z-10"
-            style={{ left: `${2 + item.depth * 14}px` }}
+            style={{ left: `${2 + item.depth * 16}px` }}
             {...attributes}
             {...listeners}
             onClick={(e) => e.stopPropagation()}
@@ -488,84 +507,98 @@ function WikiDndItem({
           </div>
         )}
 
-        {/* Expand/collapse */}
+        {/* Expand/collapse — sits just before the avatar */}
         <div
           className={cn(
-            "flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors",
-            item.hasChildren && !isSelecting ? "cursor-pointer hover:bg-muted-foreground/10" : "opacity-0 pointer-events-none",
+            "absolute flex h-4 w-4 items-center justify-center rounded transition-colors",
+            item.hasChildren && !isSelecting
+              ? "cursor-pointer opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/10"
+              : "pointer-events-none opacity-0",
           )}
+          style={{ left: `${16 + item.depth * 16}px` }}
           onClick={(e) => { if (item.hasChildren && !isSelecting) { e.stopPropagation(); onToggleExpand(); } }}
         >
           {item.hasChildren && !isSelecting && (
-            isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />
+            isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />
           )}
         </div>
 
         {/* Avatar ↔ checkbox */}
         <div
-          className="relative size-5 shrink-0 cursor-pointer"
+          className="relative shrink-0 cursor-pointer"
+          style={{ width: 28, height: 28 }}
           onClick={(e) => { if (!canSelect) return; e.stopPropagation(); onToggleCheck(); }}
         >
-          {/* Avatar (visible when not in select mode) */}
+          {/* Avatar */}
           <div className={cn(
             "absolute inset-0 transition-opacity duration-100",
             isSelecting || isChecked ? "opacity-0" : canSelect ? "group-hover:opacity-0" : "",
           )}>
             {item.createdBy ? (
-              <ActorAvatar actorType="member" actorId={item.createdBy} size={20} />
+              <ActorAvatar actorType="member" actorId={item.createdBy} size={28} />
             ) : (
-              <FileText className={cn(
-                "size-5",
-                isSelected ? "text-primary" : "text-muted-foreground",
-              )} />
+              <div className="flex size-7 items-center justify-center rounded-full bg-muted">
+                <FileText className={cn("size-3.5", isSelected ? "text-primary" : "text-muted-foreground")} />
+              </div>
             )}
           </div>
-          {/* Checkbox (visible on hover / in select mode) */}
+          {/* Checkbox */}
           {canSelect && (
             <div className={cn(
               "absolute inset-0 flex items-center justify-center transition-opacity duration-100",
               isSelecting || isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}>
               <div className={cn(
-                "size-4 rounded border-2 flex items-center justify-center transition-colors",
+                "size-5 rounded border-2 flex items-center justify-center transition-colors",
                 isChecked ? "bg-primary border-primary" : "border-muted-foreground/40 bg-background",
               )}>
-                {isChecked && <Check className="size-2.5 text-white stroke-[3]" />}
+                {isChecked && <Check className="size-3 text-white stroke-[3]" />}
               </div>
             </div>
           )}
         </div>
 
-        {/* Title */}
-        <span className={cn(
-          "text-sm truncate flex-1 transition-colors",
-          item.isPending ? "italic text-muted-foreground/50" : "",
-          isSelected && !isSelecting ? "text-primary font-medium" : "text-muted-foreground group-hover:text-foreground",
-        )}>
-          {item.title || "Untitled"}
-        </span>
-
-        {/* Child count */}
-        {item.hasChildren && !isSelecting && (
-          <span className="shrink-0 text-xs text-muted-foreground/50 tabular-nums">{item.childCount}</span>
-        )}
-
-        {/* Collab dot */}
-        {isSelected && isCollaborating && !isSelecting && (
-          <div className="h-2 w-2 shrink-0 rounded-full bg-green-500" title="Multiple editors active" />
-        )}
-
-        {/* Add child */}
-        {!isSelecting && !item.isPending && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="opacity-0 group-hover:opacity-100 h-6 w-6 text-muted-foreground hover:bg-muted hover:text-primary shrink-0"
-            onClick={(e) => { e.stopPropagation(); onCreateChild(); }}
-          >
-            <Plus className="size-3.5" />
-          </Button>
-        )}
+        {/* Two-line content */}
+        <div className="min-w-0 flex-1">
+          {/* Line 1: title + badges */}
+          <div className="flex items-center justify-between gap-1">
+            <span className={cn(
+              "truncate text-sm leading-snug",
+              item.isPending ? "italic text-muted-foreground/50" : "",
+              isSelected && !isSelecting ? "font-medium text-foreground" : "text-foreground",
+            )}>
+              {item.title || "Untitled"}
+            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              {item.hasChildren && !isSelecting && (
+                <span className="text-xs text-muted-foreground/50 tabular-nums">{item.childCount}</span>
+              )}
+              {isSelected && isCollaborating && !isSelecting && (
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500" title="Multiple editors active" />
+              )}
+              {!isSelecting && !item.isPending && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="hidden group-hover:flex h-5 w-5 text-muted-foreground hover:text-primary shrink-0"
+                  onClick={(e) => { e.stopPropagation(); onCreateChild(); }}
+                >
+                  <Plus className="size-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+          {/* Line 2: times */}
+          {!item.isPending && (
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground/60">
+              {item.updatedAt && item.updatedAt !== item.createdAt ? (
+                <span>edited {timeAgo(item.updatedAt)}</span>
+              ) : (
+                <span>{timeAgo(item.createdAt)}</span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* After-drop indicator */}

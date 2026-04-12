@@ -403,17 +403,23 @@ export function WikiView() {
   const handleSave = useCallback((binaryState?: string | null) => {
     if (!currentTitle.trim()) { toast.error("Set a title first."); return; }
     clearTimeout(autosaveTimerRef.current); // Reset autosave timer on manual save
+    // For existing docs, always read parent_id from the server data (not parentSelection,
+    // which is only set for new documents and is null for existing ones).
+    const parentId = selectedId && selectedId !== "new"
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? ((rawWikis as any[]).find((w: any) => w.id === selectedId)?.parent_id ?? null)
+      : parentSelection;
     saveMutation.mutate(
       {
         id: selectedId || undefined,
         title: currentTitle,
         content: currentContent,
         binary_state: binaryState,
-        parent_id: parentSelection,
+        parent_id: parentId,
       },
       { onSuccess: () => toast.success("Saved.") },
     );
-  }, [currentTitle, currentContent, selectedId, parentSelection, saveMutation]);
+  }, [currentTitle, currentContent, selectedId, parentSelection, rawWikis, saveMutation]);
 
   const handleUploadFile = async (file: File) => {
     try {

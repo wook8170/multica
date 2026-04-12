@@ -66,24 +66,24 @@ export function WikiEditor({
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
-      {/* Top header */}
-      <div className="flex h-10 shrink-0 items-center justify-between border-b px-4 bg-background">
-        <div className="flex items-center gap-1 text-xs md:text-sm min-w-0">
-          <span className="text-muted-foreground font-medium shrink-0">Documents</span>
+      {/* Top header — h-12 / px-4 matching inbox panel header */}
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 bg-background">
+        <div className="flex items-center gap-1 text-sm min-w-0">
+          <span className="text-muted-foreground shrink-0">Documents</span>
           {ancestors.map((a) => (
             <span key={a.id} className="contents">
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
               <button
                 type="button"
                 onClick={() => onNavigateTo?.(a.id)}
-                className="text-muted-foreground max-w-[120px] truncate font-medium hover:text-foreground hover:underline underline-offset-2 transition-colors shrink-0"
+                className="text-muted-foreground max-w-[120px] truncate hover:text-foreground hover:underline underline-offset-2 transition-colors shrink-0"
                 title={a.title}
               >
                 {a.title || "Untitled"}
               </button>
             </span>
           ))}
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
           <span className="text-foreground font-semibold truncate min-w-0">
             {id === "new" ? "New Document" : (title || "Untitled")}
           </span>

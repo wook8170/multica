@@ -11,11 +11,14 @@ import { cn } from "@multica/ui/lib/utils";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+interface Ancestor { id: string; title: string }
+
 interface WikiEditorProps {
   id: string;
   title: string;
   content: string;
-  parentTitle?: string | null;
+  ancestors?: Ancestor[];
+  onNavigateTo?: (id: string) => void;
   onUpdateTitle: (val: string) => void;
   onUpdateContent: (val: string) => void;
   onSave: (binaryState?: string | null) => void;
@@ -32,7 +35,8 @@ export function WikiEditor({
   id,
   title,
   content,
-  parentTitle,
+  ancestors = [],
+  onNavigateTo,
   onUpdateTitle,
   onUpdateContent,
   onSave,
@@ -64,17 +68,24 @@ export function WikiEditor({
     <div className="flex h-full flex-col overflow-hidden bg-background">
       {/* Top header */}
       <div className="flex h-10 shrink-0 items-center justify-between border-b px-4 bg-background">
-        <div className="flex items-center gap-2 text-xs md:text-sm">
-          <span className="text-muted-foreground font-medium">Documents</span>
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
-          {parentTitle && (
-            <>
-              <span className="text-muted-foreground max-w-[140px] truncate font-medium">{parentTitle}</span>
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
-            </>
-          )}
-          <span className="text-foreground font-semibold truncate max-w-[240px] md:max-w-[300px]">
-            {id === "new" ? "New Document" : title}
+        <div className="flex items-center gap-1 text-xs md:text-sm min-w-0">
+          <span className="text-muted-foreground font-medium shrink-0">Documents</span>
+          {ancestors.map((a) => (
+            <span key={a.id} className="contents">
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+              <button
+                type="button"
+                onClick={() => onNavigateTo?.(a.id)}
+                className="text-muted-foreground max-w-[120px] truncate font-medium hover:text-foreground hover:underline underline-offset-2 transition-colors shrink-0"
+                title={a.title}
+              >
+                {a.title || "Untitled"}
+              </button>
+            </span>
+          ))}
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+          <span className="text-foreground font-semibold truncate min-w-0">
+            {id === "new" ? "New Document" : (title || "Untitled")}
           </span>
         </div>
 

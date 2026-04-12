@@ -54,6 +54,18 @@ function userIdToColor(userId: string | undefined): string {
   return palette[Math.abs(h) % palette.length]!;
 }
 
+/** Returns the ancestor chain [root, …, direct parent] for a given wiki id. */
+function getAncestors(items: any[], id: string): { id: string; title: string }[] {
+  const map = new Map(items.map(i => [i.id, i]));
+  const chain: { id: string; title: string }[] = [];
+  let current = map.get(id);
+  while (current?.parent_id && map.has(current.parent_id)) {
+    current = map.get(current.parent_id);
+    chain.unshift({ id: current.id, title: current.title });
+  }
+  return chain;
+}
+
 function buildTree(items: any[]): WikiNode[] {
   if (!items || !Array.isArray(items)) return [];
   const map = new Map<string, WikiNode>();
@@ -530,7 +542,19 @@ export function WikiView() {
           id={selectedId}
           title={currentTitle}
           content={currentContent}
-          parentTitle={parentSelection ? (rawWikis as any[]).find((w: any) => w.id === parentSelection)?.title : ((rawWikis as any[]).find((w: any) => w.id === selectedId)?.parent_id ? (rawWikis as any[]).find((p: any) => p.id === (rawWikis as any[]).find((w: any) => w.id === selectedId)?.parent_id)?.title : null)}
+          ancestors={
+            selectedId && selectedId !== "new"
+              ? getAncestors(rawWikis as any[], selectedId)
+              : parentSelection
+                ? getAncestors(rawWikis as any[], parentSelection).concat(
+                    (() => { const p = (rawWikis as any[]).find((w: any) => w.id === parentSelection); return p ? [{ id: p.id, title: p.title }] : []; })()
+                  )
+                : []
+          }
+          onNavigateTo={(id) => {
+            const wiki = (rawWikis as any[]).find((w: any) => w.id === id);
+            if (wiki) handleSelect(wiki);
+          }}
           onUpdateTitle={setCurrentTitle}
           onUpdateContent={setCurrentContent}
           onSave={handleSave}

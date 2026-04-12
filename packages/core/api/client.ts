@@ -132,7 +132,9 @@ export class ApiClient {
       const message = await this.parseErrorMessage(res, `API error: ${res.status} ${res.statusText}`);
       const logLevel = res.status === 404 ? "warn" : "error";
       this.logger[logLevel](`← ${res.status} ${path}`, { rid, duration: `${Date.now() - start}ms`, error: message });
-      throw new Error(message);
+      const err = new Error(message) as Error & { status: number };
+      err.status = res.status;
+      throw err;
     }
 
     this.logger.info(`← ${res.status} ${path}`, { rid, duration: `${Date.now() - start}ms` });
@@ -729,4 +731,54 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  // --- Wikis ---
+  async listWikis(): Promise<any[]> {
+    return this.fetch(`/api/wikis`, {
+      headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
+    });
+  }
+
+  async createWiki(data: { parent_id?: string; title: string; content: string }): Promise<any> {
+    return this.fetch(`/api/wikis`, {
+      method: "POST",
+      headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateWiki(
+    id: string,
+    data: {
+      title?: string;
+      content?: string;
+      binary_state?: string | null;
+      parent_id?: string;
+      base_version?: number; // optimistic lock: server compares against current version, returns 409 on mismatch
+    },
+  ): Promise<{ version: number }> {
+    return this.fetch(`/api/wikis/${id}`, {
+      method: "PUT",
+      headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
+      body: JSON.stringify(data),
+    });
+  }
+
+
+  async moveWiki(id: string, data: { parent_id: string | null; sort_order: number }): Promise<void> {
+    await this.fetch(`/api/wikis/${id}/move`, {
+      method: "PATCH",
+      headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteWiki(id: string): Promise<void> {
+    await this.fetch(`/api/wikis/${id}`, { method: "DELETE" });
+  }
+
+  async getWikiHistory(id: string): Promise<any[]> {
+    return this.fetch(`/api/wikis/${id}/history`, { method: "GET" });
+  }
 }
+

@@ -36,6 +36,7 @@ interface WikiNode {
   title: string;
   content: string;
   parent_id?: string | null;
+  sort_order?: number;
   children?: WikiNode[];
 }
 
@@ -66,6 +67,12 @@ function buildTree(items: any[]): WikiNode[] {
       roots.push(node);
     }
   });
+  // Sort each level by sort_order ascending
+  const sortLevel = (nodes: WikiNode[]) => {
+    nodes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    nodes.forEach(n => { if (n.children?.length) sortLevel(n.children); });
+  };
+  sortLevel(roots);
   return roots;
 }
 
@@ -357,6 +364,14 @@ export function WikiView() {
       .catch(() => toast.error("Some deletions failed."));
   }, [selectedId, queryClient]);
 
+  const handleMoveWiki = useCallback((moves: { id: string; parentId: string | null; sortOrder: number }[]) => {
+    Promise.all(moves.map(({ id, parentId, sortOrder }) =>
+      api.moveWiki(id, { parent_id: parentId, sort_order: sortOrder })
+    )).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["wikis"] });
+    }).catch(() => toast.error("Failed to move document."));
+  }, [queryClient]);
+
   const handleDuplicateMultiple = useCallback((ids: string[]) => {
     const wikis = rawWikis as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
     Promise.all(
@@ -591,6 +606,7 @@ export function WikiView() {
             isCollaborating={coEditorCount > 0}
             onDeleteMultiple={handleDeleteMultiple}
             onDuplicateMultiple={handleDuplicateMultiple}
+            onMove={handleMoveWiki}
           />
         </ResizablePanel>
 

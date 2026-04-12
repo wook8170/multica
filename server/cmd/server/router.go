@@ -159,6 +159,9 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 			r.Delete("/{id}", h.RevokePersonalAccessToken)
 		})
 
+		// Internal/Collaboration Webhooks
+		r.Post("/api/internal/collaboration/webhook", h.CollaborationWebhook)
+
 		// --- Workspace-scoped routes (all require workspace membership) ---
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireWorkspaceMember(queries))
@@ -300,6 +303,19 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 				r.Post("/archive-completed", h.ArchiveCompletedInbox)
 				r.Post("/{id}/read", h.MarkInboxRead)
 				r.Post("/{id}/archive", h.ArchiveInboxItem)
+			})
+
+			// Wikis
+			r.Route("/api/wikis", func(r chi.Router) {
+				r.Get("/", h.ListWikis)
+				r.Get("/search", h.SearchWikis)
+				r.Post("/", h.CreateWiki)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Put("/", h.UpdateWiki)
+					r.Patch("/move", h.MoveWiki)
+					r.Delete("/", h.DeleteWiki)
+					r.Get("/history", h.GetWikiHistory)
+				})
 			})
 		})
 	})

@@ -449,7 +449,8 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
           </div>
         )}
         {/* scrollContainerRef: used by RemoteCursor for absolute position calculation */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative">
+        {/* pt-7: reserve space so the name badge (rendered above the caret) isn't clipped at the top */}
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative pt-7">
           <EditorContent editor={editor} />
 
           {/* Remote user cursors (Presence layer, decoupled from Content) */}

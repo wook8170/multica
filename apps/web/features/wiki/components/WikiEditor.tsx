@@ -153,8 +153,8 @@ export function WikiEditor({
         </div>
       </div>
 
-      {/* Editor area */}
-      <div className="flex-1 overflow-y-auto pt-12 pb-32 scrollbar-hide">
+      {/* Editor area — pt-20 gives room for remote cursor name badges at the top */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pt-20 pb-32 scrollbar-hide">
         <div className={cn(
           "mx-auto px-6 md:px-12 transition-all duration-300",
           isFullWidth ? "max-w-full" : "max-w-3xl"

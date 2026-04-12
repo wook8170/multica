@@ -1,15 +1,9 @@
 import {
-  Save, MoreHorizontal, History, Trash, Loader2, Check, AlertCircle, ChevronRight,
+  Save, History, Trash, Loader2, Check, AlertCircle, ChevronRight,
   Maximize2, Minimize2
 } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@multica/ui/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@multica/ui/components/ui/dropdown-menu";
 import { ContentEditor, TitleEditor } from "@multica/views/editor";
 import { useWikiStore } from "../store";
 import { useAuthStore } from "@multica/core/auth";
@@ -133,23 +127,15 @@ export function WikiEditor({
             }
           </Button>
 
-          {/* Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger render={
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-muted">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            } />
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={onDelete}
-                className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                Delete Document
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Delete */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+            onClick={onDelete}
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 

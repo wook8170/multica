@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
   FileText, Plus, Search, ChevronRight, ChevronDown,
   Loader2, Trash2, Copy, X, Check, GripVertical,
@@ -112,17 +112,6 @@ function containsId(nodes: WikiNode[], id: string): boolean {
   return false;
 }
 
-/** Compute sort_order values for N items dropped between prev and next */
-function computeSortOrders(prev: number | null, next: number | null, count: number): number[] {
-  const lo = prev ?? (next != null ? next - count * 1000 : 0);
-  const hi = next ?? lo + count * 1000;
-  const step = (hi - lo) / (count + 1);
-  if (step < 1) {
-    // Tight gap — just stack after prev
-    return Array.from({ length: count }, (_, i) => (prev ?? 0) + (i + 1));
-  }
-  return Array.from({ length: count }, (_, i) => Math.round(lo + step * (i + 1)));
-}
 
 export function WikiSidebar({
   nodes, isLoading, onCreateNew, onSelect, selectedId, isCollaborating,
@@ -138,6 +127,13 @@ export function WikiSidebar({
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   // Ref for reliable synchronous read in handleDragEnd (avoids stale closure on state)
   const dropIndicatorRef = useRef<DropIndicator | null>(null);
+  // Track real pointer Y at document level — reliable even when @dnd-kit captures pointer events
+  const pointerYRef = useRef(0);
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => { pointerYRef.current = e.clientY; };
+    document.addEventListener("pointermove", onMove);
+    return () => document.removeEventListener("pointermove", onMove);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -181,27 +177,25 @@ export function WikiSidebar({
     setActiveDragId(String(active.id));
   }, []);
 
-  const handleDragOver = useCallback(({ active, over }: DragOverEvent) => {
+  const handleDragOver = useCallback(({ over }: DragOverEvent) => {
     if (!over) {
       setDropIndicator(null);
       dropIndicatorRef.current = null;
       return;
     }
     const overRect = over.rect;
-    // Use center of dragged element to determine drop zone (reliable unlike pointer coords)
-    const activeTranslated = active.rect.current.translated;
-    if (!overRect || !activeTranslated) {
+    if (!overRect) {
       setDropIndicator(null);
       dropIndicatorRef.current = null;
       return;
     }
-    const activeCenter = activeTranslated.top + activeTranslated.height / 2;
-    const relY = activeCenter - overRect.top;
+    // Use document-level pointer Y (tracked outside dnd-kit event capture)
+    const relY = pointerYRef.current - overRect.top;
     const pct = relY / overRect.height;
 
     let position: DropPosition;
-    if (pct < 0.3) position = "before";
-    else if (pct > 0.7) position = "after";
+    if (pct < 0.28) position = "before";
+    else if (pct > 0.72) position = "after";
     else position = "child";
 
     const indicator: DropIndicator = { overId: String(over.id), position };
@@ -237,29 +231,21 @@ export function WikiSidebar({
     // New parent
     const newParentId = position === "child" ? overId : overItem.parentId;
 
-    // Find siblings of the target parent (excluding items being moved)
-    const siblings = flatItems
-      .filter(i => i.parentId === newParentId && !draggedIds.includes(i.id))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+    // Siblings in current visual order (flatItems is already ordered correctly by the server).
+    // We do NOT rely on sortOrder values from the DB — they may all be 0 for legacy items.
+    // Instead we use the visual-position index (×1000) as canonical sort order.
+    const siblingsOrdered = flatItems.filter(
+      i => i.parentId === newParentId && !draggedIds.includes(i.id),
+    );
 
-    let prevSortOrder: number | null = null;
-    let nextSortOrder: number | null = null;
-
+    // Find insert index within siblings
+    let insertIdx: number;
     if (position === "child") {
-      // Insert as first child of overId — go before existing first child
-      nextSortOrder = siblings[0]?.sortOrder ?? null;
-    } else if (position === "before") {
-      const idx = siblings.findIndex(i => i.id === overId);
-      prevSortOrder = siblings[idx - 1]?.sortOrder ?? null;
-      nextSortOrder = siblings[idx]?.sortOrder ?? null;
+      insertIdx = 0; // prepend as first child
     } else {
-      // after
-      const idx = siblings.findIndex(i => i.id === overId);
-      prevSortOrder = siblings[idx]?.sortOrder ?? null;
-      nextSortOrder = siblings[idx + 1]?.sortOrder ?? null;
+      const overIdx = siblingsOrdered.findIndex(i => i.id === overId);
+      insertIdx = position === "before" ? overIdx : overIdx + 1;
     }
-
-    const sortOrders = computeSortOrders(prevSortOrder, nextSortOrder, draggedIds.length);
 
     // Preserve original relative order for multi-select
     const orderedDraggedIds = [...draggedIds].sort((a, b) => {
@@ -268,10 +254,15 @@ export function WikiSidebar({
       return ai - bi;
     });
 
-    const moves = orderedDraggedIds.map((id, i) => ({
+    // Build the complete new ordered list for this parent and assign clean sort_orders.
+    // Renormalising ALL siblings every move keeps DB values always clean.
+    const newSiblingList: string[] = [...siblingsOrdered.map(s => s.id)];
+    newSiblingList.splice(insertIdx, 0, ...orderedDraggedIds);
+
+    const moves = newSiblingList.map((id, idx) => ({
       id,
       parentId: newParentId,
-      sortOrder: sortOrders[i]!,
+      sortOrder: (idx + 1) * 1000,
     }));
 
     onMove(moves);

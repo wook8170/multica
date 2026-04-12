@@ -76,7 +76,7 @@ export function WikiSidebar({
       const hasChildren = (node.children?.length ?? 0) > 0;
       const isSelected = selectedId === node.id;
       const isChecked = multiSelected.has(node.id);
-      const canSelect = !node.isPending; // pending docs can't be multi-selected
+      const canSelect = !node.isPending;
 
       return (
         <div key={node.id} className="flex flex-col">
@@ -89,12 +89,12 @@ export function WikiSidebar({
               }
             }}
             className={cn(
-              "group relative flex w-full cursor-pointer items-center gap-1.5 py-1.5 px-2 rounded-md transition-colors select-none",
+              "group relative flex w-full cursor-pointer items-center gap-2 py-2 px-3 rounded-md transition-colors select-none",
               isSelected && !isSelecting ? "bg-primary/10" : "",
               isChecked ? "bg-primary/8" : "",
               !isChecked ? "hover:bg-muted" : "",
             )}
-            style={{ marginLeft: `${level * 12}px` }}
+            style={{ marginLeft: `${level * 14}px` }}
           >
             {/* Expand/collapse toggle */}
             <div
@@ -110,13 +110,13 @@ export function WikiSidebar({
               }}
             >
               {hasChildren && !isSelecting && (
-                isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />
+                isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />
               )}
             </div>
 
             {/* File icon ↔ checkbox */}
             <div
-              className="relative size-3.5 shrink-0 cursor-pointer"
+              className="relative size-4 shrink-0 cursor-pointer"
               onClick={(e) => {
                 if (!canSelect) return;
                 e.stopPropagation();
@@ -125,7 +125,7 @@ export function WikiSidebar({
             >
               {/* File icon — hidden on hover or when selecting */}
               <FileText className={cn(
-                "size-3.5 absolute inset-0 transition-opacity duration-100",
+                "size-4 absolute inset-0 transition-opacity duration-100",
                 isSelected ? "text-primary" : "text-muted-foreground",
                 isSelecting || isChecked ? "opacity-0" : canSelect ? "group-hover:opacity-0" : "",
               )} />
@@ -137,10 +137,10 @@ export function WikiSidebar({
                   isSelecting || isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                 )}>
                   <div className={cn(
-                    "size-3.5 rounded border-2 flex items-center justify-center transition-colors",
+                    "size-4 rounded border-2 flex items-center justify-center transition-colors",
                     isChecked ? "bg-primary border-primary" : "border-muted-foreground/40 bg-background",
                   )}>
-                    {isChecked && <Check className="size-2 text-white stroke-[3]" />}
+                    {isChecked && <Check className="size-2.5 text-white stroke-[3]" />}
                   </div>
                 </div>
               )}
@@ -148,9 +148,9 @@ export function WikiSidebar({
 
             {/* Title */}
             <span className={cn(
-              "text-xs truncate flex-1 font-medium transition-colors",
+              "text-sm truncate flex-1 transition-colors",
               node.isPending ? "italic text-muted-foreground/50" : "",
-              isSelected && !isSelecting ? "text-primary font-semibold" : "text-muted-foreground group-hover:text-foreground",
+              isSelected && !isSelecting ? "text-primary font-medium" : "text-muted-foreground group-hover:text-foreground",
             )}>
               {node.title || "Untitled"}
             </span>
@@ -171,7 +171,7 @@ export function WikiSidebar({
                   onCreateNew(node.id);
                 }}
               >
-                <Plus className="size-3" />
+                <Plus className="size-3.5" />
               </Button>
             )}
           </div>
@@ -186,31 +186,28 @@ export function WikiSidebar({
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="flex h-10 shrink-0 items-center justify-between px-3 border-b gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <h1 className="text-xs font-semibold tracking-tight text-foreground truncate">Documents</h1>
-        </div>
+      {/* Header — matches PageListHeader style used by Inbox, Issues, etc. */}
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
+        <h1 className="text-sm font-semibold">Documents</h1>
         <Button
-          size="icon"
+          size="icon-xs"
           variant="ghost"
           onClick={() => onCreateNew(null)}
-          className="h-6 w-6 text-muted-foreground hover:bg-muted hover:text-primary shrink-0"
+          className="text-muted-foreground"
         >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
 
       {/* Search */}
-      <div className="shrink-0 px-3 py-2">
+      <div className="shrink-0 px-4 py-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40 pointer-events-none" />
           <Input
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 pl-8 text-xs bg-muted border-none focus-visible:ring-1 focus-visible:ring-primary/20 placeholder:text-muted-foreground/50"
+            className="h-8 pl-8 text-sm bg-muted border-none focus-visible:ring-1 focus-visible:ring-primary/20 placeholder:text-muted-foreground/50"
           />
         </div>
       </div>
@@ -228,8 +225,8 @@ export function WikiSidebar({
 
       {/* Multi-select action bar */}
       {isSelecting && (
-        <div className="shrink-0 border-t px-3 py-2 flex items-center gap-1.5 bg-muted/40">
-          <span className="text-xs text-muted-foreground flex-1 font-medium">
+        <div className="shrink-0 border-t px-4 py-2 flex items-center gap-1.5 bg-muted/40">
+          <span className="text-sm text-muted-foreground flex-1">
             {multiSelected.size} selected
           </span>
           <Button

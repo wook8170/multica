@@ -136,7 +136,8 @@ export function WikiSidebar({
   // DnD state
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
-  const pointerYRef = useRef(0);
+  // Ref for reliable synchronous read in handleDragEnd (avoids stale closure on state)
+  const dropIndicatorRef = useRef<DropIndicator | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -180,27 +181,46 @@ export function WikiSidebar({
     setActiveDragId(String(active.id));
   }, []);
 
-  const handleDragOver = useCallback(({ over }: DragOverEvent) => {
-    if (!over) { setDropIndicator(null); return; }
-    const rect = over.rect;
-    if (!rect) { setDropIndicator(null); return; }
-    const relY = pointerYRef.current - rect.top;
-    const pct = relY / rect.height;
+  const handleDragOver = useCallback(({ active, over }: DragOverEvent) => {
+    if (!over) {
+      setDropIndicator(null);
+      dropIndicatorRef.current = null;
+      return;
+    }
+    const overRect = over.rect;
+    // Use center of dragged element to determine drop zone (reliable unlike pointer coords)
+    const activeTranslated = active.rect.current.translated;
+    if (!overRect || !activeTranslated) {
+      setDropIndicator(null);
+      dropIndicatorRef.current = null;
+      return;
+    }
+    const activeCenter = activeTranslated.top + activeTranslated.height / 2;
+    const relY = activeCenter - overRect.top;
+    const pct = relY / overRect.height;
+
     let position: DropPosition;
-    if (pct < 0.28) position = "before";
-    else if (pct > 0.72) position = "after";
+    if (pct < 0.3) position = "before";
+    else if (pct > 0.7) position = "after";
     else position = "child";
-    setDropIndicator({ overId: String(over.id), position });
+
+    const indicator: DropIndicator = { overId: String(over.id), position };
+    setDropIndicator(indicator);
+    dropIndicatorRef.current = indicator;
   }, []);
 
   const handleDragEnd = useCallback(({ active }: DragEndEvent) => {
     const activeId = String(active.id);
     setActiveDragId(null);
 
-    if (!dropIndicator || !onMove) { setDropIndicator(null); return; }
-
-    const { overId, position } = dropIndicator;
+    // Use ref (not state) to get the latest indicator without stale-closure risk
+    const indicator = dropIndicatorRef.current;
     setDropIndicator(null);
+    dropIndicatorRef.current = null;
+
+    if (!indicator || !onMove) return;
+
+    const { overId, position } = indicator;
 
     if (activeId === overId) return; // dropped on itself
 
@@ -264,11 +284,12 @@ export function WikiSidebar({
     }
 
     if (isSelecting) clearSelection();
-  }, [dropIndicator, multiSelected, flatItems, nodes, expandedNodes, setExpandedNodes, onMove, isSelecting]);
+  }, [multiSelected, flatItems, nodes, expandedNodes, setExpandedNodes, onMove, isSelecting]);
 
   const handleDragCancel = useCallback(() => {
     setActiveDragId(null);
     setDropIndicator(null);
+    dropIndicatorRef.current = null;
   }, []);
 
   // The active drag item info (for overlay)
@@ -278,7 +299,6 @@ export function WikiSidebar({
   return (
     <div
       className="flex flex-col h-full bg-background"
-      onPointerMove={(e) => { pointerYRef.current = e.clientY; }}
     >
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
@@ -442,13 +462,19 @@ function WikiDndItem({
         className={cn(
           "group relative flex w-full cursor-pointer items-center gap-2 py-2 pr-3 transition-colors select-none",
           isDragging ? "opacity-40" : "",
-          dropIndicator?.position === "child" ? "bg-primary/15 ring-1 ring-primary/30" : "",
+          dropIndicator?.position === "child" ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "",
           isSelected && !isSelecting && dropIndicator?.position !== "child" ? "bg-primary/10" : "",
           isChecked ? "bg-primary/8" : "",
           !isChecked && dropIndicator?.position !== "child" ? "hover:bg-muted" : "",
         )}
         style={{ paddingLeft: `${16 + item.depth * 14}px` }}
       >
+        {/* Child-drop hint label */}
+        {dropIndicator?.position === "child" && (
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-primary/70 z-10">
+            nest inside ↩
+          </span>
+        )}
         {/* Drag handle */}
         {!item.isPending && (
           <div

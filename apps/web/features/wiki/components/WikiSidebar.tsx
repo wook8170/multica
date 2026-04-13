@@ -581,25 +581,29 @@ function WikiDndItem({
         </div>
 
         {/* Right-side actions: add child + expand + drag handle — all vertically aligned */}
-        {!item.isPending && !isSelecting && (
+        {!item.isPending && (
           <div className="shrink-0 flex items-center gap-0.5">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="hidden group-hover:flex h-5 w-5 text-muted-foreground hover:text-primary"
-              onClick={(e) => { e.stopPropagation(); onCreateChild(); }}
-            >
-              <Plus className="size-3" />
-            </Button>
-            {item.hasChildren ? (
-              <button
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
-                onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-              >
-                {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-              </button>
-            ) : (
-              <div className="h-5 w-5 shrink-0" />
+            {!isSelecting && (
+              <>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="hidden group-hover:flex h-5 w-5 text-muted-foreground hover:text-primary"
+                  onClick={(e) => { e.stopPropagation(); onCreateChild(); }}
+                >
+                  <Plus className="size-3" />
+                </Button>
+                {item.hasChildren ? (
+                  <button
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
+                    onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+                  >
+                    {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                  </button>
+                ) : (
+                  <div className="h-5 w-5 shrink-0" />
+                )}
+              </>
             )}
             <div
               className="flex h-5 w-5 shrink-0 items-center justify-center opacity-0 group-hover:opacity-30 hover:!opacity-70 cursor-grab active:cursor-grabbing text-muted-foreground"

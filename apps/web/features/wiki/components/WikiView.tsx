@@ -658,8 +658,20 @@ export function WikiView() {
               {renderMainContent()}
             </div>
 
-            {/* History panel */}
-            {selectedId && <WikiHistorySidebar wikiId={selectedId} onRestore={handleRestore} />}
+            {/* Properties + History panel */}
+            {selectedId && selectedId !== "new" && (() => {
+              const w = (rawWikis as any[]).find((x: any) => x.id === selectedId);
+              return (
+                <WikiHistorySidebar
+                  wikiId={selectedId}
+                  createdBy={w?.created_by}
+                  updatedBy={w?.updated_by}
+                  createdAt={w?.created_at}
+                  updatedAt={w?.updated_at}
+                  onRestore={handleRestore}
+                />
+              );
+            })()}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>

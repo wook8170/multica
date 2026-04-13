@@ -29,6 +29,7 @@ import {
   FolderKanban,
   Ellipsis,
   PinOff,
+  Library,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
@@ -70,6 +71,7 @@ import type { PinnedItem } from "@multica/core/types";
 const personalNav = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/my-issues", label: "My Issues", icon: CircleUser },
+  { href: "/wiki", label: "Wiki", icon: Library },
 ];
 
 const workspaceNav = [
@@ -129,8 +131,10 @@ function SortablePinItem({ pin, pathname, onUnpin }: { pin: PinnedItem; pathname
           <FolderKanban className="size-4 shrink-0" />
         )}
         <span className="truncate">{label}</span>
-        <button
-          className="ml-auto opacity-0 group-hover/pin:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent shrink-0"
+        <div
+          role="button"
+          aria-label="Unpin"
+          className="ml-auto opacity-0 group-hover/pin:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent shrink-0 cursor-pointer"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -138,7 +142,7 @@ function SortablePinItem({ pin, pathname, onUnpin }: { pin: PinnedItem; pathname
           }}
         >
           <PinOff className="size-3 text-muted-foreground" />
-        </button>
+        </div>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

@@ -257,6 +257,15 @@ export function WikiView() {
     return historyQuery.data?.find((v: any) => v.id === viewingVersionId);
   }, [viewingVersionId, historyQuery.data]);
 
+  // The version immediately before selectedVersion (lower version_number)
+  const prevVersion = useMemo(() => {
+    if (!selectedVersion || !historyQuery.data) return null;
+    // History sorted newest-first; find the next entry (lower version_number)
+    const sorted = [...historyQuery.data].sort((a: any, b: any) => b.version_number - a.version_number);
+    const idx = sorted.findIndex((v: any) => v.id === selectedVersion.id);
+    return idx >= 0 && idx + 1 < sorted.length ? sorted[idx + 1] : null;
+  }, [selectedVersion, historyQuery.data]);
+
   // Save mutation — sends base_version for optimistic locking; shows conflict dialog on 409
   const saveMutation = useMutation({
     mutationFn: (data: {
@@ -523,9 +532,10 @@ export function WikiView() {
 
     if (viewingVersionId && selectedVersion) {
       return (
-        <WikiDiffView 
-          currentTitle={currentTitle}
-          currentContent={currentContent}
+        <WikiDiffView
+          prevTitle={prevVersion?.title ?? ""}
+          prevContent={prevVersion?.content ?? ""}
+          prevVersionNumber={prevVersion?.version_number ?? null}
           versionTitle={selectedVersion.title}
           versionContent={selectedVersion.content}
           versionNumber={selectedVersion.version_number}
@@ -771,35 +781,35 @@ function htmlToPlainText(html: string): string {
   return el.textContent ?? el.innerText ?? "";
 }
 
-function WikiDiffView({ currentTitle, currentContent, versionTitle, versionContent, versionNumber, onClose, onRestore }: any) {
-  const oldText = htmlToPlainText(versionContent || "");
-  const newText = htmlToPlainText(currentContent || "");
+function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle, versionContent, versionNumber, onClose, onRestore }: any) {
+  // Compare previous version (old) → this version (new)
+  const oldText = htmlToPlainText(prevContent || "");
+  const newText = htmlToPlainText(versionContent || "");
   const diffSegments = charDiff(oldText, newText);
-  const titleChanged = currentTitle !== versionTitle;
+  const titleChanged = prevTitle !== versionTitle;
+  const isFirstVersion = prevVersionNumber === null;
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="flex h-10 shrink-0 items-center justify-between border-b px-4 gap-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-          <Clock className="h-3.5 w-3.5" />
-          <span>Comparing to version {versionNumber}</span>
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 gap-2">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          {isFirstVersion ? (
+            <span>Initial version <span className="text-foreground/70 font-semibold">v{versionNumber}</span></span>
+          ) : (
+            <span>
+              <span className="text-foreground/50">v{prevVersionNumber}</span>
+              <span className="mx-1">→</span>
+              <span className="text-foreground/70 font-semibold">v{versionNumber}</span>
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-7 px-3 text-xs"
-          >
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-7 px-3 text-xs">
             Close
           </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onRestore}
-            className="h-7 px-3 text-xs font-medium"
-          >
+          <Button variant="default" size="sm" onClick={onRestore} className="h-7 px-3 text-xs font-medium">
             <ArrowLeft className="mr-1.5 h-3 w-3" />
             Restore
           </Button>
@@ -813,19 +823,19 @@ function WikiDiffView({ currentTitle, currentContent, versionTitle, versionConte
           <div className="mb-8">
             {titleChanged ? (
               <div className="space-y-2">
-                <div className="text-sm text-muted-foreground font-medium mb-2">Title changed:</div>
-                <div className="space-y-2">
+                <div className="text-xs text-muted-foreground font-medium mb-2">Title changed:</div>
+                <div className="space-y-1.5">
                   <h1 className="text-lg font-bold text-destructive/60 line-through opacity-70">
-                    {versionTitle}
+                    {prevTitle || "Untitled"}
                   </h1>
                   <h1 className="text-2xl font-bold text-foreground bg-primary/10 px-2 py-1 rounded">
-                    {currentTitle}
+                    {versionTitle}
                   </h1>
                 </div>
               </div>
             ) : (
               <h1 className="text-2xl font-bold text-foreground">
-                {currentTitle}
+                {versionTitle}
               </h1>
             )}
           </div>

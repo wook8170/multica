@@ -52,28 +52,32 @@ interface RawAttachment {
   type: "image" | "file";
 }
 
-function extractAttachments(html: string): RawAttachment[] {
-  if (!html || typeof document === "undefined") return [];
-  const el = document.createElement("div");
-  el.innerHTML = html;
+// Content is stored as Markdown — parse with regex instead of DOM.
+//   Images:    ![alt](url)
+//   File cards: [filename](url)  (rendered by file-card extension)
+function extractAttachments(markdown: string): RawAttachment[] {
+  if (!markdown) return [];
   const result: RawAttachment[] = [];
+  const seen = new Set<string>();
 
-  el.querySelectorAll("img[src]").forEach((img) => {
-    const src = img.getAttribute("src") || "";
-    if (!isCdnUrl(src)) return;
+  const add = (href: string, filename: string) => {
+    if (!isCdnUrl(href) || seen.has(href)) return;
+    seen.add(href);
     result.push({
-      href: src,
-      filename: img.getAttribute("alt") || basename(src),
-      type: IMAGE_EXTS.test(new URL(src).pathname) ? "image" : "file",
+      href,
+      filename: filename || basename(href),
+      type: IMAGE_EXTS.test(href) ? "image" : "file",
     });
-  });
+  };
 
-  el.querySelectorAll('div[data-type="fileCard"][data-href]').forEach((card) => {
-    const href = card.getAttribute("data-href") || "";
-    if (!href) return;
-    const filename = card.getAttribute("data-filename") || basename(href);
-    result.push({ href, filename, type: "file" });
-  });
+  // ![alt](url)
+  for (const m of markdown.matchAll(/!\[([^\]]*)\]\(([^)]+)\)/g)) {
+    add(m[2]!, m[1]!);
+  }
+  // [text](url) — non-image CDN links (file cards)
+  for (const m of markdown.matchAll(/(?<!!)\[([^\]]+)\]\(([^)]+)\)/g)) {
+    add(m[2]!, m[1]!);
+  }
 
   return result;
 }

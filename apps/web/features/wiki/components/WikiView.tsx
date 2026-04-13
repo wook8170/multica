@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense, lazy } from "react";
+import { useDefaultLayout } from "react-resizable-panels";
 import { Library, Plus, Loader2, Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import {
@@ -116,6 +117,8 @@ export function WikiView() {
   const [coEditorCount, setCoEditorCount] = useState(0); // number of OTHER users currently editing
   const providerRef = useRef<HocuspocusProvider | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
+
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({ id: "multica_wiki_layout" });
 
   // Editor state
   const [currentTitle, setCurrentTitle] = useState("");
@@ -643,9 +646,21 @@ export function WikiView() {
         </div>
       )}
 
-      <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="flex-1 min-h-0"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
+      >
         {/* Sidebar */}
-        <ResizablePanel id="wiki-sidebar" defaultSize={280} minSize={240} maxSize={480} className="border-r border-border">
+        <ResizablePanel
+          id="wiki-sidebar"
+          defaultSize={280}
+          minSize={200}
+          maxSize={480}
+          groupResizeBehavior="preserve-pixel-size"
+          className="border-r border-border"
+        >
           <WikiSidebar
             nodes={wikiTree}
             isLoading={isLoading}
@@ -659,10 +674,10 @@ export function WikiView() {
           />
         </ResizablePanel>
 
-        <ResizableHandle className="w-[1px] bg-border/40 hover:bg-primary/20 transition-colors" />
+        <ResizableHandle />
 
         {/* Main editor */}
-        <ResizablePanel id="wiki-editor" minSize="35%">
+        <ResizablePanel id="wiki-editor" minSize="40%">
           <div className="flex h-full w-full overflow-hidden">
             <div className="flex-1 h-full min-w-0 overflow-hidden">
               {renderMainContent()}

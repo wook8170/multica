@@ -495,7 +495,7 @@ function WikiDndItem({
       <div
         onClick={onSelect}
         className={cn(
-          "group relative flex w-full cursor-pointer items-center gap-2 py-2.5 pr-3 transition-colors select-none",
+          "group relative flex w-full cursor-pointer items-center gap-2 py-2.5 pr-1 transition-colors select-none",
           isDragging ? "opacity-40" : "",
           dropIndicator?.position === "child" ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "",
           isSelected && !isSelecting && dropIndicator?.position !== "child" ? "bg-accent" : "",
@@ -506,21 +506,9 @@ function WikiDndItem({
       >
         {/* Child-drop hint label */}
         {dropIndicator?.position === "child" && (
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-primary/70 z-10">
+          <span className="pointer-events-none absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-medium text-primary/70 z-10">
             nest inside ↩
           </span>
-        )}
-        {/* Drag handle — absolutely positioned over the indent padding */}
-        {!item.isPending && (
-          <div
-            className="absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-30 hover:!opacity-70 cursor-grab active:cursor-grabbing text-muted-foreground z-10"
-            style={{ left: `${2 + item.depth * 16}px` }}
-            {...attributes}
-            {...listeners}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="size-3.5" />
-          </div>
         )}
 
         {/* Avatar ↔ checkbox */}
@@ -559,7 +547,7 @@ function WikiDndItem({
         </div>
 
         {/* Two-line content */}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           {/* Line 1: title + badges */}
           <div className="flex items-center justify-between gap-1">
             <span className={cn(
@@ -611,6 +599,18 @@ function WikiDndItem({
             </div>
           )}
         </div>
+
+        {/* Drag handle — right side, visible on hover */}
+        {!item.isPending && (
+          <div
+            className="shrink-0 opacity-0 group-hover:opacity-30 hover:!opacity-70 cursor-grab active:cursor-grabbing text-muted-foreground"
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="size-3.5" />
+          </div>
+        )}
       </div>
 
       {/* After-drop indicator */}

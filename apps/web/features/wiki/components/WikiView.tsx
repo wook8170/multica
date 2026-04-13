@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense, lazy, type ReactNode } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Library, Plus, Loader2, Clock, ArrowLeft, RotateCcw, X, Trash2 } from "lucide-react";
+import { Library, Plus, Minus, Loader2, Clock, ArrowLeft, RotateCcw, X, Trash2 } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import {
   ResizablePanelGroup,
@@ -1062,34 +1062,47 @@ function WikiDiffView({
           {/* Diff content */}
           <div>
             {segments.map((segment, idx) => {
-              const content = segment.blocks.join("\n\n");
-
               if (segment.type === "same") {
-                return <ReadonlyContent key={idx} content={content} />;
+                return (
+                  <ReadonlyContent key={idx} content={segment.blocks.join("\n\n")} />
+                );
               }
 
-              const pureAttachment = segment.blocks.every(isAttachmentBlock);
               const diffClass = segment.type === "added" ? "diff-added" : "diff-removed";
-
-              if (pureAttachment) {
-                // Attachment-only block: keep card layout as-is, only border/bg color changes
-                return <ReadonlyContent key={idx} content={content} className={diffClass} />;
-              }
-
-              // Text block: left-border stripe + subtle background tint
-              return (
-                <div
-                  key={idx}
-                  className={cn(
-                    "border-l-2 pl-3 my-0.5",
-                    segment.type === "added"
-                      ? "border-green-500/50 bg-green-500/6"
-                      : "border-destructive/50 bg-destructive/6 opacity-75",
-                  )}
-                >
-                  <ReadonlyContent content={content} />
-                </div>
+              const indicator = segment.type === "added" ? (
+                <Plus className="absolute -left-5 top-1/2 z-10 -translate-y-1/2 size-3.5 text-green-500 pointer-events-none select-none" />
+              ) : (
+                <Minus className="absolute -left-5 top-1/2 z-10 -translate-y-1/2 size-3.5 text-destructive pointer-events-none select-none" />
               );
+
+              // Render each block individually so every block gets its own indicator
+              return segment.blocks.map((block, blockIdx) => {
+                const blockKey = `${idx}-${blockIdx}`;
+
+                if (isAttachmentBlock(block)) {
+                  return (
+                    <div key={blockKey} className="relative">
+                      {indicator}
+                      <ReadonlyContent content={block} className={diffClass} />
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={blockKey}
+                    className={cn(
+                      "relative",
+                      segment.type === "added"
+                        ? "bg-green-500/8"
+                        : "bg-destructive/8 opacity-75",
+                    )}
+                  >
+                    {indicator}
+                    <ReadonlyContent content={block} />
+                  </div>
+                );
+              });
             })}
           </div>
         </div>

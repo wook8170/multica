@@ -126,5 +126,6 @@ func (s *WikiSnapshotScheduler) flush(wikiID string) {
 		slog.Error("wikiSnapshot: failed to insert auto-snapshot", "wiki_id", wikiID, "version", nextVersion, "error", err)
 		return
 	}
+	_, _ = compactWikiHistory(ctx, s.db, job.wikiID)
 	slog.Info("wikiSnapshot: auto-snapshot saved", "wiki_id", wikiID, "version", nextVersion)
 }

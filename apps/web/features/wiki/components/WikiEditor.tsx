@@ -1,9 +1,10 @@
 import {
   Save, PanelRight, Trash2, Loader2, Check, AlertCircle, ChevronRight,
-  Maximize2, Minimize2, FileText, Plus
+  Maximize2, Minimize2, FileText, Plus, Wifi, WifiOff
 } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@multica/ui/components/ui/button";
+import { Badge } from "@multica/ui/components/ui/badge";
 import { ContentEditor, TitleEditor } from "@multica/views/editor";
 import { useWikiStore } from "../store";
 import { useAuthStore } from "@multica/core/auth";
@@ -18,6 +19,7 @@ interface WikiEditorProps {
   id: string;
   title: string;
   content: string;
+  restoreKey?: number;
   ancestors?: Ancestor[];
   onNavigateTo?: (id: string) => void;
   onUpdateTitle: (val: string) => void;
@@ -32,12 +34,15 @@ interface WikiEditorProps {
   ydoc?: any;
   provider?: any;
   user?: { name: string; color: string; id?: string };
+  collabConnected?: boolean;
+  showRemoteCursors?: boolean;
 }
 
 export function WikiEditor({
   id,
   title,
   content,
+  restoreKey = 0,
   ancestors = [],
   onNavigateTo,
   onUpdateTitle,
@@ -51,6 +56,8 @@ export function WikiEditor({
   ydoc,
   provider,
   user,
+  collabConnected,
+  showRemoteCursors,
   ref
 }: WikiEditorProps & { ref?: any }) {
   const { isHistoryOpen, setIsHistoryOpen, isFullWidth, setIsFullWidth } = useWikiStore();
@@ -65,36 +72,58 @@ export function WikiEditor({
   // Expose imperative methods
   if (ref) {
     ref.current = {
-      restoreBinaryState: (state: string) => editorRef.current?.restoreBinaryState(state)
+      getBinaryState: () => editorRef.current?.getBinaryState() ?? null,
+      restoreBinaryState: (state: string) => editorRef.current?.restoreBinaryState(state),
     };
   }
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       {/* Top header — h-12 / px-4 matching inbox panel header */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 bg-background">
-        <div className="flex items-center gap-1 text-sm min-w-0">
-          <span className="text-muted-foreground shrink-0">Documents</span>
-          {ancestors.map((a) => (
-            <span key={a.id} className="contents">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
+        <div className="flex items-center gap-2 min-w-0">
+          {ancestors.length > 0 && (
+            <div className="flex items-center gap-1 text-sm min-w-0 shrink-0">
+              {ancestors.map((a, i) => (
+                <span key={a.id} className="contents">
+                  {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />}
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTo?.(a.id)}
+                    className="text-muted-foreground max-w-[120px] truncate hover:text-foreground hover:underline underline-offset-2 transition-colors shrink-0"
+                    title={a.title}
+                  >
+                    {a.title || "Untitled"}
+                  </button>
+                </span>
+              ))}
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
-              <button
-                type="button"
-                onClick={() => onNavigateTo?.(a.id)}
-                className="text-muted-foreground max-w-[120px] truncate hover:text-foreground hover:underline underline-offset-2 transition-colors shrink-0"
-                title={a.title}
-              >
-                {a.title || "Untitled"}
-              </button>
-            </span>
-          ))}
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
-          <span className="text-foreground font-semibold truncate min-w-0">
+            </div>
+          )}
+          <h1 className="text-sm font-semibold truncate min-w-0">
             {id === "new" ? "New Document" : (title || "Untitled")}
-          </span>
+          </h1>
         </div>
 
         <div className="flex items-center gap-1">
+          {id !== "new" && (
+            <Badge
+              variant="secondary"
+              title={collabConnected ? "Collaboration active" : "Collaboration offline"}
+              className={cn(
+                "mr-1 shrink-0 gap-1.5 px-2 py-0.5 text-xs font-medium",
+                collabConnected ? "bg-success/10 text-success" : "",
+              )}
+            >
+              {collabConnected ? (
+                <Wifi className="h-3 w-3" />
+              ) : (
+                <WifiOff className="h-3 w-3" />
+              )}
+              {collabConnected ? "Collaborate" : "Offline"}
+            </Badge>
+          )}
+
           {/* Full-width toggle */}
           <Button
             variant="ghost"
@@ -176,8 +205,9 @@ export function WikiEditor({
           <div className="min-h-[600px]">
             <ContentEditor
               ref={editorRef}
-              key={`content-${id}-${ydoc?.clientID ?? "static"}`}
+              key={`content-${id}-${ydoc?.clientID ?? "static"}-${restoreKey}`}
               defaultValue={content}
+              forceDefault={restoreKey > 0}
               placeholder="Start writing..."
               onUpdate={onUpdateContent}
               onUploadFile={onUploadFile}
@@ -186,16 +216,17 @@ export function WikiEditor({
               ydoc={ydoc}
               provider={provider}
               user={user}
+              showRemoteCursors={showRemoteCursors}
               field="content"
             />
           </div>
 
-          {/* Child pages */}
+          {/* Sub Pages */}
           {((childPages && childPages.length > 0) || onCreateChild) && (
             <div className="mt-12 border-t border-border/40 pt-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
-                  Child pages
+                  Sub Pages
                   {childPages && childPages.length > 0 && (
                     <span className="ml-2 text-xs font-normal normal-case text-muted-foreground/60">{childPages.length}</span>
                   )}

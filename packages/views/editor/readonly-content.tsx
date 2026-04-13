@@ -16,7 +16,7 @@
  * - Rendering mentions with the same IssueMentionCard component and .mention class
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown, {
   defaultUrlTransform,
   type Components,
@@ -26,12 +26,13 @@ import rehypeRaw from "rehype-raw";
 import { createLowlight, common } from "lowlight";
 // @ts-expect-error -- hast-util-to-html has no bundled type declarations
 import { toHtml } from "hast-util-to-html";
-import { Maximize2, Download, Link as LinkIcon, FileText } from "lucide-react";
+import { Maximize2, Download, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@multica/ui/lib/utils";
 import { useNavigation } from "../navigation";
 import { IssueMentionCard } from "../issues/components/issue-mention-card";
 import { ImageLightbox } from "./extensions/image-view";
+import { AttachmentCard } from "./extensions/file-card";
 import { preprocessMarkdown } from "./utils/preprocess";
 import { MermaidViewer } from "./mermaid-viewer";
 import "./content-editor.css";
@@ -54,6 +55,13 @@ function urlTransform(url: string): string {
 // ---------------------------------------------------------------------------
 // Custom react-markdown components
 // ---------------------------------------------------------------------------
+
+function textFromChildren(children: ReactNode): string {
+  if (typeof children === "string") return children;
+  if (typeof children === "number") return String(children);
+  if (Array.isArray(children)) return children.map(textFromChildren).join("");
+  return "";
+}
 
 function IssueMentionLink({ issueId, label }: { issueId: string; label?: string }) {
   const { openInNewTab } = useNavigation();
@@ -84,12 +92,7 @@ const components: Partial<Components> = {
         /^mention:\/\/(member|agent|issue|all)\/(.+)$/,
       );
       if (match?.[1] === "issue" && match[2]) {
-        const label =
-          typeof children === "string"
-            ? children
-            : Array.isArray(children)
-              ? children.join("")
-              : undefined;
+        const label = textFromChildren(children) || undefined;
         return <IssueMentionLink issueId={match[2]} label={label} />;
       }
       // Member / agent / all mentions
@@ -158,26 +161,13 @@ const components: Partial<Components> = {
 
   // FileCard — intercept <div data-type="fileCard"> from preprocessMarkdown
   div: ({ node, children, ...props }) => {
-    const dataType = node?.properties?.dataType as string | undefined;
+    const properties = node?.properties ?? {};
+    const dataType = (properties.dataType ?? properties["data-type"]) as string | undefined;
     if (dataType === "fileCard") {
-      const href = (node?.properties?.dataHref as string) || "";
-      const filename = (node?.properties?.dataFilename as string) || "";
+      const href = ((properties.dataHref ?? properties["data-href"]) as string) || "";
+      const filename = ((properties.dataFilename ?? properties["data-filename"]) as string) || "";
       return (
-        <div className="my-1 flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1 transition-colors hover:bg-muted">
-          <FileText className="size-4 shrink-0 text-muted-foreground" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">{filename}</p>
-          </div>
-          {href && (
-            <button
-              type="button"
-              className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              onClick={() => window.open(href, "_blank", "noopener,noreferrer")}
-            >
-              <Download className="size-3.5" />
-            </button>
-          )}
-        </div>
+        <AttachmentCard href={href} filename={filename} />
       );
     }
     return <div {...props}>{children}</div>;

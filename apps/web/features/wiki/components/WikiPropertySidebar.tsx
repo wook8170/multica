@@ -1,11 +1,28 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, X, Clock, ArrowLeft, Loader2, FileText, ImageIcon, Paperclip, ExternalLink } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight, X, Clock, ArrowLeft, Loader2, FileText, Download, Info, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@multica/ui/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@multica/ui/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@multica/ui/components/ui/popover";
 import { api } from "@multica/core/api";
 import { cn } from "@multica/ui/lib/utils";
+import { AttachmentFileIcon } from "@multica/views/editor";
 import { useWikiStore } from "../store";
 import { ActorAvatar } from "@multica/views/common/actor-avatar";
 import { useActorName } from "@multica/core/workspace/hooks";
@@ -130,6 +147,11 @@ function buildAttachmentMap(
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
+interface ChildPage {
+  id: string;
+  title: string;
+}
+
 interface WikiPropertiesPanelProps {
   wikiId: string;
   currentContent?: string;
@@ -137,6 +159,8 @@ interface WikiPropertiesPanelProps {
   updatedBy?: string;
   createdAt?: string;
   updatedAt?: string;
+  childPages?: ChildPage[];
+  onNavigateTo?: (id: string) => void;
   onRestore?: (version: any) => void;
 }
 
@@ -150,12 +174,17 @@ export function WikiPropertySidebar({
   updatedBy,
   createdAt,
   updatedAt,
+  childPages = [],
+  onNavigateTo,
   onRestore,
 }: WikiPropertiesPanelProps) {
+  const queryClient = useQueryClient();
   const { isHistoryOpen, setIsHistoryOpen, viewingVersionId, setViewingVersionId } = useWikiStore();
   const [propertiesOpen, setPropertiesOpen] = useState(true);
+  const [subPagesOpen, setSubPagesOpen] = useState(true);
   const [attachmentsOpen, setAttachmentsOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(true);
+  const [compactConfirmOpen, setCompactConfirmOpen] = useState(false);
   const { getActorName } = useActorName();
 
   const { data: rawHistory, isLoading } = useQuery({
@@ -166,12 +195,28 @@ export function WikiPropertySidebar({
   const history: any[] = Array.isArray(rawHistory) ? rawHistory : [];
 
   const attachments = useMemo(
-    () => buildAttachmentMap(currentContent, history),
+    () => buildAttachmentMap(currentContent, history).filter((a) => a.inCurrent),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentContent, rawHistory],
   );
 
+  const compactHistoryMutation = useMutation({
+    mutationFn: () => api.compactWikiHistory(wikiId),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["wiki-history", wikiId] });
+      const changedCount = result.deleted_versions + result.cleared_binary_state;
+      toast.success(changedCount > 0 ? "History cleaned." : "History already matches the policy.");
+    },
+    onError: () => toast.error("Failed to clean history."),
+  });
+
+  const handleCompactHistory = () => {
+    setCompactConfirmOpen(false);
+    compactHistoryMutation.mutate();
+  };
+
   return (
+    <>
     <div className="flex h-full w-full flex-col border-l bg-background">
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
@@ -242,64 +287,56 @@ export function WikiPropertySidebar({
               </button>
 
               {attachmentsOpen && (
-                <div className="pl-2 space-y-1">
+                <div className="pl-2 space-y-1.5">
                   {attachments.map((att) => (
-                    <div
+                    <a
                       key={att.href}
-                      className={cn(
-                        "group flex items-center gap-2 rounded-md px-2 py-1.5 -mx-2 transition-colors",
-                        att.inCurrent
-                          ? "hover:bg-accent/50"
-                          : "opacity-50 hover:opacity-70 hover:bg-accent/30",
-                      )}
+                      href={att.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 transition-colors hover:bg-muted no-underline"
                     >
-                      {/* Icon */}
-                      <div className="shrink-0">
-                        {att.type === "image" ? (
-                          <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                        ) : (
-                          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                      </div>
+                      <AttachmentFileIcon href={att.href} filename={att.filename} className="h-3.5 w-3.5" />
+                      <p className="min-w-0 flex-1 truncate text-xs text-foreground/80 leading-tight">
+                        {att.filename}
+                      </p>
+                      <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-60 transition-opacity" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-                      {/* Filename + version badges */}
-                      <div className="min-w-0 flex-1">
-                        <p className={cn(
-                          "text-xs truncate leading-tight",
-                          att.inCurrent ? "text-foreground/80" : "text-muted-foreground line-through",
-                        )}>
-                          {att.filename}
-                        </p>
-                        {att.versions.length > 0 && (
-                          <div className="mt-0.5 flex flex-wrap gap-0.5">
-                            {att.inCurrent && (
-                              <span className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary font-medium leading-none">
-                                current
-                              </span>
-                            )}
-                            {att.versions.map((v) => (
-                              <span
-                                key={v}
-                                className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium leading-none"
-                              >
-                                {v}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+          {/* Sub Pages section */}
+          {childPages.length > 0 && (
+            <div>
+              <button
+                className={cn(
+                  "flex w-full items-center gap-1 text-xs font-medium transition-colors mb-2",
+                  !subPagesOpen && "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setSubPagesOpen(!subPagesOpen)}
+              >
+                <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", subPagesOpen && "rotate-90")} />
+                <span>Sub Pages</span>
+                <span className="ml-1 text-[10px] font-normal text-muted-foreground/60">{childPages.length}</span>
+              </button>
 
-                      {/* Open link */}
-                      <a
-                        href={att.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
-                      >
-                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                      </a>
-                    </div>
+              {subPagesOpen && (
+                <div className="pl-2 space-y-1.5">
+                  {childPages.map((child) => (
+                    <button
+                      key={child.id}
+                      type="button"
+                      onClick={() => onNavigateTo?.(child.id)}
+                      className="group flex w-full items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-left transition-colors hover:bg-muted"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate text-xs text-foreground/80 leading-tight">
+                        {child.title || "Untitled"}
+                      </span>
+                    </button>
                   ))}
                 </div>
               )}
@@ -308,16 +345,61 @@ export function WikiPropertySidebar({
 
           {/* History section */}
           <div>
-            <button
-              className={cn(
-                "flex w-full items-center gap-1 text-xs font-medium transition-colors mb-2",
-                !historyOpen && "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => setHistoryOpen(!historyOpen)}
-            >
-              <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", historyOpen && "rotate-90")} />
-              History
-            </button>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <button
+                className={cn(
+                  "flex min-w-0 flex-1 items-center gap-1 text-xs font-medium transition-colors",
+                  !historyOpen && "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setHistoryOpen(!historyOpen)}
+              >
+                <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", historyOpen && "rotate-90")} />
+                History
+              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="Clean history"
+                  disabled={compactHistoryMutation.isPending}
+                  onClick={() => setCompactConfirmOpen(true)}
+                >
+                  {compactHistoryMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+                <Popover>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="History retention policy"
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </Button>
+                    }
+                  />
+                  <PopoverContent align="end" side="left" className="w-72 p-3">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-foreground">History policy</p>
+                      <ul className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+                        <li>Latest 20 versions are kept in full.</li>
+                        <li>After 30 days, older history is compacted to one version per day.</li>
+                        <li>Yjs binary snapshots are kept only for the latest 10 versions.</li>
+                        <li>Uploaded file objects remain available while current content or retained history references them.</li>
+                      </ul>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
 
             {historyOpen && (
               <div className="pl-2">
@@ -338,11 +420,6 @@ export function WikiPropertySidebar({
                       return history.map((version: any) => {
                       const isSelected = viewingVersionId === version.id;
                       const isLatest = version.version_number === maxVer;
-                      // Count attachments exclusive to this version (not in current)
-                      const vLabel = `v${version.version_number}`;
-                      const vAttachCount = attachments.filter(
-                        (a) => !a.inCurrent && a.versions.includes(vLabel),
-                      ).length;
 
                       return (
                         <div
@@ -365,13 +442,6 @@ export function WikiPropertySidebar({
                                   isSelected ? "text-primary" : "text-foreground/80",
                                 )}>
                                   v{version.version_number}
-                                </span>
-                              )}
-                              {/* Attachment badge per version */}
-                              {vAttachCount > 0 && (
-                                <span className="flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
-                                  <Paperclip className="h-2.5 w-2.5" />
-                                  {vAttachCount}
                                 </span>
                               )}
                             </div>
@@ -415,5 +485,33 @@ export function WikiPropertySidebar({
         </div>
       </div>
     </div>
+    <AlertDialog open={compactConfirmOpen} onOpenChange={setCompactConfirmOpen}>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Clean history?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Versions outside the history policy will be removed. Latest 20 versions stay available, and older history after 30 days is kept as one version per day.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setCompactConfirmOpen(false)}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={compactHistoryMutation.isPending}
+            onClick={handleCompactHistory}
+          >
+            {compactHistoryMutation.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Clean history
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

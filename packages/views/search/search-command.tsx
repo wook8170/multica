@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clock, FolderKanban, Loader2, MessageSquare, SearchIcon } from "lucide-react";
+import { Clock, FileText, FolderKanban, Loader2, MessageSquare, SearchIcon } from "lucide-react";
 import { Command as CommandPrimitive } from "cmdk";
-import type { SearchIssueResult, SearchProjectResult } from "@multica/core/types";
+import type { SearchIssueResult, SearchProjectResult, SearchWikiResult } from "@multica/core/types";
 import { api } from "@multica/core/api";
 import { useRecentIssuesStore } from "@multica/core/issues/stores";
 import { StatusIcon } from "../issues/components";
@@ -59,6 +59,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
 interface SearchResults {
   issues: SearchIssueResult[];
   projects: SearchProjectResult[];
+  wikis: SearchWikiResult[];
 }
 
 export function SearchCommand() {
@@ -67,12 +68,12 @@ export function SearchCommand() {
   const setOpen = useSearchStore((s) => s.setOpen);
   const recentIssues = useRecentIssuesStore((s) => s.items);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResults>({ issues: [], projects: [] });
+  const [results, setResults] = useState<SearchResults>({ issues: [], projects: [], wikis: [] });
   const [isLoading, setIsLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const hasResults = results.issues.length > 0 || results.projects.length > 0;
+  const hasResults = results.issues.length > 0 || results.projects.length > 0 || (results.wikis?.length ?? 0) > 0;
 
   // Global Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -112,7 +113,7 @@ export function SearchCommand() {
   useEffect(() => {
     if (!open) {
       setQuery("");
-      setResults({ issues: [], projects: [] });
+      setResults({ issues: [], projects: [], wikis: [] });
       setIsLoading(false);
     }
   }, [open]);
@@ -122,7 +123,7 @@ export function SearchCommand() {
     if (abortRef.current) abortRef.current.abort();
 
     if (!q.trim()) {
-      setResults({ issues: [], projects: [] });
+      setResults({ issues: [], projects: [], wikis: [] });
       setIsLoading(false);
       return;
     }
@@ -131,32 +132,32 @@ export function SearchCommand() {
     debounceRef.current = setTimeout(async () => {
       const controller = new AbortController();
       abortRef.current = controller;
-      try {
-        const [issueRes, projectRes] = await Promise.all([
-          api.searchIssues({
-            q: q.trim(),
-            limit: 20,
-            include_closed: true,
-            signal: controller.signal,
-          }),
-          api.searchProjects({
-            q: q.trim(),
-            limit: 10,
-            include_closed: true,
-            signal: controller.signal,
-          }),
-        ]);
-        if (!controller.signal.aborted) {
-          setResults({
-            issues: issueRes.issues,
-            projects: projectRes.projects,
-          });
-          setIsLoading(false);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
+      const [issueRes, projectRes, wikiRes] = await Promise.allSettled([
+        api.searchIssues({
+          q: q.trim(),
+          limit: 20,
+          include_closed: true,
+          signal: controller.signal,
+        }),
+        api.searchProjects({
+          q: q.trim(),
+          limit: 10,
+          include_closed: true,
+          signal: controller.signal,
+        }),
+        api.searchWikis({
+          q: q.trim(),
+          limit: 10,
+          signal: controller.signal,
+        }),
+      ]);
+      if (!controller.signal.aborted) {
+        setResults({
+          issues: issueRes.status === "fulfilled" ? issueRes.value.issues : [],
+          projects: projectRes.status === "fulfilled" ? projectRes.value.projects : [],
+          wikis: wikiRes.status === "fulfilled" ? wikiRes.value.wikis : [],
+        });
+        setIsLoading(false);
       }
     }, 300);
   }, []);
@@ -174,6 +175,8 @@ export function SearchCommand() {
       setOpen(false);
       if (value.startsWith("project:")) {
         push(`/projects/${value.slice(8)}`);
+      } else if (value.startsWith("wiki:")) {
+        push(`/wiki?id=${value.slice(5)}`);
       } else {
         push(`/issues/${value}`);
       }
@@ -312,6 +315,36 @@ export function SearchCommand() {
               </CommandPrimitive.Group>
             )}
 
+            {!isLoading && (results.wikis?.length ?? 0) > 0 && (
+              <CommandPrimitive.Group
+                heading="Documents"
+                className="p-2 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground"
+              >
+                {results.wikis.map((wiki) => (
+                  <CommandPrimitive.Item
+                    key={`wiki:${wiki.id}`}
+                    value={`wiki:${wiki.id}`}
+                    onSelect={handleSelect}
+                    className="flex cursor-default select-none flex-col gap-1 rounded-lg px-3 py-2.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-accent"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate">
+                        <HighlightText text={wiki.title || "Untitled"} query={query} />
+                      </span>
+                    </div>
+                    {wiki.matched_snippet && (
+                      <div className="flex items-start gap-2 pl-[26px]">
+                        <span className="text-xs text-muted-foreground line-clamp-2">
+                          <HighlightText text={wiki.matched_snippet} query={query} />
+                        </span>
+                      </div>
+                    )}
+                  </CommandPrimitive.Item>
+                ))}
+              </CommandPrimitive.Group>
+            )}
+
             {!isLoading && !query.trim() && recentIssues.length > 0 && (
               <CommandPrimitive.Group className="p-2">
                 <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground">
@@ -345,7 +378,7 @@ export function SearchCommand() {
 
             {!isLoading && !query.trim() && recentIssues.length === 0 && (
               <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground">
-                <span>Type to search issues and projects...</span>
+                <span>Type to search issues, projects and documents...</span>
                 <span className="text-xs">Press <kbd className="rounded bg-muted px-1.5 py-0.5 font-medium">⌘K</kbd> to open this anytime</span>
               </div>
             )}

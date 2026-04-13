@@ -31,14 +31,18 @@ const server = Server.configure({
         ? { "X-Webhook-Secret": process.env.COLLABORATION_WEBHOOK_SECRET }
         : {},
       transformer: (data) => {
+        // NOTE: Proper markdown extraction from the Yjs document requires
+        // @hocuspocus/transformer + TipTap extensions server-side, which are
+        // not yet installed. For now, content is intentionally omitted — the
+        // Go handler skips the UPDATE when content is empty, so no data loss
+        // occurs. Client-side autosave (10s debounce) handles DB persistence.
         return {
           documentName: data.documentName,
-          content: data.context.content, // 실제 본문 데이터
-          userId: data.context.user.id
+          userId: data.context?.user?.id ?? "",
         };
       },
       events: [
-        Events.onUpdate, // 문서가 수정될 때마다 호출
+        Events.onUpdate,
       ],
     }),
   ],

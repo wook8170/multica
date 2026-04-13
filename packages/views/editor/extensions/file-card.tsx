@@ -12,7 +12,12 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
-import { FileText, Loader2, Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Eye, Loader2, Download, Trash2 } from "lucide-react";
+import { Button } from "@multica/ui/components/ui/button";
+import { AttachmentFileIcon, getAttachmentFileKind } from "../attachment-file-icon";
 
 
 // ---------------------------------------------------------------------------
@@ -47,47 +52,231 @@ export function isFileCardUrl(url: string): boolean {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// React NodeView
+// Shared React view
 // ---------------------------------------------------------------------------
 
-function FileCardView({ node }: NodeViewProps) {
-  const href = (node.attrs.href as string) || "";
-  const filename = (node.attrs.filename as string) || "";
-  const uploading = node.attrs.uploading as boolean;
+function MarkdownFilePreview({
+  href,
+  filename,
+  editable,
+  onDelete,
+}: {
+  href: string;
+  filename: string;
+  editable: boolean;
+  onDelete?: () => void;
+}) {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [content, setContent] = useState("");
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!href || !isPreviewOpen) return;
+    let cancelled = false;
+    setContent("");
+    setError(false);
+    fetch(href)
+      .then((res) => {
+        if (!res.ok) throw new Error("failed");
+        return res.text();
+      })
+      .then((text) => {
+        if (!cancelled) setContent(text);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => { cancelled = true; };
+  }, [href, isPreviewOpen]);
+
+  return (
+    <>
+      <div
+        className="attachment-card-shell attachment-card-header flex items-center gap-2 px-2.5 py-1 transition-colors hover:bg-muted"
+        contentEditable={false}
+      >
+        <div className="attachment-title flex-1">
+          {editable && (
+            <span className="attachment-drag-handle" data-drag-handle aria-hidden="true" />
+          )}
+          <AttachmentFileIcon href={href} filename={filename} className="size-4" />
+          <p className="truncate text-sm">{filename || "Markdown"}</p>
+        </div>
+        <div className="attachment-actions">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="attachment-action-button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsPreviewOpen((open) => !open);
+            }}
+            title={isPreviewOpen ? "Hide markdown preview" : "Show markdown preview"}
+          >
+            <Eye className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="attachment-action-button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(href, "_blank", "noopener,noreferrer");
+            }}
+            title="Download markdown"
+          >
+            <Download className="size-3.5" />
+          </Button>
+          {editable && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="attachment-action-button attachment-action-button-destructive"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete?.();
+              }}
+              title="Delete markdown attachment"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
+      {isPreviewOpen && error && (
+        <div className="attachment-card-shell attachment-preview-error">
+          Unable to load markdown preview.
+        </div>
+      )}
+      {isPreviewOpen && !error && !content && (
+        <div className="attachment-card-shell attachment-preview-loading">
+          Loading markdown preview...
+        </div>
+      )}
+      {isPreviewOpen && !error && content && (
+        <div className="attachment-card-shell markdown-file-preview-content">
+          <ReactMarkdown remarkPlugins={[[remarkGfm, { singleTilde: false }]]}>
+            {content}
+          </ReactMarkdown>
+        </div>
+      )}
+    </>
+  );
+}
+
+export function AttachmentCard({
+  href,
+  filename,
+  uploading = false,
+  editable = false,
+  onDelete,
+}: {
+  href: string;
+  filename: string;
+  uploading?: boolean;
+  editable?: boolean;
+  onDelete?: () => void;
+}) {
+  const kind = getAttachmentFileKind(href, filename);
 
   const openFile = () => {
     window.open(href, "_blank", "noopener,noreferrer");
   };
 
+  if (!uploading && kind === "markdown" && href) {
+    return (
+      <div className="file-card-node" data-type="fileCard" contentEditable={false}>
+        <MarkdownFilePreview href={href} filename={filename} editable={editable} onDelete={onDelete} />
+      </div>
+    );
+  }
+
   return (
-    <NodeViewWrapper as="div" className="file-card-node" data-type="fileCard">
+    <div className="file-card-node" data-type="fileCard" contentEditable={false}>
       <div
-        className="my-1 flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1 transition-colors hover:bg-muted"
+        className="attachment-card-shell attachment-card-header flex items-center gap-2 px-2.5 py-1 transition-colors hover:bg-muted"
         contentEditable={false}
-        onMouseDown={(e) => e.stopPropagation()}
       >
+        {editable && (
+          <span className="attachment-drag-handle" data-drag-handle aria-hidden="true" />
+        )}
         {uploading ? (
           <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
         ) : (
-          <FileText className="size-4 shrink-0 text-muted-foreground" />
+          <AttachmentFileIcon href={href} filename={filename} className="size-4" />
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm">{uploading ? `Uploading ${filename}` : filename}</p>
         </div>
-        {!uploading && href && (
-          <button
-            type="button"
-            className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              openFile();
-            }}
-          >
-            <Download className="size-3.5" />
-          </button>
-        )}
+        <div className="attachment-actions">
+          {!uploading && href && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="attachment-action-button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openFile();
+              }}
+              title="Download attachment"
+            >
+              <Download className="size-3.5" />
+            </Button>
+          )}
+          {editable && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="attachment-action-button attachment-action-button-destructive"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete?.();
+              }}
+              title="Delete attachment"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
+
+      {!uploading && kind === "pdf" && href && (
+        <div className="attachment-preview pdf-file-preview">
+          <iframe src={`${href}#toolbar=0&navpanes=0`} title={filename || "PDF preview"} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// React NodeView
+// ---------------------------------------------------------------------------
+
+function FileCardView({ node, editor, deleteNode }: NodeViewProps) {
+  const href = (node.attrs.href as string) || "";
+  const filename = (node.attrs.filename as string) || "";
+  const uploading = node.attrs.uploading as boolean;
+
+  return (
+    <NodeViewWrapper as="div" className="file-card-node-wrapper" data-type="fileCard">
+      <AttachmentCard
+        href={href}
+        filename={filename}
+        uploading={uploading}
+        editable={editor.isEditable}
+        onDelete={deleteNode}
+      />
     </NodeViewWrapper>
   );
 }
@@ -100,6 +289,7 @@ export const FileCardExtension = Node.create({
   name: "fileCard",
   group: "block",
   atom: true,
+  draggable: true,
 
   addAttributes() {
     return {

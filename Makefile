@@ -52,17 +52,19 @@ setup:
 	@echo ""
 	@echo "✓ Setup complete! Run 'make start' to launch the app."
 
-# Start all services (backend + frontend)
+# Start all services (backend + frontend + collaboration)
 start:
 	$(REQUIRE_ENV)
 	@echo "Using env file: $(ENV_FILE)"
 	@echo "Backend: http://localhost:$(PORT)"
 	@echo "Frontend: http://localhost:$(FRONTEND_PORT)"
+	@echo "Collaboration: ws://localhost:$(COLLABORATION_PORT)"
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
 	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
-	@echo "Starting backend and frontend..."
+	@echo "Starting backend, frontend, and collaboration..."
 	@trap 'kill 0' EXIT; \
 		(cd server && go run ./cmd/server) & \
+		(cd apps/collaboration && pnpm dev) & \
 		pnpm dev:web & \
 		wait
 

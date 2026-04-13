@@ -5,6 +5,7 @@ import type {
   ListIssuesResponse,
   SearchIssuesResponse,
   SearchProjectsResponse,
+  SearchWikisResponse,
   UpdateMeRequest,
   CreateMemberRequest,
   UpdateMemberRequest,
@@ -210,6 +211,12 @@ export class ApiClient {
     if (params.offset !== undefined) search.set("offset", String(params.offset));
     if (params.include_closed) search.set("include_closed", "true");
     return this.fetch(`/api/projects/search?${search}`, params.signal ? { signal: params.signal } : undefined);
+  }
+
+  async searchWikis(params: { q: string; limit?: number; signal?: AbortSignal }): Promise<SearchWikisResponse> {
+    const search = new URLSearchParams({ q: params.q });
+    if (params.limit !== undefined) search.set("limit", String(params.limit));
+    return this.fetch(`/api/wikis/search?${search}`, params.signal ? { signal: params.signal } : undefined);
   }
 
   async getIssue(id: string): Promise<Issue> {
@@ -780,5 +787,8 @@ export class ApiClient {
   async getWikiHistory(id: string): Promise<any[]> {
     return this.fetch(`/api/wikis/${id}/history`, { method: "GET" });
   }
-}
 
+  async compactWikiHistory(id: string): Promise<{ deleted_versions: number; cleared_binary_state: number }> {
+    return this.fetch(`/api/wikis/${id}/history/compact`, { method: "POST" });
+  }
+}

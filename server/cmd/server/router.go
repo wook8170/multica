@@ -315,6 +315,7 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 					r.Patch("/move", h.MoveWiki)
 					r.Delete("/", h.DeleteWiki)
 					r.Get("/history", h.GetWikiHistory)
+					r.Post("/history/compact", h.CompactWikiHistory)
 				})
 			})
 		})

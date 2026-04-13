@@ -5,7 +5,7 @@
 - `APP_ENV` **required** — server/internal/handler/auth.go
 - `AWS_ACCESS_KEY_ID` (has default) — .env.example
 - `AWS_SECRET_ACCESS_KEY` (has default) — .env.example
-- `BACKEND_URL` (has default) — .env
+- `BACKEND_URL` (has default) — .env.example
 - `CLAUDE_CONFIG_DIR` **required** — server/internal/daemon/usage/claude.go
 - `CLOUDFRONT_DOMAIN` **required** — .env.example
 - `CLOUDFRONT_KEY_PAIR_ID` **required** — .env.example
@@ -54,7 +54,7 @@
 - `MULTICA_WORKSPACE_ID` **required** — .env.example
 - `MULTICA_WORKSPACES_ROOT` **required** — server/internal/daemon/config.go
 - `NEXT_PUBLIC_API_URL` (has default) — .env.example
-- `NEXT_PUBLIC_COLLAB_URL` (has default) — .env
+- `NEXT_PUBLIC_COLLAB_URL` (has default) — .env.example
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` **required** — .env.example
 - `NEXT_PUBLIC_WS_URL` (has default) — .env.example
 - `NODE_ENV` **required** — apps/web/components/theme-provider.tsx

@@ -398,9 +398,34 @@
   background: color-mix(in srgb, #22c55e 6%, transparent);
 }
 
+.rich-text-editor.diff-added .attachment-card-shell p,
+.rich-text-editor.diff-added .attachment-card-shell svg,
+.rich-text-editor.diff-added .markdown-file-preview-content,
+.rich-text-editor.diff-added .markdown-file-preview-content * {
+  color: color-mix(in srgb, #16a34a 80%, var(--foreground));
+}
+
+.rich-text-editor.diff-added .image-node {
+  background: color-mix(in srgb, #22c55e 8%, transparent);
+  padding-top: 0.625rem;
+}
+
 .rich-text-editor.diff-removed .attachment-card-shell {
   border-color: color-mix(in srgb, var(--destructive) 35%, transparent);
   background: color-mix(in srgb, var(--destructive) 6%, transparent);
+  opacity: 0.75;
+}
+
+.rich-text-editor.diff-removed .attachment-card-shell p,
+.rich-text-editor.diff-removed .attachment-card-shell svg,
+.rich-text-editor.diff-removed .markdown-file-preview-content,
+.rich-text-editor.diff-removed .markdown-file-preview-content * {
+  color: color-mix(in srgb, var(--destructive) 80%, var(--foreground));
+}
+
+.rich-text-editor.diff-removed .image-node {
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  padding-top: 0.625rem;
   opacity: 0.75;
 }
 

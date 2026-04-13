@@ -21,6 +21,7 @@ postgres_db="multica_${slug}_${offset}"
 postgres_port=5432
 backend_port=$((18080 + offset))
 frontend_port=$((13000 + offset))
+collaboration_port=$((19080 + offset))
 frontend_origin="http://localhost:${frontend_port}"
 
 cat > "$ENV_FILE" <<EOF
@@ -43,6 +44,11 @@ FRONTEND_PORT=${frontend_port}
 FRONTEND_ORIGIN=${frontend_origin}
 NEXT_PUBLIC_API_URL=http://localhost:${backend_port}
 NEXT_PUBLIC_WS_URL=ws://localhost:${backend_port}/ws
+
+COLLABORATION_PORT=${collaboration_port}
+COLLABORATION_WEBHOOK_SECRET=change-me-in-production
+NEXT_PUBLIC_COLLAB_URL=ws://localhost:${collaboration_port}
+BACKEND_URL=http://localhost:${backend_port}
 EOF
 
 echo "Generated $ENV_FILE for worktree '$worktree_name'"
@@ -50,6 +56,7 @@ echo "  Shared Postgres: localhost:${postgres_port}"
 echo "  Database: ${postgres_db}"
 echo "  Backend:  http://localhost:${backend_port}"
 echo "  Frontend: ${frontend_origin}"
+echo "  Collaboration: ws://localhost:${collaboration_port}"
 echo ""
 echo "Next steps:"
 echo "  make setup-worktree"

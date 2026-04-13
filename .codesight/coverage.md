@@ -1,10 +1,47 @@
 # Test Coverage
 
-> **50%** of routes and models are covered by tests
+> **18%** of routes and models are covered by tests
 > 49 test files found
 
 ## Covered Routes
 
+- GET:token
+- GET:state
+- POST:/api/daemon/register
+- GET:/api/workspaces
+- POST:/api/workspaces
+- PUT:/api/workspaces
+- PATCH:/api/workspaces
+- DELETE:/api/workspaces
+- GET:/api/issues
+- POST:/api/issues
+- PUT:/api/issues
+- DELETE:/api/issues
+- GET:/api/agents
+- POST:/api/agents
+- PUT:/api/agents
+- GET:/api/inbox
+- GET:/health
+- GET:/ws
+- POST:/auth/send-code
+- POST:/auth/verify-code
+- GET:/api/me
+- PATCH:/api/me
+- GET:/members
+- POST:/members
+- POST:/comments
+- GET:/comments
+- GET:/timeline
+- GET:/subscribers
+- POST:/subscribe
+- POST:/unsubscribe
+- ALL:/health
+- GET:status
+- GET:workspace_id
+- GET:priority
+- GET:assignee_id
+- GET:owner
+- ALL:/ws
 - WS:issue:updated
 - WS:issue:created
 - WS:issue:deleted

@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Component inventory and prop signatures extracted via AST. Read the source files before adding props or modifying component logic.
 
-**163 components** (react)
+**164 components** (react)
 
 ## Client Components
 
@@ -28,9 +28,9 @@
 - **MulticaLanding** — `apps/web/features/landing/components/multica-landing.tsx`
 - **OpenSourceSection** — `apps/web/features/landing/components/open-source-section.tsx`
 - **LocaleProvider** — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
-- **WikiPropertySidebar** — props: wikiId, createdBy, updatedBy, createdAt, updatedAt, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
-- **WikiSidebar** — props: nodes, isLoading, onCreateNew, onSelect, selectedId, isCollaborating, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
-- **WikiView** — `apps/web/features/wiki/components/WikiView.tsx`
+- **WikiPropertySidebar** — props: wikiId, currentContent, createdBy, updatedBy, createdAt, updatedAt, childPages, onNavigateTo, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
+- **WikiSidebar** — props: nodes, isLoading, onCreateNew, onSelect, selectedId, collaboratingId, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
+- **WikiView** — props: initialSelectedId — `apps/web/features/wiki/components/WikiView.tsx`
 - **WebNavigationProvider** — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** — props: store — `packages/core/issues/stores/view-store-context.tsx`
@@ -54,8 +54,9 @@
 - **ChatWindow** — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
 - **Markdown** — `packages/views/common/markdown.tsx`
+- **AttachmentFileIcon** — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
 - **CodeBlockView** — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
-- **FileCardExtension** — `packages/views/editor/extensions/file-card.tsx`
+- **AttachmentCard** — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** — props: node — `packages/views/editor/extensions/mention-view.tsx`
@@ -151,7 +152,7 @@
 - **CodexLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
-- **WikiEditor** — props: id, title, content, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile, onDelete — `apps/web/features/wiki/components/WikiEditor.tsx`
+- **WikiEditor** — props: id, title, content, restoreKey, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile — `apps/web/features/wiki/components/WikiEditor.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
 - **ContentEditor** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`

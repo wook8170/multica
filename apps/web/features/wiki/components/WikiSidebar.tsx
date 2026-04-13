@@ -3,8 +3,19 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
   Plus, Search, ChevronRight, ChevronDown,
-  Loader2, Trash2, Copy, X, Check, GripVertical, FileText,
+  Loader2, Trash2, Copy, X, Check, GripVertical, FileText, AlignLeft,
 } from "lucide-react";
+import type { ReactNode } from "react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@multica/ui/components/ui/alert-dialog";
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
   useSensor, useSensors, pointerWithin, closestCenter,
@@ -73,10 +84,86 @@ interface WikiSidebarProps {
   onCreateNew: (parentId: string | null) => void;
   onSelect: (node: WikiNode) => void;
   selectedId: string | null;
-  isCollaborating: boolean;
+  collaboratingId?: string | null;
   onDeleteMultiple?: (ids: string[]) => void;
   onDuplicateMultiple?: (ids: string[]) => void;
   onMove?: (moves: { id: string; parentId: string | null; sortOrder: number }[]) => void;
+}
+
+/** Strip HTML tags and collapse whitespace — used for content search. */
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Extract a snippet around the first occurrence of `query` in `text`.
+ * Returns at most `radius` characters on each side of the match.
+ */
+function getSnippet(text: string, query: string, radius = 80): string {
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx < 0) return text.slice(0, radius * 2);
+  const start = Math.max(0, idx - radius);
+  const end = Math.min(text.length, idx + query.length + radius);
+  return (start > 0 ? "…" : "") + text.slice(start, end) + (end < text.length ? "…" : "");
+}
+
+/**
+ * Wrap every occurrence of `query` in `text` with a highlight span.
+ * Returns an array of strings/elements so React can render it.
+ */
+function highlightText(text: string, query: string): ReactNode {
+  if (!query) return text;
+  const lq = query.toLowerCase();
+  const parts: ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+  while (remaining) {
+    const idx = remaining.toLowerCase().indexOf(lq);
+    if (idx < 0) { parts.push(remaining); break; }
+    if (idx > 0) parts.push(remaining.slice(0, idx));
+    parts.push(
+      <mark key={key++} className="bg-yellow-200 dark:bg-yellow-900/60 text-inherit rounded-sm not-italic">
+        {remaining.slice(idx, idx + query.length)}
+      </mark>
+    );
+    remaining = remaining.slice(idx + query.length);
+  }
+  return <>{parts}</>;
+}
+
+/** Recursively search all nodes for title / content matches. */
+interface SearchResult {
+  node: WikiNode;
+  titleMatch: boolean;
+  snippet: string | null; // highlighted text around content match
+}
+
+function searchNodes(items: WikiNode[], query: string): SearchResult[] {
+  const lq = query.toLowerCase();
+  const results: SearchResult[] = [];
+  const visit = (nodes: WikiNode[]) => {
+    for (const node of nodes) {
+      const titleMatch = node.title.toLowerCase().includes(lq);
+      const plainContent = stripHtml(node.content || "");
+      const contentMatch = plainContent.toLowerCase().includes(lq);
+      if (titleMatch || contentMatch) {
+        results.push({
+          node,
+          titleMatch,
+          snippet: contentMatch ? getSnippet(plainContent, query) : null,
+        });
+      }
+      if (node.children) visit(node.children);
+    }
+  };
+  visit(items);
+  // Title matches first, then content-only matches
+  results.sort((a, b) => {
+    if (a.titleMatch && !b.titleMatch) return -1;
+    if (!a.titleMatch && b.titleMatch) return 1;
+    return 0;
+  });
+  return results;
 }
 
 function countNodes(items: WikiNode[]): number {
@@ -141,7 +228,7 @@ function containsId(nodes: WikiNode[], id: string): boolean {
 
 
 export function WikiSidebar({
-  nodes, isLoading, onCreateNew, onSelect, selectedId, isCollaborating,
+  nodes, isLoading, onCreateNew, onSelect, selectedId, collaboratingId,
   onDeleteMultiple, onDuplicateMultiple, onMove,
 }: WikiSidebarProps) {
   const { searchQuery, setSearchQuery, expandedNodes, toggleNode, setExpandedNodes } = useWikiStore();
@@ -184,27 +271,40 @@ export function WikiSidebar({
     });
   }, []);
 
+  const [deleteConfirm, setDeleteConfirm] = useState<string[] | null>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
+
   const clearSelection = () => { setMultiSelected(new Set()); setSelectMode(false); };
 
-  const handleDeleteMultiple = () => { onDeleteMultiple?.([...multiSelected]); clearSelection(); };
+  const handleDeleteMultiple = () => {
+    if (multiSelected.size === 0) return;
+    setDeleteConfirm([...multiSelected]);
+  };
   const handleDuplicateMultiple = () => { onDuplicateMultiple?.([...multiSelected]); clearSelection(); };
 
-  // Filtered tree for search
-  const filteredTree = useMemo(() => {
-    if (!searchQuery.trim()) return nodes;
-    const filter = (items: WikiNode[]): WikiNode[] =>
-      items.reduce((acc, node) => {
-        const matches = node.title.toLowerCase().includes(searchQuery.toLowerCase());
-        const filteredChildren = node.children ? filter(node.children) : [];
-        if (matches || filteredChildren.length > 0) acc.push({ ...node, children: filteredChildren });
-        return acc;
-      }, [] as WikiNode[]);
-    return filter(nodes);
-  }, [nodes, searchQuery]);
+  // Full-text search results (title + content) — used when a query is active
+  const searchResults = useMemo(
+    () => (searchQuery.trim() ? searchNodes(nodes, searchQuery) : []),
+    [nodes, searchQuery],
+  );
+  const isSearching = searchQuery.trim().length > 0;
+
+  // Scroll selected item into view when selectedId changes (e.g. navigating via child page links)
+  useEffect(() => {
+    if (!selectedId || isSearching) return;
+    const list = treeRef.current;
+    if (!list) return;
+    // rAF ensures the tree has rendered the item (after expansion) before measuring
+    const rafId = requestAnimationFrame(() => {
+      const el = list.querySelector(`[data-wiki-id="${selectedId}"]`);
+      el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [selectedId, isSearching]);
 
   const flatItems = useMemo(
-    () => flattenVisible(filteredTree, expandedNodes),
-    [filteredTree, expandedNodes],
+    () => flattenVisible(nodes, expandedNodes),
+    [nodes, expandedNodes],
   );
 
   // --- DnD handlers ---
@@ -350,21 +450,78 @@ export function WikiSidebar({
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40 pointer-events-none" />
           <Input
-            placeholder="Search..."
+            placeholder="Search title and content..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 pl-8 text-sm bg-muted border-none focus-visible:ring-1 focus-visible:ring-primary/20 placeholder:text-muted-foreground/50"
+            className="h-8 pl-8 pr-7 text-sm bg-muted border-none focus-visible:ring-1 focus-visible:ring-primary/20 placeholder:text-muted-foreground/50"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Document tree */}
-      <div className="flex-1 overflow-y-auto py-1">
+      {/* Document tree / search results */}
+      <div ref={treeRef} className="flex-1 overflow-y-auto py-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-8 opacity-40">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
+        ) : isSearching ? (
+          // ── Full-text search results (flat list) ──────────────────────────
+          <div className="px-2 space-y-0.5">
+            {searchResults.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <Search className="h-6 w-6 text-muted-foreground/20" />
+                <p className="text-xs text-muted-foreground">No results for &ldquo;{searchQuery}&rdquo;</p>
+              </div>
+            ) : (
+              <>
+                <p className="px-2 pb-1 text-[10px] text-muted-foreground/60 tabular-nums">
+                  {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
+                </p>
+                {searchResults.map(({ node, titleMatch, snippet }) => (
+                  <button
+                    key={node.id}
+                    type="button"
+                    onClick={() => { onSelect(node); setSearchQuery(""); }}
+                    className={cn(
+                      "w-full text-left rounded-md px-2 py-2 transition-colors group",
+                      selectedId === node.id
+                        ? "bg-primary/10 text-primary"
+                        : "hover:bg-accent text-foreground",
+                    )}
+                  >
+                    <div className="flex items-start gap-2">
+                      {snippet && !titleMatch ? (
+                        <AlignLeft className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground/50" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground/50" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate leading-tight">
+                          {highlightText(node.title || "Untitled", searchQuery)}
+                        </p>
+                        {snippet && (
+                          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {highlightText(snippet, searchQuery)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
         ) : (
+          // ── Normal DnD tree ───────────────────────────────────────────────
           <DndContext
             sensors={sensors}
             collisionDetection={collisionDetection}
@@ -389,7 +546,7 @@ export function WikiSidebar({
                   canSelect={canSelect}
                   isDragging={isDragging}
                   isSelecting={isSelecting}
-                  isCollaborating={isCollaborating}
+                  isCollaborating={collaboratingId === item.id}
                   dropIndicator={indicator}
                   expandedNodes={expandedNodes}
                   onSelect={() => {
@@ -450,6 +607,37 @@ export function WikiSidebar({
           </Button>
         )}
       </div>
+
+      {/* Delete multiple confirmation */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {deleteConfirm?.length === 1 ? "this document" : `${deleteConfirm?.length} documents`}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirm?.length === 1
+                ? "This action cannot be undone. The document and all its history will be permanently deleted."
+                : `This action cannot be undone. ${deleteConfirm?.length} documents and all their history will be permanently deleted.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteConfirm(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                const ids = deleteConfirm;
+                setDeleteConfirm(null);
+                clearSelection();
+                if (ids) onDeleteMultiple?.(ids);
+              }}
+            >
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -493,6 +681,7 @@ function WikiDndItem({
   return (
     <div
       ref={ref}
+      data-wiki-id={item.id}
       className="relative"
       style={{ transform: transform ? `translate(${transform.x}px,${transform.y}px)` : undefined }}
     >
@@ -538,6 +727,12 @@ function WikiDndItem({
                 <FileText className={cn("size-3.5", isSelected ? "text-primary" : "text-muted-foreground")} />
               </div>
             )}
+            {isCollaborating && !isSelecting && (
+              <div
+                className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-green-500"
+                title="Multiple editors active"
+              />
+            )}
           </div>
           {/* Checkbox — only visible in select mode */}
           {canSelect && (
@@ -545,12 +740,12 @@ function WikiDndItem({
               "absolute inset-0 flex items-center justify-center transition-opacity duration-100",
               isSelecting ? "opacity-100" : "opacity-0",
             )}>
-              <div className={cn(
-                "size-5 rounded border-2 flex items-center justify-center transition-colors",
-                isChecked ? "bg-primary border-primary" : "border-muted-foreground/40 bg-background",
-              )}>
-                {isChecked && <Check className="size-3 text-white stroke-[3]" />}
-              </div>
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={() => {}}
+                className="cursor-pointer accent-primary size-4 pointer-events-none"
+              />
             </div>
           )}
         </div>
@@ -559,9 +754,6 @@ function WikiDndItem({
         <div className="min-w-0 flex-1 overflow-hidden">
           {/* Line 1: title */}
           <div className="flex items-center gap-1">
-            {isSelected && isCollaborating && !isSelecting && (
-              <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" title="Multiple editors active" />
-            )}
             <span className={cn(
               "truncate text-sm leading-snug",
               item.isPending ? "italic text-muted-foreground/50" : "",

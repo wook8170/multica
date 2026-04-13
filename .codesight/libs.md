@@ -301,7 +301,10 @@
   - class WikiResponse
   - class WikiVersionResponse
   - class CreateWikiRequest
+  - class SearchWikiResult
+  - class SearchWikisResponse
   - class CollaborationWebhookRequest
+- `server/internal/handler/wiki_history_policy.go` — class WikiHistoryCompactResult
 - `server/internal/handler/wiki_snapshot.go` — function NewWikiSnapshotScheduler: (db dbExecutor) *WikiSnapshotScheduler, class WikiSnapshotScheduler
 - `server/internal/handler/workspace.go`
   - class WorkspaceResponse

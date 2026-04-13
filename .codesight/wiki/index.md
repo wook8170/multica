@@ -10,15 +10,87 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 
 - [Overview](./overview.md)
 - [Database](./database.md)
+- [Auth](./auth.md)
+- [Payments](./payments.md)
+- [X-Agent-ID](./X-Agent-ID.md)
+- [X-Task-ID](./X-Task-ID.md)
+- [X-User-ID](./X-User-ID.md)
+- [Active-task](./active-task.md)
+- [Activity](./activity.md)
+- [Agent](./agent.md)
+- [Agents](./agents.md)
+- [Archive](./archive.md)
+- [Archive-all](./archive-all.md)
+- [Archive-all-read](./archive-all-read.md)
+- [Archive-completed](./archive-completed.md)
+- [Assignee-frequency](./assignee-frequency.md)
+- [Attachments](./attachments.md)
+- [Auth_test](./auth_test.md)
+- [Batch-delete](./batch-delete.md)
+- [Batch-update](./batch-update.md)
+- [Chat](./chat.md)
+- [Children](./children.md)
+- [Client_test](./client_test.md)
+- [Cmd_auth](./cmd_auth.md)
+- [Cmd_issue](./cmd_issue.md)
+- [Comment](./comment.md)
+- [Comments](./comments.md)
+- [Daemon](./daemon.md)
+- [Daily](./daily.md)
+- [Deregister](./deregister.md)
+- [Files](./files.md)
+- [Heartbeat](./heartbeat.md)
+- [History](./history.md)
+- [Hub_test](./hub_test.md)
+- [Import](./import.md)
+- [Inbox](./inbox.md)
+- [Issue](./issue.md)
+- [Issues](./issues.md)
+- [Leave](./leave.md)
+- [Mark-all-read](./mark-all-read.md)
+- [Me](./me.md)
+- [Members](./members.md)
+- [Messages](./messages.md)
+- [Move](./move.md)
+- [Ping](./ping.md)
+- [Pins](./pins.md)
+- [Projects](./projects.md)
+- [Reactions](./reactions.md)
+- [Read](./read.md)
+- [Reorder](./reorder.md)
+- [Restore](./restore.md)
 - [Route](./route.md)
+- [Runtime](./runtime.md)
+- [Runtimes](./runtimes.md)
+- [Search](./search.md)
+- [Skills](./skills.md)
+- [Subscribers](./subscribers.md)
+- [Summary](./summary.md)
+- [Task-runs](./task-runs.md)
+- [Tasks](./tasks.md)
+- [Timeline](./timeline.md)
+- [Tokens](./tokens.md)
+- [Unread-count](./unread-count.md)
+- [Unsubscribe](./unsubscribe.md)
+- [Update](./update.md)
+- [Upload-file](./upload-file.md)
+- [Usage](./usage.md)
 - [Use-realtime-sync](./use-realtime-sync.md)
+- [Wiki](./wiki.md)
+- [Wikis](./wikis.md)
+- [Workspace-id](./workspace-id.md)
+- [Workspaces](./workspaces.md)
+- [Ws](./ws.md)
+- [Infra](./infra.md)
+- [Api](./api.md)
 - [Ui](./ui.md)
+- [Libraries](./libraries.md)
 
 ## Quick Stats
 
-- Routes: **18**
+- Routes: **284**
 - Models: **35**
-- Components: **163**
+- Components: **164**
 - Env vars: **38** required, **34** with defaults
 
 ## How to Use
@@ -27,6 +99,7 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - **Architecture question:** read `overview.md` (~500 tokens)
 - **Domain question:** read the relevant article, then **read those source files**
 - **Database question:** read `database.md`, then read the actual schema files
+- **Library question:** read `libraries.md`, then read the listed source files
 - **Before implementing anything:** read the source files listed in the article
 - **Full source context:** read `.codesight/CODESIGHT.md`
 
@@ -45,4 +118,4 @@ These exist in your codebase but are **not** reflected in wiki articles:
 When in doubt, search the source. The wiki is a starting point, not a complete inventory.
 
 ---
-_Last compiled: 2026-04-13 · 6 articles · [codesight](https://github.com/Houseofmvps/codesight)_
+_Last compiled: 2026-04-13 · 78 articles · [codesight](https://github.com/Houseofmvps/codesight)_

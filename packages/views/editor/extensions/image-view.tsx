@@ -84,13 +84,22 @@ function ImageView({ node, editor, selected, deleteNode }: NodeViewProps) {
   return (
     <NodeViewWrapper className="image-node">
       <figure
-        className={cn(
-          "image-figure",
-          selected && isEditable && "image-selected",
+          className={cn(
+            "image-figure",
+            selected && isEditable && "image-selected",
+          )}
+          contentEditable={false}
+          onClick={!isEditable && !uploading ? handleView : undefined}
+        >
+        {isEditable && (
+          <span
+            className="image-drag-handle"
+            data-drag-handle
+            title="Drag to move image"
+            onClick={(e) => e.stopPropagation()}
+            aria-hidden="true"
+          />
         )}
-        contentEditable={false}
-        onClick={!isEditable && !uploading ? handleView : undefined}
-      >
         <img
           src={src}
           alt={alt}

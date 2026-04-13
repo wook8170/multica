@@ -41,6 +41,7 @@ const LinkReadonly = Link.configure({
 });
 
 const ImageExtension = Image.extend({
+  draggable: true,
   addAttributes() {
     return {
       ...this.parent?.(),

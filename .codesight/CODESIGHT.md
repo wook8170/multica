@@ -1,16 +1,252 @@
 # multica — AI Context Map
 
-> **Stack:** next-app | none | react | typescript
-> **Monorepo:** @multica/collaboration, @multica/desktop, @multica/docs, @multica/web, @multica/core, @multica/eslint-config, @multica/tsconfig, @multica/ui, @multica/views
+> **Stack:** next-app, chi | none | react | typescript
+> **Monorepo:** @multica/collaboration, @multica/desktop, @multica/docs, @multica/web, @multica/core, @multica/eslint-config, @multica/tsconfig, @multica/ui, @multica/views, server
 
-> 1 routes + 17 ws | 35 models | 163 components | 136 lib files | 72 env vars | 15 middleware | 50% test coverage
-> **Token savings:** this file is ~16,600 tokens. Without it, AI exploration would cost ~128,200 tokens. **Saves ~111,600 tokens per conversation.**
+> 267 routes (17 inferred) + 17 ws | 35 models | 164 components | 137 lib files | 72 env vars | 15 middleware | 18% test coverage
+> **Token savings:** this file is ~21,300 tokens. Without it, AI exploration would cost ~267,100 tokens. **Saves ~245,800 tokens per conversation.**
+> **Last scanned:** 2026-04-13 12:54 — re-run after significant changes
 
 ---
 
 # Routes
 
+## CRUD Resources
+
+- **`/api/workspaces`** GET | POST | PUT/:id | DELETE/:id → Workspace
+- **``** GET/:id | PUT/:id | DELETE/:id
+- **`/members`** GET | POST | GET/:id | PATCH/:id | DELETE/:id → Member
+- **`/api/tokens`** GET | POST | GET/:id | DELETE/:id → Token
+- **`/api/issues`** GET | POST | PUT/:id | DELETE/:id → Issue
+- **`/api/projects`** GET | POST | PUT/:id | DELETE/:id → Project
+- **`/api/agents`** GET | POST | PUT/:id → Agent
+- **`/api/skills`** GET | POST | PUT/:id | DELETE/:id → Skill
+- **`/api/skills/files`** GET | GET/:id | PUT/:id | DELETE/:id → File
+- **`/{id}/files`** GET | GET/:id | PUT/:id | DELETE/:id → File
+- **`/api/chat/sessions`** GET | POST | DELETE/:id → Session
+- **`/api/wikis`** GET | POST | PUT/:id | DELETE/:id → Wiki
+- **`/`** GET | POST | PUT/:id | DELETE/:id
+- **`/files`** GET | GET/:id | PUT/:id | DELETE/:id → File
+
+## Other Routes
+
+### next-app
+
 - `GET` `/favicon.ico`
+
+### chi
+
+- `GET` `token` params() [auth, db] ✓
+- `GET` `state` params() [auth, db] ✓
+- `ALL` `/callback` params() [auth, db]
+- `GET` `X-Total-Count` params() [auth, upload]
+- `POST` `/api/daemon/register` params() [auth, db, payment, upload] ✓
+- `POST` `/api/daemon/deregister` params() [auth, db, payment, upload]
+- `POST` `/api/daemon/heartbeat` params() [auth, db, payment, upload]
+- `POST` `/api/daemon/runtimes/{runtimeId}/tasks/claim` params(runtimeId) [auth, db, payment, upload]
+- `GET` `/api/daemon/runtimes/{runtimeId}/tasks/pending` params(runtimeId) [auth, db, payment, upload]
+- `POST` `/api/daemon/runtimes/{runtimeId}/usage` params(runtimeId) [auth, db, payment, upload]
+- `POST` `/api/daemon/runtimes/{runtimeId}/ping/{pingId}/result` params(runtimeId, pingId) [auth, db, payment, upload]
+- `POST` `/api/daemon/runtimes/{runtimeId}/update/{updateId}/result` params(runtimeId, updateId) [auth, db, payment, upload]
+- `GET` `/api/daemon/tasks/{taskId}/status` params(taskId) [auth, db, payment, upload]
+- `POST` `/api/daemon/tasks/{taskId}/start` params(taskId) [auth, db, payment, upload]
+- `POST` `/api/daemon/tasks/{taskId}/progress` params(taskId) [auth, db, payment, upload]
+- `POST` `/api/daemon/tasks/{taskId}/complete` params(taskId) [auth, db, payment, upload]
+- `POST` `/api/daemon/tasks/{taskId}/fail` params(taskId) [auth, db, payment, upload]
+- `POST` `/api/daemon/tasks/{taskId}/usage` params(taskId) [auth, db, payment, upload]
+- `POST` `/api/daemon/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+- `GET` `/api/daemon/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+- `GET` `/api/workspaces/members` params() [auth, db, payment, upload]
+- `POST` `/api/workspaces/leave` params() [auth, db, payment, upload]
+- `POST` `/api/workspaces/members` params() [auth, db, payment, upload]
+- `GET` `/{id}/members` params(id) [auth, db, payment, upload]
+- `POST` `/{id}/leave` params(id) [auth, db, payment, upload]
+- `POST` `/{id}/members` params(id) [auth, db, payment, upload]
+- `GET` `/api/issues/search` params() [auth, db, payment, upload]
+- `POST` `/api/issues/batch-update` params() [auth, db, payment, upload]
+- `POST` `/api/issues/batch-delete` params() [auth, db, payment, upload]
+- `POST` `/api/issues/comments` params() [auth, db, payment, upload]
+- `GET` `/api/issues/comments` params() [auth, db, payment, upload]
+- `GET` `/api/issues/timeline` params() [auth, db, payment, upload]
+- `GET` `/api/issues/subscribers` params() [auth, db, payment, upload]
+- `POST` `/api/issues/subscribe` params() [auth, db, payment, upload]
+- `POST` `/api/issues/unsubscribe` params() [auth, db, payment, upload]
+- `GET` `/api/issues/active-task` params() [auth, db, payment, upload]
+- `POST` `/api/issues/tasks/{taskId}/cancel` params(taskId) [auth, db, payment, upload]
+- `GET` `/api/issues/task-runs` params() [auth, db, payment, upload]
+- `GET` `/api/issues/usage` params() [auth, db, payment, upload]
+- `POST` `/api/issues/reactions` params() [auth, db, payment, upload]
+- `DELETE` `/api/issues/reactions` params() [auth, db, payment, upload]
+- `GET` `/api/issues/attachments` params() [auth, db, payment, upload]
+- `GET` `/api/issues/children` params() [auth, db, payment, upload]
+- `POST` `/{id}/comments` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/comments` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/timeline` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/subscribers` params(id) [auth, db, payment, upload]
+- `POST` `/{id}/subscribe` params(id) [auth, db, payment, upload]
+- `POST` `/{id}/unsubscribe` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/active-task` params(id) [auth, db, payment, upload]
+- `POST` `/{id}/tasks/{taskId}/cancel` params(id, taskId) [auth, db, payment, upload]
+- `GET` `/{id}/task-runs` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/usage` params(id) [auth, db, payment, upload]
+- `POST` `/{id}/reactions` params(id) [auth, db, payment, upload]
+- `DELETE` `/{id}/reactions` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/attachments` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/children` params(id) [auth, db, payment, upload]
+- `GET` `/api/projects/search` params() [auth, db, payment, upload]
+- `GET` `/api/pins` params() [auth, db, payment, upload]
+- `POST` `/api/pins` params() [auth, db, payment, upload]
+- `PUT` `/api/pins/reorder` params() [auth, db, payment, upload]
+- `DELETE` `/api/pins/{itemType}/{itemId}` params(itemType, itemId) [auth, db, payment, upload]
+- `PUT` `/api/comments/{commentId}` params(commentId) [auth, db, payment, upload]
+- `DELETE` `/api/comments/{commentId}` params(commentId) [auth, db, payment, upload]
+- `POST` `/api/comments/{commentId}/reactions` params(commentId) [auth, db, payment, upload]
+- `DELETE` `/api/comments/{commentId}/reactions` params(commentId) [auth, db, payment, upload]
+- `POST` `/api/agents/archive` params() [auth, db, payment, upload]
+- `POST` `/api/agents/restore` params() [auth, db, payment, upload]
+- `GET` `/api/agents/tasks` params() [auth, db, payment, upload]
+- `GET` `/api/agents/skills` params() [auth, db, payment, upload]
+- `PUT` `/api/agents/skills` params() [auth, db, payment, upload]
+- `POST` `/{id}/archive` params(id) [auth, db, payment, upload]
+- `POST` `/{id}/restore` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/tasks` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/skills` params(id) [auth, db, payment, upload]
+- `PUT` `/{id}/skills` params(id) [auth, db, payment, upload]
+- `POST` `/api/skills/import` params() [auth, db, payment, upload]
+- `GET` `/api/usage/daily` params() [auth, db, payment, upload]
+- `GET` `/api/usage/summary` params() [auth, db, payment, upload]
+- `GET` `/api/runtimes` params() [auth, db, payment, upload]
+- `GET` `/api/runtimes/usage` params() [auth, db, payment, upload]
+- `GET` `/api/runtimes/activity` params() [auth, db, payment, upload]
+- `POST` `/api/runtimes/ping` params() [auth, db, payment, upload]
+- `GET` `/api/runtimes/ping/{pingId}` params(pingId) [auth, db, payment, upload]
+- `POST` `/api/runtimes/update` params() [auth, db, payment, upload]
+- `GET` `/api/runtimes/update/{updateId}` params(updateId) [auth, db, payment, upload]
+- `DELETE` `/api/runtimes` params() [auth, db, payment, upload]
+- `GET` `/{runtimeId}/usage` params(runtimeId) [auth, db, payment, upload]
+- `GET` `/{runtimeId}/activity` params(runtimeId) [auth, db, payment, upload]
+- `POST` `/{runtimeId}/ping` params(runtimeId) [auth, db, payment, upload]
+- `GET` `/{runtimeId}/ping/{pingId}` params(runtimeId, pingId) [auth, db, payment, upload]
+- `POST` `/{runtimeId}/update` params(runtimeId) [auth, db, payment, upload]
+- `GET` `/{runtimeId}/update/{updateId}` params(runtimeId, updateId) [auth, db, payment, upload]
+- `POST` `/api/chat/sessions/messages` params() [auth, db, payment, upload]
+- `GET` `/api/chat/sessions/messages` params() [auth, db, payment, upload]
+- `POST` `/{sessionId}/messages` params(sessionId) [auth, db, payment, upload]
+- `GET` `/{sessionId}/messages` params(sessionId) [auth, db, payment, upload]
+- `GET` `/api/inbox` params() [auth, db, payment, upload] ✓
+- `GET` `/api/inbox/unread-count` params() [auth, db, payment, upload]
+- `POST` `/api/inbox/mark-all-read` params() [auth, db, payment, upload]
+- `POST` `/api/inbox/archive-all` params() [auth, db, payment, upload]
+- `POST` `/api/inbox/archive-all-read` params() [auth, db, payment, upload]
+- `POST` `/api/inbox/archive-completed` params() [auth, db, payment, upload]
+- `POST` `/api/inbox/{id}/read` params(id) [auth, db, payment, upload]
+- `POST` `/api/inbox/{id}/archive` params(id) [auth, db, payment, upload]
+- `GET` `/api/wikis/search` params() [auth, db, payment, upload]
+- `PATCH` `/api/wikis/move` params() [auth, db, payment, upload]
+- `GET` `/api/wikis/history` params() [auth, db, payment, upload]
+- `POST` `/api/wikis/history/compact` params() [auth, db, payment, upload]
+- `PATCH` `/{id}/move` params(id) [auth, db, payment, upload]
+- `GET` `/{id}/history` params(id) [auth, db, payment, upload]
+- `POST` `/{id}/history/compact` params(id) [auth, db, payment, upload]
+- `GET` `/health` params() [auth, db, payment, upload] ✓
+- `GET` `/ws` params() [auth, db, payment, upload] ✓
+- `POST` `/auth/send-code` params() [auth, db, payment, upload] ✓
+- `POST` `/auth/verify-code` params() [auth, db, payment, upload] ✓
+- `POST` `/auth/google` params() [auth, db, payment, upload]
+- `POST` `/register` params() [auth, db, payment, upload]
+- `POST` `/deregister` params() [auth, db, payment, upload]
+- `POST` `/heartbeat` params() [auth, db, payment, upload]
+- `POST` `/runtimes/{runtimeId}/tasks/claim` params(runtimeId) [auth, db, payment, upload]
+- `GET` `/runtimes/{runtimeId}/tasks/pending` params(runtimeId) [auth, db, payment, upload]
+- `POST` `/runtimes/{runtimeId}/usage` params(runtimeId) [auth, db, payment, upload]
+- `POST` `/runtimes/{runtimeId}/ping/{pingId}/result` params(runtimeId, pingId) [auth, db, payment, upload]
+- `POST` `/runtimes/{runtimeId}/update/{updateId}/result` params(runtimeId, updateId) [auth, db, payment, upload]
+- `GET` `/tasks/{taskId}/status` params(taskId) [auth, db, payment, upload]
+- `POST` `/tasks/{taskId}/start` params(taskId) [auth, db, payment, upload]
+- `POST` `/tasks/{taskId}/progress` params(taskId) [auth, db, payment, upload]
+- `POST` `/tasks/{taskId}/complete` params(taskId) [auth, db, payment, upload]
+- `POST` `/tasks/{taskId}/fail` params(taskId) [auth, db, payment, upload]
+- `POST` `/tasks/{taskId}/usage` params(taskId) [auth, db, payment, upload]
+- `POST` `/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+- `GET` `/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+- `GET` `/api/me` params() [auth, db, payment, upload] ✓
+- `PATCH` `/api/me` params() [auth, db, payment, upload] ✓
+- `POST` `/api/upload-file` params() [auth, db, payment, upload]
+- `POST` `/leave` params() [auth, db, payment, upload]
+- `POST` `/api/internal/collaboration/webhook` params() [auth, db, payment, upload]
+- `GET` `/api/assignee-frequency` params() [auth, db, payment, upload]
+- `GET` `/search` params() [auth, db, payment, upload]
+- `POST` `/batch-update` params() [auth, db, payment, upload]
+- `POST` `/batch-delete` params() [auth, db, payment, upload]
+- `POST` `/comments` params() [auth, db, payment, upload] ✓
+- `GET` `/comments` params() [auth, db, payment, upload] ✓
+- `GET` `/timeline` params() [auth, db, payment, upload] ✓
+- `GET` `/subscribers` params() [auth, db, payment, upload] ✓
+- `POST` `/subscribe` params() [auth, db, payment, upload] ✓
+- `POST` `/unsubscribe` params() [auth, db, payment, upload] ✓
+- `GET` `/active-task` params() [auth, db, payment, upload]
+- `POST` `/tasks/{taskId}/cancel` params(taskId) [auth, db, payment, upload]
+- `GET` `/task-runs` params() [auth, db, payment, upload]
+- `GET` `/usage` params() [auth, db, payment, upload]
+- `POST` `/reactions` params() [auth, db, payment, upload]
+- `DELETE` `/reactions` params() [auth, db, payment, upload]
+- `GET` `/attachments` params() [auth, db, payment, upload]
+- `GET` `/children` params() [auth, db, payment, upload]
+- `PUT` `/reorder` params() [auth, db, payment, upload]
+- `DELETE` `/{itemType}/{itemId}` params(itemType, itemId) [auth, db, payment, upload]
+- `GET` `/api/attachments/{id}` params(id) [auth, db, payment, upload]
+- `DELETE` `/api/attachments/{id}` params(id) [auth, db, payment, upload]
+- `POST` `/archive` params() [auth, db, payment, upload]
+- `POST` `/restore` params() [auth, db, payment, upload]
+- `GET` `/tasks` params() [auth, db, payment, upload]
+- `GET` `/skills` params() [auth, db, payment, upload]
+- `PUT` `/skills` params() [auth, db, payment, upload]
+- `POST` `/import` params() [auth, db, payment, upload]
+- `GET` `/daily` params() [auth, db, payment, upload]
+- `GET` `/summary` params() [auth, db, payment, upload]
+- `GET` `/activity` params() [auth, db, payment, upload]
+- `POST` `/ping` params() [auth, db, payment, upload]
+- `GET` `/ping/{pingId}` params(pingId) [auth, db, payment, upload]
+- `POST` `/update` params() [auth, db, payment, upload]
+- `GET` `/update/{updateId}` params(updateId) [auth, db, payment, upload]
+- `POST` `/api/tasks/{taskId}/cancel` params(taskId) [auth, db, payment, upload]
+- `POST` `/messages` params() [auth, db, payment, upload]
+- `GET` `/messages` params() [auth, db, payment, upload]
+- `GET` `/unread-count` params() [auth, db, payment, upload]
+- `POST` `/mark-all-read` params() [auth, db, payment, upload]
+- `POST` `/archive-all` params() [auth, db, payment, upload]
+- `POST` `/archive-all-read` params() [auth, db, payment, upload]
+- `POST` `/archive-completed` params() [auth, db, payment, upload]
+- `POST` `/{id}/read` params(id) [auth, db, payment, upload]
+- `PATCH` `/move` params() [auth, db, payment, upload]
+- `GET` `/history` params() [auth, db, payment, upload]
+- `POST` `/history/compact` params() [auth, db, payment, upload]
+- `GET` `Content-Type` params() [auth]
+- `GET` `Authorization` params() [auth]
+- `GET` `X-Workspace-ID` params() [auth]
+- `ALL` `/health` params() [cache, payment] ✓
+- `ALL` `/repo/checkout` params() [cache, payment]
+- `GET` `include_archived` params() [auth, db, queue]
+- `GET` `status` params() [auth, db, queue] ✓
+- `GET` `limit` params() [auth, db, queue, upload]
+- `GET` `offset` params() [auth, db, queue, upload]
+- `GET` `since` params() [auth, db, queue, upload]
+- `GET` `X-User-ID` params() [auth, db]
+- `GET` `X-Agent-ID` params() [auth, db]
+- `GET` `X-Task-ID` params() [auth, db]
+- `GET` `workspace_id` params() [auth, db] ✓
+- `GET` `q` params() [auth, db, queue, upload]
+- `GET` `include_closed` params() [auth, db, queue, upload]
+- `GET` `priority` params() [auth, db, queue, upload] ✓
+- `GET` `assignee_id` params() [auth, db, queue, upload] ✓
+- `GET` `assignee_ids` params() [auth, db, queue, upload]
+- `GET` `creator_id` params() [auth, db, queue, upload]
+- `GET` `open_only` params() [auth, db, queue, upload]
+- `GET` `days` params() [auth, db, cache]
+- `GET` `owner` params() [auth, db, cache] ✓
+- `GET` `X-Webhook-Secret` params() [auth, db, payment]
+- `GET` `X-User-Email` params() [auth]
+- `ALL` `/ws` params() [auth] ✓
 
 ## WebSocket Events
 
@@ -394,10 +630,10 @@
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **LocaleProvider** [client] — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
-- **WikiEditor** — props: id, title, content, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile, onDelete — `apps/web/features/wiki/components/WikiEditor.tsx`
-- **WikiPropertySidebar** [client] — props: wikiId, createdBy, updatedBy, createdAt, updatedAt, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
-- **WikiSidebar** [client] — props: nodes, isLoading, onCreateNew, onSelect, selectedId, isCollaborating, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
-- **WikiView** [client] — `apps/web/features/wiki/components/WikiView.tsx`
+- **WikiEditor** — props: id, title, content, restoreKey, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile — `apps/web/features/wiki/components/WikiEditor.tsx`
+- **WikiPropertySidebar** [client] — props: wikiId, currentContent, createdBy, updatedBy, createdAt, updatedAt, childPages, onNavigateTo, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
+- **WikiSidebar** [client] — props: nodes, isLoading, onCreateNew, onSelect, selectedId, collaboratingId, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
+- **WikiView** [client] — props: initialSelectedId — `apps/web/features/wiki/components/WikiView.tsx`
 - **WebNavigationProvider** [client] — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** [client] — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** [client] — props: store — `packages/core/issues/stores/view-store-context.tsx`
@@ -422,9 +658,10 @@
 - **ActorAvatar** [client] — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
+- **AttachmentFileIcon** [client] — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
 - **ContentEditor** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
-- **FileCardExtension** [client] — `packages/views/editor/extensions/file-card.tsx`
+- **AttachmentCard** [client] — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** [client] — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** [client] — props: node — `packages/views/editor/extensions/mention-view.tsx`
@@ -812,7 +1049,10 @@
   - class WikiResponse
   - class WikiVersionResponse
   - class CreateWikiRequest
+  - class SearchWikiResult
+  - class SearchWikisResponse
   - class CollaborationWebhookRequest
+- `server/internal/handler/wiki_history_policy.go` — class WikiHistoryCompactResult
 - `server/internal/handler/wiki_snapshot.go` — function NewWikiSnapshotScheduler: (db dbExecutor) *WikiSnapshotScheduler, class WikiSnapshotScheduler
 - `server/internal/handler/workspace.go`
   - class WorkspaceResponse
@@ -1021,7 +1261,7 @@
 - `APP_ENV` **required** — server/internal/handler/auth.go
 - `AWS_ACCESS_KEY_ID` (has default) — .env.example
 - `AWS_SECRET_ACCESS_KEY` (has default) — .env.example
-- `BACKEND_URL` (has default) — .env
+- `BACKEND_URL` (has default) — .env.example
 - `CLAUDE_CONFIG_DIR` **required** — server/internal/daemon/usage/claude.go
 - `CLOUDFRONT_DOMAIN` **required** — .env.example
 - `CLOUDFRONT_KEY_PAIR_ID` **required** — .env.example
@@ -1070,7 +1310,7 @@
 - `MULTICA_WORKSPACE_ID` **required** — .env.example
 - `MULTICA_WORKSPACES_ROOT` **required** — server/internal/daemon/config.go
 - `NEXT_PUBLIC_API_URL` (has default) — .env.example
-- `NEXT_PUBLIC_COLLAB_URL` (has default) — .env
+- `NEXT_PUBLIC_COLLAB_URL` (has default) — .env.example
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` **required** — .env.example
 - `NEXT_PUBLIC_WS_URL` (has default) — .env.example
 - `NODE_ENV` **required** — apps/web/components/theme-provider.tsx
@@ -1131,8 +1371,8 @@
 ## Most Imported Files (change these carefully)
 
 - `encoding/json` — imported by **54** files
+- `log/slog` — imported by **49** files
 - `net/http` — imported by **49** files
-- `log/slog` — imported by **48** files
 - `packages/core/types/index.ts` — imported by **23** files
 - `path/filepath` — imported by **20** files
 - `packages/views/common/actor-avatar.tsx` — imported by **19** files
@@ -1154,8 +1394,8 @@
 ## Import Map (who imports what)
 
 - `encoding/json` ← `server/cmd/multica/cmd_agent.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_skill.go` +49 more
+- `log/slog` ← `server/cmd/migrate/main.go`, `server/cmd/server/activity_listeners.go`, `server/cmd/server/listeners.go`, `server/cmd/server/main.go`, `server/cmd/server/notification_listeners.go` +44 more
 - `net/http` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/server/comment_trigger_integration_test.go` +44 more
-- `log/slog` ← `server/cmd/migrate/main.go`, `server/cmd/server/activity_listeners.go`, `server/cmd/server/listeners.go`, `server/cmd/server/main.go`, `server/cmd/server/notification_listeners.go` +43 more
 - `packages/core/types/index.ts` ← `packages/core/auth/store.ts`, `packages/core/chat/store.ts`, `packages/core/hooks/use-file-upload.ts`, `packages/core/inbox/mutations.ts`, `packages/core/inbox/queries.ts` +18 more
 - `path/filepath` ← `server/cmd/migrate/main.go`, `server/cmd/multica/cmd_attachment.go`, `server/internal/cli/client.go`, `server/internal/cli/config.go`, `server/internal/cli/update.go` +15 more
 - `packages/views/common/actor-avatar.tsx` ← `packages/views/agents/components/agent-detail.tsx`, `packages/views/agents/components/agent-list-item.tsx`, `packages/views/agents/components/tabs/settings-tab.tsx`, `packages/views/editor/extensions/mention-suggestion.tsx`, `packages/views/inbox/components/inbox-list-item.tsx` +14 more
@@ -1168,11 +1408,48 @@
 
 # Test Coverage
 
-> **50%** of routes and models are covered by tests
+> **18%** of routes and models are covered by tests
 > 49 test files found
 
 ## Covered Routes
 
+- GET:token
+- GET:state
+- POST:/api/daemon/register
+- GET:/api/workspaces
+- POST:/api/workspaces
+- PUT:/api/workspaces
+- PATCH:/api/workspaces
+- DELETE:/api/workspaces
+- GET:/api/issues
+- POST:/api/issues
+- PUT:/api/issues
+- DELETE:/api/issues
+- GET:/api/agents
+- POST:/api/agents
+- PUT:/api/agents
+- GET:/api/inbox
+- GET:/health
+- GET:/ws
+- POST:/auth/send-code
+- POST:/auth/verify-code
+- GET:/api/me
+- PATCH:/api/me
+- GET:/members
+- POST:/members
+- POST:/comments
+- GET:/comments
+- GET:/timeline
+- GET:/subscribers
+- POST:/subscribe
+- POST:/unsubscribe
+- ALL:/health
+- GET:status
+- GET:workspace_id
+- GET:priority
+- GET:assignee_id
+- GET:owner
+- ALL:/ws
 - WS:issue:updated
 - WS:issue:created
 - WS:issue:deleted

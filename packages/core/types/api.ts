@@ -68,6 +68,19 @@ export interface SearchProjectsResponse {
   total: number;
 }
 
+export interface SearchWikiResult {
+  id: string;
+  parent_id?: string | null;
+  title: string;
+  match_source: "title" | "content";
+  matched_snippet?: string;
+}
+
+export interface SearchWikisResponse {
+  wikis: SearchWikiResult[];
+  total: number;
+}
+
 export interface UpdateMeRequest {
   name?: string;
   avatar_url?: string;

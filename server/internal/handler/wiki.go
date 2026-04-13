@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -146,8 +148,8 @@ func (h *Handler) UpdateWiki(w http.ResponseWriter, r *http.Request) {
 		ParentID    *string `json:"parent_id"`
 		Title       string  `json:"title"`
 		Content     string  `json:"content"`
-		BinaryState string  `json:"binary_state"`  // Base64 encoded Yjs state
-		BaseVersion *int    `json:"base_version"`  // optimistic lock: nil = skip version check (force save)
+		BinaryState string  `json:"binary_state"` // Base64 encoded Yjs state
+		BaseVersion *int    `json:"base_version"` // optimistic lock: nil = skip version check (force save)
 	}
 	var req UpdateWikiRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -235,6 +237,7 @@ func (h *Handler) UpdateWiki(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create wiki snapshot")
 		return
 	}
+	_, _ = compactWikiHistory(ctx, tx, id)
 
 	// 4. Extract and sync hashtags
 	tx.Exec(ctx, "DELETE FROM wiki_tags WHERE wiki_id = $1", parseUUID(id)) //nolint:errcheck
@@ -273,14 +276,85 @@ func (h *Handler) UpdateWiki(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"version": newWikiVersion})
 }
 
+// searchWikiHTMLTagRe strips HTML tags when extracting a content snippet.
+var searchWikiHTMLTagRe = regexp.MustCompile(`<[^>]+>`)
+var searchWikiSpaceRe = regexp.MustCompile(`\s+`)
+
+// wikiContentSnippet strips HTML tags from content and returns a short excerpt
+// centred around the first occurrence of query (radius runes on each side).
+func wikiContentSnippet(html, query string, radius int) string {
+	plain := searchWikiHTMLTagRe.ReplaceAllString(html, " ")
+	plain = searchWikiSpaceRe.ReplaceAllString(plain, " ")
+	plain = strings.TrimSpace(plain)
+
+	lPlain := strings.ToLower(plain)
+	lQuery := strings.ToLower(query)
+	idx := strings.Index(lPlain, lQuery)
+
+	runes := []rune(plain)
+	qLen := len([]rune(query))
+
+	var start, end int
+	prefix, suffix := "", ""
+	if idx < 0 {
+		start = 0
+		end = min(len(runes), radius*2)
+		if end < len(runes) {
+			suffix = "…"
+		}
+	} else {
+		idxR := len([]rune(plain[:idx]))
+		start = idxR - radius
+		end = idxR + qLen + radius
+		if start < 0 {
+			start = 0
+		} else {
+			prefix = "…"
+		}
+		if end > len(runes) {
+			end = len(runes)
+		} else {
+			suffix = "…"
+		}
+	}
+	return prefix + string(runes[start:end]) + suffix
+}
+
+type SearchWikiResult struct {
+	ID             string  `json:"id"`
+	ParentID       *string `json:"parent_id"`
+	Title          string  `json:"title"`
+	MatchSource    string  `json:"match_source"` // "title" or "content"
+	MatchedSnippet string  `json:"matched_snippet,omitempty"`
+}
+
+type SearchWikisResponse struct {
+	Wikis []SearchWikiResult `json:"wikis"`
+	Total int                `json:"total"`
+}
+
 func (h *Handler) SearchWikis(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	ctx := r.Context()
 	wsID := resolveWorkspaceID(r)
 
-	rows, err := h.DB.Query(ctx, 
-		"SELECT id, workspace_id, parent_id, title, content, created_by, created_at, updated_at FROM wikis WHERE workspace_id = $1 AND (title ILIKE '%' || $2 || '%' OR content ILIKE '%' || $2 || '%') ORDER BY updated_at DESC",
-		parseUUID(wsID), query,
+	limit := 10
+	if lStr := r.URL.Query().Get("limit"); lStr != "" {
+		if l, err := strconv.Atoi(lStr); err == nil && l > 0 && l <= 50 {
+			limit = l
+		}
+	}
+
+	rows, err := h.DB.Query(ctx,
+		`SELECT id, parent_id, title, content
+		   FROM wikis
+		  WHERE workspace_id = $1
+		    AND (title ILIKE '%' || $2 || '%' OR content ILIKE '%' || $2 || '%')
+		  ORDER BY
+		    CASE WHEN title ILIKE '%' || $2 || '%' THEN 0 ELSE 1 END,
+		    updated_at DESC
+		  LIMIT $3`,
+		parseUUID(wsID), query, limit,
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to search wikis")
@@ -288,27 +362,41 @@ func (h *Handler) SearchWikis(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var wikis []WikiResponse
+	lQuery := strings.ToLower(query)
+	var wikis []SearchWikiResult
 	for rows.Next() {
 		var (
-			id, workspaceID, createdBy pgtype.UUID
-			parentID                   pgtype.UUID
-			title, content             string
-			createdAt, updatedAt       time.Time
+			id             pgtype.UUID
+			parentID       pgtype.UUID
+			title, content string
 		)
-		rows.Scan(&id, &workspaceID, &parentID, &title, &content, &createdBy, &createdAt, &updatedAt)
-		wikis = append(wikis, WikiResponse{
-			ID:          uuidToString(id),
-			WorkspaceID: uuidToString(workspaceID),
-			ParentID:    uuidToPtr(parentID),
-			Title:       title,
-			Content:     content,
-			CreatedBy:   uuidToString(createdBy),
-			CreatedAt:   createdAt.Format(time.RFC3339),
-			UpdatedAt:   updatedAt.Format(time.RFC3339),
+		if err := rows.Scan(&id, &parentID, &title, &content); err != nil {
+			continue
+		}
+		matchSource := "content"
+		snippet := ""
+		if strings.Contains(strings.ToLower(title), lQuery) {
+			matchSource = "title"
+			// Show a content snippet even for title matches when content also matches
+			if strings.Contains(strings.ToLower(content), lQuery) {
+				snippet = wikiContentSnippet(content, query, 80)
+			}
+		} else {
+			snippet = wikiContentSnippet(content, query, 80)
+		}
+		wikis = append(wikis, SearchWikiResult{
+			ID:             uuidToString(id),
+			ParentID:       uuidToPtr(parentID),
+			Title:          title,
+			MatchSource:    matchSource,
+			MatchedSnippet: snippet,
 		})
 	}
-	writeJSON(w, http.StatusOK, wikis)
+
+	if wikis == nil {
+		wikis = []SearchWikiResult{}
+	}
+	writeJSON(w, http.StatusOK, SearchWikisResponse{Wikis: wikis, Total: len(wikis)})
 }
 
 func (h *Handler) GetWikiHistory(w http.ResponseWriter, r *http.Request) {
@@ -325,14 +413,14 @@ func (h *Handler) GetWikiHistory(w http.ResponseWriter, r *http.Request) {
 	var history []WikiVersionResponse
 	for rows.Next() {
 		var (
-			vID, wID, cBy pgtype.UUID
-			vNum         int
+			vID, wID, cBy  pgtype.UUID
+			vNum           int
 			title, content string
-			binaryData    []byte
-			createdAt     time.Time
+			binaryData     []byte
+			createdAt      time.Time
 		)
 		rows.Scan(&vID, &wID, &vNum, &title, &content, &binaryData, &cBy, &createdAt)
-		
+
 		b64State := ""
 		if binaryData != nil {
 			b64State = base64.StdEncoding.EncodeToString(binaryData)
@@ -341,15 +429,53 @@ func (h *Handler) GetWikiHistory(w http.ResponseWriter, r *http.Request) {
 		history = append(history, WikiVersionResponse{
 			ID:            uuidToString(vID),
 			WikiID:        uuidToString(wID),
-			VersionNumber: vNum, 
-			Title:         title, 
-			Content:       content, 
+			VersionNumber: vNum,
+			Title:         title,
+			Content:       content,
 			BinaryState:   b64State,
 			CreatedBy:     uuidToString(cBy),
 			CreatedAt:     createdAt.Format(time.RFC3339),
 		})
 	}
 	writeJSON(w, http.StatusOK, history)
+}
+
+func (h *Handler) CompactWikiHistory(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	ctx := r.Context()
+	wsID := resolveWorkspaceID(r)
+
+	var exists bool
+	if err := h.DB.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM wikis WHERE id = $1 AND workspace_id = $2)", parseUUID(id), parseUUID(wsID)).Scan(&exists); err != nil {
+		slog.Error("CompactWikiHistory lookup failed", "error", err, "wiki_id", id)
+		writeError(w, http.StatusInternalServerError, "failed to compact wiki history")
+		return
+	}
+	if !exists {
+		writeError(w, http.StatusNotFound, "wiki not found")
+		return
+	}
+
+	tx, err := h.TxStarter.Begin(ctx)
+	if err != nil {
+		slog.Error("CompactWikiHistory begin tx failed", "error", err, "wiki_id", id)
+		writeError(w, http.StatusInternalServerError, "failed to compact wiki history")
+		return
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	result, err := compactWikiHistory(ctx, tx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to compact wiki history")
+		return
+	}
+	if err := tx.Commit(ctx); err != nil {
+		slog.Error("CompactWikiHistory commit failed", "error", err, "wiki_id", id)
+		writeError(w, http.StatusInternalServerError, "failed to compact wiki history")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }
 
 // MoveWiki updates parent_id and sort_order without touching content or bumping version.
@@ -433,21 +559,28 @@ func (h *Handler) CollaborationWebhook(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	slog.Info("Collaboration update received", "wiki_id", wikiID, "user_id", req.UserID)
 
-	// 1. Sync wikis.content in real-time (version unchanged — optimistic lock only applies on explicit saves)
-	_, err := h.DB.Exec(ctx,
-		"UPDATE wikis SET content = $2, updated_at = NOW() WHERE id = $1",
-		parseUUID(wikiID), req.Content,
-	)
-	if err != nil {
-		slog.Error("CollaborationWebhook update failed", "error", err, "wiki_id", wikiID)
-		writeError(w, http.StatusInternalServerError, "failed to update wiki via webhook")
-		return
-	}
+	// Only sync and snapshot when content is non-empty.
+	// The collab server transformer currently cannot extract markdown from the Yjs
+	// document, so it sends an empty content field. Skipping the UPDATE here prevents
+	// overwriting real wiki content with an empty string on every keystroke.
+	// Content persistence is handled by the client-side autosave (10s debounce) instead.
+	if req.Content != "" {
+		// 1. Sync wikis.content in real-time (version unchanged — optimistic lock only applies on explicit saves)
+		_, err := h.DB.Exec(ctx,
+			"UPDATE wikis SET content = $2, updated_at = NOW() WHERE id = $1",
+			parseUUID(wikiID), req.Content,
+		)
+		if err != nil {
+			slog.Error("CollaborationWebhook update failed", "error", err, "wiki_id", wikiID)
+			writeError(w, http.StatusInternalServerError, "failed to update wiki via webhook")
+			return
+		}
 
-	// 2. Schedule a 30s debounced snapshot — once the collaboration session quiets down,
-	// write a version into wiki_versions so history is created even without explicit saves
-	if h.WikiSnapshots != nil {
-		h.WikiSnapshots.Schedule(wikiID, req.Content, req.UserID)
+		// 2. Schedule a 30s debounced snapshot — once the collaboration session quiets down,
+		// write a version into wiki_versions so history is created even without explicit saves
+		if h.WikiSnapshots != nil {
+			h.WikiSnapshots.Schedule(wikiID, req.Content, req.UserID)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)

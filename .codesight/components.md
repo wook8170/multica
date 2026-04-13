@@ -51,10 +51,10 @@
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **LocaleProvider** [client] — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
-- **WikiEditor** — props: id, title, content, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile, onDelete — `apps/web/features/wiki/components/WikiEditor.tsx`
-- **WikiPropertySidebar** [client] — props: wikiId, createdBy, updatedBy, createdAt, updatedAt, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
-- **WikiSidebar** [client] — props: nodes, isLoading, onCreateNew, onSelect, selectedId, isCollaborating, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
-- **WikiView** [client] — `apps/web/features/wiki/components/WikiView.tsx`
+- **WikiEditor** — props: id, title, content, restoreKey, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile — `apps/web/features/wiki/components/WikiEditor.tsx`
+- **WikiPropertySidebar** [client] — props: wikiId, currentContent, createdBy, updatedBy, createdAt, updatedAt, childPages, onNavigateTo, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
+- **WikiSidebar** [client] — props: nodes, isLoading, onCreateNew, onSelect, selectedId, collaboratingId, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
+- **WikiView** [client] — props: initialSelectedId — `apps/web/features/wiki/components/WikiView.tsx`
 - **WebNavigationProvider** [client] — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** [client] — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** [client] — props: store — `packages/core/issues/stores/view-store-context.tsx`
@@ -79,9 +79,10 @@
 - **ActorAvatar** [client] — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
+- **AttachmentFileIcon** [client] — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
 - **ContentEditor** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
-- **FileCardExtension** [client] — `packages/views/editor/extensions/file-card.tsx`
+- **AttachmentCard** [client] — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** [client] — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** [client] — props: node — `packages/views/editor/extensions/mention-view.tsx`

@@ -2,7 +2,7 @@ import {
   Bold, Italic, Strikethrough,
   Heading1, Heading2, Heading3,
   List, ListOrdered, CheckSquare,
-  Quote, Minus, Link as LinkIcon, Image as ImageIcon, Table as TableIcon,
+  Quote, Minus, Link as LinkIcon, Paperclip, Table as TableIcon,
   RotateCcw
 } from "lucide-react";
 import {
@@ -19,7 +19,7 @@ import { cn } from "@multica/ui/lib/utils";
 import type { UploadResult } from "@multica/core/hooks/use-file-upload";
 import { useQueryClient } from "@tanstack/react-query";
 import { createEditorExtensions } from "./extensions";
-import { uploadAndInsertFile } from "./extensions/file-upload";
+import { uploadAndInsertFile, uploadAndInsertFiles } from "./extensions/file-upload";
 import { preprocessMarkdown } from "./utils/preprocess";
 import { Button } from "@multica/ui/components/ui/button";
 import "./content-editor.css";
@@ -40,6 +40,10 @@ interface ContentEditorProps {
   provider?: any;
   user?: { name: string; color: string; id?: string };
   field?: string;
+  showRemoteCursors?: boolean;
+  // When true, forces defaultValue into the editor even if the Yjs fragment already has content
+  // (used for version restore to override collaborative state)
+  forceDefault?: boolean;
 }
 
 interface ContentEditorRef {
@@ -68,11 +72,16 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       provider,
       user,
       field,
+      showRemoteCursors = true,
+      forceDefault = false,
     },
     ref,
   ) {
     // Remote user cursor state
     const [remoteCursors, setRemoteCursors] = useState<Record<string, any>>({});
+    // Keep a ref so the seeding effect closure always reads the latest value
+    const forceDefaultRef = useRef(forceDefault);
+    forceDefaultRef.current = forceDefault;
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const cursorLastSeenRef = useRef<Record<string, number>>({}); // cursor TTL tracking
     const removalTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // grace-period timers (keyed by userKey)
@@ -143,9 +152,14 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
 
     const handleFileClick = () => fileInputRef.current?.click();
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file && editor && onUploadFileRef.current) {
-        uploadAndInsertFile(editor, file, onUploadFileRef.current, editor.state.selection.to);
+      const files = e.target.files;
+      if (files?.length && editor && onUploadFileRef.current) {
+        uploadAndInsertFiles(
+          editor,
+          Array.from(files),
+          onUploadFileRef.current,
+          editor.state.selection.to,
+        );
       }
       e.target.value = "";
     };
@@ -320,17 +334,28 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       const fieldName = field || "content";
       const seed = () => {
         const fragment = ydoc.getXmlFragment(fieldName);
-        if (fragment.length === 0 && defaultValue) {
+        // Seed when: (a) new/empty document, or (b) forceDefault is set (version restore).
+        // forceDefault is read from a ref so the closure always gets the latest value
+        // without adding it as a dep (this effect must only re-run on editor/ydoc/provider change).
+        // Also check editor.isEmpty to catch the case where TipTap initialised an empty
+        // paragraph into the fragment (length > 0 but still visually empty).
+        const isEmpty = fragment.length === 0 || editor.isEmpty;
+        if ((isEmpty || forceDefaultRef.current) && defaultValue) {
           editor.commands.setContent(preprocessMarkdown(defaultValue), { contentType: "markdown" });
         }
       };
 
-      if (provider.isSynced) {
-        seed();
-        return;
-      }
+      // Seed immediately so the editor is never blank while waiting for the collab
+      // server. If the server later sends non-empty content, the Collaboration
+      // extension's Yjs merge will take over and update the editor automatically.
+      seed();
 
-      const onSync = (isSynced: boolean) => {
+      if (provider.isSynced) return;
+
+      // Also seed after sync in case the server sends a non-empty document
+      // that overwrote our immediate seed (edge case: server has older empty state).
+      const onSync = (payload: { state: boolean } | boolean) => {
+        const isSynced = typeof payload === "object" ? payload.state : payload;
         if (!isSynced) return;
         seed();
         provider.off("sync", onSync);
@@ -437,15 +462,15 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
               <ToolbarButton onClick={setLink} active={editor.isActive("link")} title="Hyperlink">
                 <LinkIcon className="size-3.5" />
               </ToolbarButton>
-              <ToolbarButton onClick={handleFileClick} title="Upload Image/File">
-                <ImageIcon className="size-3.5" />
+              <ToolbarButton onClick={handleFileClick} title="Attach image or file">
+                <Paperclip className="size-3.5" />
               </ToolbarButton>
               <ToolbarButton onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insert Table">
                 <TableIcon className="size-3.5" />
               </ToolbarButton>
             </div>
             
-            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} accept="image/*,video/*,application/pdf" />
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple />
           </div>
         )}
         {/* scrollContainerRef: used by RemoteCursor for absolute position calculation */}
@@ -454,7 +479,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
           <EditorContent editor={editor} />
 
           {/* Remote user cursors (Presence layer, decoupled from Content) */}
-          {Object.entries(remoteCursors).map(([clientID, { user: remoteUser, cursor }]) => {
+          {showRemoteCursors && Object.entries(remoteCursors).map(([clientID, { user: remoteUser, cursor }]) => {
             if (!cursor) return null;
             return (
               <RemoteCursor
@@ -562,13 +587,20 @@ function RemoteCursor({
   // Same-line selection: y positions within 4px of each other
   const isSameLine = isRange && anchorPos !== null && Math.abs(anchorPos.y - headPos.y) < 4;
   const posClass = scrollContainer ? "absolute" : "fixed";
+  const isVisibleInScrollContainer = !scrollContainer ||
+    (headPos.y >= scrollContainer.scrollTop &&
+      headPos.y <= scrollContainer.scrollTop + scrollContainer.clientHeight &&
+      headPos.x >= scrollContainer.scrollLeft &&
+      headPos.x <= scrollContainer.scrollLeft + scrollContainer.clientWidth);
+
+  if (!isVisibleInScrollContainer) return null;
 
   return (
     <>
       {/* Same-line selection highlight */}
       {isSameLine && anchorPos && (
         <div
-          className={`pointer-events-none z-40 ${posClass}`}
+          className={`pointer-events-none z-10 ${posClass}`}
           style={{
             left: `${Math.min(anchorPos.x, headPos.x)}px`,
             top: `${headPos.y}px`,
@@ -582,7 +614,7 @@ function RemoteCursor({
 
       {/* Cursor caret at head position */}
       <div
-        className={`pointer-events-none z-50 ${posClass}`}
+        className={`pointer-events-none z-20 ${posClass}`}
         style={{ left: `${headPos.x}px`, top: `${headPos.y}px` }}
       >
         {/* Name badge */}

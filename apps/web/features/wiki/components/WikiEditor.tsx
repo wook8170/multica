@@ -1,5 +1,5 @@
 import {
-  Save, History, Trash2, Loader2, Check, AlertCircle, ChevronRight,
+  Save, PanelRight, Trash2, Loader2, Check, AlertCircle, ChevronRight,
   Maximize2, Minimize2, FileText, Plus
 } from "lucide-react";
 import { useRef } from "react";
@@ -107,14 +107,14 @@ export function WikiEditor({
 
           <div className="w-[1px] h-4 bg-border/40" />
 
-          {/* History */}
+          {/* Properties sidebar toggle */}
           <Button
-            variant="ghost"
+            variant={isHistoryOpen ? "secondary" : "ghost"}
             size="icon"
-            className={cn("h-8 w-8", isHistoryOpen ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted")}
+            className={cn("h-8 w-8", !isHistoryOpen && "text-muted-foreground")}
             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
           >
-            <History className="h-4 w-4" />
+            <PanelRight className="h-4 w-4" />
           </Button>
 
           {/* Save status + save button */}

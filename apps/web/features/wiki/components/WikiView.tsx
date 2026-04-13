@@ -557,10 +557,19 @@ export function WikiView() {
                   )
                 : []
           }
+          childPages={
+            selectedId && selectedId !== "new"
+              ? (rawWikis as any[])
+                  .filter((w: any) => w.parent_id === selectedId)
+                  .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                  .map((w: any) => ({ id: w.id, title: w.title }))
+              : []
+          }
           onNavigateTo={(id) => {
             const wiki = (rawWikis as any[]).find((w: any) => w.id === id);
             if (wiki) handleSelect(wiki);
           }}
+          onCreateChild={selectedId && selectedId !== "new" ? () => handleCreateNew(selectedId) : undefined}
           onUpdateTitle={setCurrentTitle}
           onUpdateContent={setCurrentContent}
           onSave={handleSave}

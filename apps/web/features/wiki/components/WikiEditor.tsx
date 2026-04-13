@@ -1,6 +1,6 @@
 import {
   Save, History, Trash2, Loader2, Check, AlertCircle, ChevronRight,
-  Maximize2, Minimize2
+  Maximize2, Minimize2, FileText, Plus
 } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "@multica/ui/components/ui/button";
@@ -12,6 +12,7 @@ import { cn } from "@multica/ui/lib/utils";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface Ancestor { id: string; title: string }
+interface ChildPage { id: string; title: string }
 
 interface WikiEditorProps {
   id: string;
@@ -25,6 +26,8 @@ interface WikiEditorProps {
   onUploadFile?: (file: File) => Promise<any>;
   onDelete: () => void;
   saveStatus: SaveStatus;
+  childPages?: ChildPage[];
+  onCreateChild?: () => void;
   // Collaboration
   ydoc?: any;
   provider?: any;
@@ -43,6 +46,8 @@ export function WikiEditor({
   onUploadFile,
   onDelete,
   saveStatus,
+  childPages,
+  onCreateChild,
   ydoc,
   provider,
   user,
@@ -182,6 +187,47 @@ export function WikiEditor({
               field="content"
             />
           </div>
+
+          {/* Child pages */}
+          {((childPages && childPages.length > 0) || onCreateChild) && (
+            <div className="mt-12 border-t border-border/40 pt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
+                  Child pages
+                  {childPages && childPages.length > 0 && (
+                    <span className="ml-2 text-xs font-normal normal-case text-muted-foreground/60">{childPages.length}</span>
+                  )}
+                </h2>
+                {onCreateChild && (
+                  <button
+                    type="button"
+                    onClick={onCreateChild}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    New
+                  </button>
+                )}
+              </div>
+              {childPages && childPages.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {childPages.map((child) => (
+                    <button
+                      key={child.id}
+                      type="button"
+                      onClick={() => onNavigateTo?.(child.id)}
+                      className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-muted/30 px-3 py-3 text-left hover:bg-accent hover:border-border transition-colors group"
+                    >
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground/50 group-hover:text-primary/60 transition-colors" />
+                      <span className="truncate text-sm text-foreground">
+                        {child.title || "Untitled"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

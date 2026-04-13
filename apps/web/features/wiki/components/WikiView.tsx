@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense, lazy } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Library, Plus, Loader2, Clock, ArrowLeft } from "lucide-react";
+import { Library, Plus, Loader2, Clock, ArrowLeft, RotateCcw, X } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import {
   ResizablePanelGroup,
@@ -554,6 +554,8 @@ export function WikiView() {
           versionTitle={selectedVersion.title}
           versionContent={selectedVersion.content}
           versionNumber={selectedVersion.version_number}
+          onClose={() => setViewingVersionId(null)}
+          onRestore={() => handleRestore(selectedVersion)}
         />
       );
     }
@@ -818,7 +820,7 @@ function htmlToPlainText(html: string): string {
   return el.textContent ?? el.innerText ?? "";
 }
 
-function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle, versionContent, versionNumber }: any) {
+function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle, versionContent, versionNumber, onClose, onRestore }: any) {
   // Compare previous version (old) → this version (new)
   const oldText = htmlToPlainText(prevContent || "");
   const newText = htmlToPlainText(versionContent || "");
@@ -841,6 +843,26 @@ function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle,
               <span className="text-foreground/70 font-semibold">v{versionNumber}</span>
             </span>
           )}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            onClick={onRestore}
+            title="Restore this version"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:bg-muted transition-colors"
+            onClick={onClose}
+            title="Close diff view"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 

@@ -335,8 +335,11 @@ export function WikiPropertySidebar({
                   </div>
                 ) : (
                   <div className="space-y-0.5">
-                    {history.map((version: any) => {
+                    {(() => {
+                      const maxVer = Math.max(...history.map((v: any) => v.version_number ?? 0));
+                      return history.map((version: any) => {
                       const isSelected = viewingVersionId === version.id;
+                      const isLatest = version.version_number === maxVer;
                       // Count attachments exclusive to this version (not in current)
                       const vLabel = `v${version.version_number}`;
                       const vAttachCount = attachments.filter(
@@ -354,12 +357,18 @@ export function WikiPropertySidebar({
                         >
                           <div className="flex items-center justify-between gap-2 min-w-0">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <span className={cn(
-                                "text-xs font-semibold shrink-0",
-                                isSelected ? "text-primary" : "text-foreground/80",
-                              )}>
-                                v{version.version_number}
-                              </span>
+                              {isLatest ? (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-semibold leading-none shrink-0">
+                                  Current
+                                </span>
+                              ) : (
+                                <span className={cn(
+                                  "text-xs font-semibold shrink-0",
+                                  isSelected ? "text-primary" : "text-foreground/80",
+                                )}>
+                                  v{version.version_number}
+                                </span>
+                              )}
                               {/* Attachment badge per version */}
                               {vAttachCount > 0 && (
                                 <span className="flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
@@ -384,7 +393,7 @@ export function WikiPropertySidebar({
                             </div>
                           )}
 
-                          {isSelected && (
+                          {isSelected && !isLatest && (
                             <Button
                               variant="default"
                               size="sm"
@@ -397,7 +406,8 @@ export function WikiPropertySidebar({
                           )}
                         </div>
                       );
-                    })}
+                    });
+                    })()}
                   </div>
                 )}
               </div>

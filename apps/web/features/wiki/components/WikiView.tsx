@@ -664,6 +664,7 @@ export function WikiView() {
               return (
                 <WikiPropertySidebar
                   wikiId={selectedId}
+                  currentContent={currentContent}
                   createdBy={w?.created_by}
                   updatedBy={w?.updated_by}
                   createdAt={w?.created_at}

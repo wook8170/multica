@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, X, Clock, ArrowLeft, Loader2 } from "lucide-react";
+import { ChevronRight, X, Clock, ArrowLeft, Loader2, FileText, ImageIcon, Paperclip, ExternalLink } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import { api } from "@multica/core/api";
 import { cn } from "@multica/ui/lib/utils";
@@ -11,7 +11,7 @@ import { ActorAvatar } from "@multica/views/common/actor-avatar";
 import { useActorName } from "@multica/core/workspace/hooks";
 
 // ---------------------------------------------------------------------------
-// PropRow — matches issue-detail panel style
+// PropRow
 // ---------------------------------------------------------------------------
 function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -30,10 +30,103 @@ function shortDate(str?: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Attachment helpers
+// ---------------------------------------------------------------------------
+const IMAGE_EXTS = /\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff?)$/i;
+
+function isCdnUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname.endsWith(".copilothub.ai") || u.hostname.endsWith(".amazonaws.com");
+  } catch { return false; }
+}
+
+function basename(url: string): string {
+  try { return decodeURIComponent(new URL(url).pathname.split("/").pop() || url); }
+  catch { return url; }
+}
+
+interface RawAttachment {
+  href: string;
+  filename: string;
+  type: "image" | "file";
+}
+
+function extractAttachments(html: string): RawAttachment[] {
+  if (!html || typeof document === "undefined") return [];
+  const el = document.createElement("div");
+  el.innerHTML = html;
+  const result: RawAttachment[] = [];
+
+  el.querySelectorAll("img[src]").forEach((img) => {
+    const src = img.getAttribute("src") || "";
+    if (!isCdnUrl(src)) return;
+    result.push({
+      href: src,
+      filename: img.getAttribute("alt") || basename(src),
+      type: IMAGE_EXTS.test(new URL(src).pathname) ? "image" : "file",
+    });
+  });
+
+  el.querySelectorAll('div[data-type="fileCard"][data-href]').forEach((card) => {
+    const href = card.getAttribute("data-href") || "";
+    if (!href) return;
+    const filename = card.getAttribute("data-filename") || basename(href);
+    result.push({ href, filename, type: "file" });
+  });
+
+  return result;
+}
+
+// A single canonical attachment entry across all versions
+interface AttachmentEntry {
+  href: string;
+  filename: string;
+  type: "image" | "file";
+  /** Version numbers (as strings) where this attachment appears, newest-first */
+  versions: string[];
+  /** Whether it exists in the current (live) content */
+  inCurrent: boolean;
+}
+
+function buildAttachmentMap(
+  currentContent: string,
+  history: any[],
+): AttachmentEntry[] {
+  const map = new Map<string, AttachmentEntry>();
+
+  const upsert = (raw: RawAttachment, versionLabel: string | null, isCurrent: boolean) => {
+    let entry = map.get(raw.href);
+    if (!entry) {
+      entry = { href: raw.href, filename: raw.filename, type: raw.type, versions: [], inCurrent: false };
+      map.set(raw.href, entry);
+    }
+    if (isCurrent) entry.inCurrent = true;
+    if (versionLabel && !entry.versions.includes(versionLabel)) {
+      entry.versions.push(versionLabel);
+    }
+  };
+
+  // Current content
+  extractAttachments(currentContent).forEach((a) => upsert(a, null, true));
+
+  // History versions — sorted newest-first (API usually returns newest-first already)
+  const sorted = [...history].sort((a, b) => (b.version_number ?? 0) - (a.version_number ?? 0));
+  sorted.forEach((v) => {
+    extractAttachments(v.content || "").forEach((a) =>
+      upsert(a, `v${v.version_number}`, false),
+    );
+  });
+
+  return Array.from(map.values());
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 interface WikiPropertiesPanelProps {
   wikiId: string;
+  currentContent?: string;
   createdBy?: string;
   updatedBy?: string;
   createdAt?: string;
@@ -46,6 +139,7 @@ interface WikiPropertiesPanelProps {
 // ---------------------------------------------------------------------------
 export function WikiPropertySidebar({
   wikiId,
+  currentContent = "",
   createdBy,
   updatedBy,
   createdAt,
@@ -54,6 +148,7 @@ export function WikiPropertySidebar({
 }: WikiPropertiesPanelProps) {
   const { isHistoryOpen, setIsHistoryOpen, viewingVersionId, setViewingVersionId } = useWikiStore();
   const [propertiesOpen, setPropertiesOpen] = useState(true);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(true);
   const { getActorName } = useActorName();
 
@@ -64,11 +159,17 @@ export function WikiPropertySidebar({
   });
   const history: any[] = Array.isArray(rawHistory) ? rawHistory : [];
 
+  const attachments = useMemo(
+    () => buildAttachmentMap(currentContent, history),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentContent, rawHistory],
+  );
+
   if (!isHistoryOpen) return null;
 
   return (
     <div className="flex h-full w-64 flex-col border-l bg-background">
-      {/* Header — h-12 matching editor */}
+      {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
         <span className="text-sm font-semibold text-foreground">Properties</span>
         <Button
@@ -94,21 +195,15 @@ export function WikiPropertySidebar({
               )}
               onClick={() => setPropertiesOpen(!propertiesOpen)}
             >
-              <ChevronRight className={cn(
-                "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
-                propertiesOpen && "rotate-90",
-              )} />
+              <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", propertiesOpen && "rotate-90")} />
               Properties
             </button>
-
             {propertiesOpen && (
               <div className="space-y-0.5 pl-2">
                 {createdBy && (
                   <PropRow label="Created by">
                     <ActorAvatar actorType="member" actorId={createdBy} size={16} />
-                    <span className="truncate text-foreground/80">
-                      {getActorName("member", createdBy)}
-                    </span>
+                    <span className="truncate text-foreground/80">{getActorName("member", createdBy)}</span>
                   </PropRow>
                 )}
                 <PropRow label="Created">
@@ -117,9 +212,7 @@ export function WikiPropertySidebar({
                 {updatedBy && (
                   <PropRow label="Updated by">
                     <ActorAvatar actorType="member" actorId={updatedBy} size={16} />
-                    <span className="truncate text-foreground/80">
-                      {getActorName("member", updatedBy)}
-                    </span>
+                    <span className="truncate text-foreground/80">{getActorName("member", updatedBy)}</span>
                   </PropRow>
                 )}
                 <PropRow label="Updated">
@@ -128,6 +221,86 @@ export function WikiPropertySidebar({
               </div>
             )}
           </div>
+
+          {/* Attachments section — only shown when there are any */}
+          {attachments.length > 0 && (
+            <div>
+              <button
+                className={cn(
+                  "flex w-full items-center gap-1 text-xs font-medium transition-colors mb-2",
+                  !attachmentsOpen && "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setAttachmentsOpen(!attachmentsOpen)}
+              >
+                <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", attachmentsOpen && "rotate-90")} />
+                <span>Attachments</span>
+                <span className="ml-1 text-[10px] font-normal text-muted-foreground/60">{attachments.length}</span>
+              </button>
+
+              {attachmentsOpen && (
+                <div className="pl-2 space-y-1">
+                  {attachments.map((att) => (
+                    <div
+                      key={att.href}
+                      className={cn(
+                        "group flex items-center gap-2 rounded-md px-2 py-1.5 -mx-2 transition-colors",
+                        att.inCurrent
+                          ? "hover:bg-accent/50"
+                          : "opacity-50 hover:opacity-70 hover:bg-accent/30",
+                      )}
+                    >
+                      {/* Icon */}
+                      <div className="shrink-0">
+                        {att.type === "image" ? (
+                          <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </div>
+
+                      {/* Filename + version badges */}
+                      <div className="min-w-0 flex-1">
+                        <p className={cn(
+                          "text-xs truncate leading-tight",
+                          att.inCurrent ? "text-foreground/80" : "text-muted-foreground line-through",
+                        )}>
+                          {att.filename}
+                        </p>
+                        {att.versions.length > 0 && (
+                          <div className="mt-0.5 flex flex-wrap gap-0.5">
+                            {att.inCurrent && (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary font-medium leading-none">
+                                current
+                              </span>
+                            )}
+                            {att.versions.map((v) => (
+                              <span
+                                key={v}
+                                className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium leading-none"
+                              >
+                                {v}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Open link */}
+                      <a
+                        href={att.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+                      >
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* History section */}
           <div>
@@ -138,10 +311,7 @@ export function WikiPropertySidebar({
               )}
               onClick={() => setHistoryOpen(!historyOpen)}
             >
-              <ChevronRight className={cn(
-                "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
-                historyOpen && "rotate-90",
-              )} />
+              <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", historyOpen && "rotate-90")} />
               History
             </button>
 
@@ -161,6 +331,12 @@ export function WikiPropertySidebar({
                   <div className="space-y-0.5">
                     {history.map((version: any) => {
                       const isSelected = viewingVersionId === version.id;
+                      // Count attachments exclusive to this version (not in current)
+                      const vLabel = `v${version.version_number}`;
+                      const vAttachCount = attachments.filter(
+                        (a) => !a.inCurrent && a.versions.includes(vLabel),
+                      ).length;
+
                       return (
                         <div
                           key={version.id}
@@ -171,20 +347,25 @@ export function WikiPropertySidebar({
                           )}
                         >
                           <div className="flex items-center justify-between gap-2 min-w-0">
-                            <span className={cn(
-                              "text-xs font-semibold shrink-0",
-                              isSelected ? "text-primary" : "text-foreground/80",
-                            )}>
-                              v{version.version_number}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground/60 truncate">
-                              {new Date(version.created_at).toLocaleDateString(undefined, {
-                                month: "short", day: "numeric",
-                              })}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className={cn(
+                                "text-xs font-semibold shrink-0",
+                                isSelected ? "text-primary" : "text-foreground/80",
+                              )}>
+                                v{version.version_number}
+                              </span>
+                              {/* Attachment badge per version */}
+                              {vAttachCount > 0 && (
+                                <span className="flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
+                                  <Paperclip className="h-2.5 w-2.5" />
+                                  {vAttachCount}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground/60 truncate shrink-0">
+                              {new Date(version.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                               {" · "}
-                              {new Date(version.created_at).toLocaleTimeString([], {
-                                hour: "2-digit", minute: "2-digit",
-                              })}
+                              {new Date(version.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                             </span>
                           </div>
 

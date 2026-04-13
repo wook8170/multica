@@ -33,11 +33,12 @@ function shortDate(str?: string) {
 // Attachment helpers
 // ---------------------------------------------------------------------------
 const IMAGE_EXTS = /\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff?)$/i;
+// Uploaded files are keyed as {uuid}.{ext} — match this in the URL path
+const UPLOAD_UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]+$/i;
 
-function isCdnUrl(url: string): boolean {
+function isUploadedFileUrl(url: string): boolean {
   try {
-    const u = new URL(url);
-    return u.hostname.endsWith(".copilothub.ai") || u.hostname.endsWith(".amazonaws.com");
+    return UPLOAD_UUID_RE.test(new URL(url).pathname);
   } catch { return false; }
 }
 
@@ -55,13 +56,14 @@ interface RawAttachment {
 // Content is stored as Markdown — parse with regex instead of DOM.
 //   Images:    ![alt](url)
 //   File cards: [filename](url)  (rendered by file-card extension)
+// Detect uploaded files by UUID key pattern so this works with any CDN/MinIO domain.
 function extractAttachments(markdown: string): RawAttachment[] {
   if (!markdown) return [];
   const result: RawAttachment[] = [];
   const seen = new Set<string>();
 
   const add = (href: string, filename: string) => {
-    if (!isCdnUrl(href) || seen.has(href)) return;
+    if (!isUploadedFileUrl(href) || seen.has(href)) return;
     seen.add(href);
     result.push({
       href,
@@ -70,12 +72,12 @@ function extractAttachments(markdown: string): RawAttachment[] {
     });
   };
 
-  // ![alt](url)
-  for (const m of markdown.matchAll(/!\[([^\]]*)\]\(([^)]+)\)/g)) {
+  // ![alt](url) — images
+  for (const m of markdown.matchAll(/!\[([^\]]*)\]\(([^)\s]+)\)/g)) {
     add(m[2]!, m[1]!);
   }
-  // [text](url) — non-image CDN links (file cards)
-  for (const m of markdown.matchAll(/(?<!!)\[([^\]]+)\]\(([^)]+)\)/g)) {
+  // [text](url) — file card links (non-image uploads)
+  for (const m of markdown.matchAll(/(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g)) {
     add(m[2]!, m[1]!);
   }
 

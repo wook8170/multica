@@ -761,9 +761,18 @@ function simpleFallback(oldStr: string, newStr: string): { type: 'same' | 'remov
   return result;
 }
 
+/** Strip HTML tags and decode entities using the browser DOM. */
+function htmlToPlainText(html: string): string {
+  if (!html) return "";
+  if (typeof document === "undefined") return html.replace(/<[^>]*>/g, "");
+  const el = document.createElement("div");
+  el.innerHTML = html;
+  return el.textContent ?? el.innerText ?? "";
+}
+
 function WikiDiffView({ currentTitle, currentContent, versionTitle, versionContent, versionNumber, onClose, onRestore }: any) {
-  const oldText = versionContent || "";
-  const newText = currentContent || "";
+  const oldText = htmlToPlainText(versionContent || "");
+  const newText = htmlToPlainText(currentContent || "");
   const diffSegments = charDiff(oldText, newText);
   const titleChanged = currentTitle !== versionTitle;
 

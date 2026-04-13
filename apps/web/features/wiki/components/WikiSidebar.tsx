@@ -495,7 +495,7 @@ function WikiDndItem({
       <div
         onClick={onSelect}
         className={cn(
-          "group relative flex w-full cursor-pointer items-center gap-2 py-2.5 pr-1 transition-colors select-none",
+          "group relative flex w-full cursor-pointer items-center gap-2 py-2.5 pr-2 transition-colors select-none",
           isDragging ? "opacity-40" : "",
           dropIndicator?.position === "child" ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "",
           isSelected && !isSelecting && dropIndicator?.position !== "child" ? "bg-accent" : "",
@@ -548,8 +548,11 @@ function WikiDndItem({
 
         {/* Two-line content */}
         <div className="min-w-0 flex-1 overflow-hidden">
-          {/* Line 1: title + badges */}
-          <div className="flex items-center justify-between gap-1">
+          {/* Line 1: title */}
+          <div className="flex items-center gap-1">
+            {isSelected && isCollaborating && !isSelecting && (
+              <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" title="Multiple editors active" />
+            )}
             <span className={cn(
               "truncate text-sm leading-snug",
               item.isPending ? "italic text-muted-foreground/50" : "",
@@ -557,29 +560,6 @@ function WikiDndItem({
             )}>
               {item.title || "Untitled"}
             </span>
-            <div className="flex shrink-0 items-center gap-0.5">
-              {isSelected && isCollaborating && !isSelecting && (
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500 mr-0.5" title="Multiple editors active" />
-              )}
-              {!isSelecting && !item.isPending && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="hidden group-hover:flex h-5 w-5 text-muted-foreground hover:text-primary shrink-0"
-                  onClick={(e) => { e.stopPropagation(); onCreateChild(); }}
-                >
-                  <Plus className="size-3" />
-                </Button>
-              )}
-              {item.hasChildren && !isSelecting && (
-                <button
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
-                  onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-                >
-                  {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-                </button>
-              )}
-            </div>
           </div>
           {/* Line 2: last editor avatar + relative time */}
           {!item.isPending && (
@@ -600,15 +580,35 @@ function WikiDndItem({
           )}
         </div>
 
-        {/* Drag handle — right side, visible on hover */}
-        {!item.isPending && (
-          <div
-            className="shrink-0 opacity-0 group-hover:opacity-30 hover:!opacity-70 cursor-grab active:cursor-grabbing text-muted-foreground"
-            {...attributes}
-            {...listeners}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="size-3.5" />
+        {/* Right-side actions: add child + expand + drag handle — all vertically aligned */}
+        {!item.isPending && !isSelecting && (
+          <div className="shrink-0 flex items-center gap-0.5">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="hidden group-hover:flex h-5 w-5 text-muted-foreground hover:text-primary"
+              onClick={(e) => { e.stopPropagation(); onCreateChild(); }}
+            >
+              <Plus className="size-3" />
+            </Button>
+            {item.hasChildren ? (
+              <button
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
+                onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+              >
+                {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+              </button>
+            ) : (
+              <div className="h-5 w-5 shrink-0" />
+            )}
+            <div
+              className="flex h-5 w-5 shrink-0 items-center justify-center opacity-0 group-hover:opacity-30 hover:!opacity-70 cursor-grab active:cursor-grabbing text-muted-foreground"
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="size-3.5" />
+            </div>
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, LogOut } from "lucide-react";
+import { Save } from "lucide-react";
 import { Input } from "@multica/ui/components/ui/input";
 import { Textarea } from "@multica/ui/components/ui/textarea";
 import { Label } from "@multica/ui/components/ui/label";
@@ -181,10 +181,7 @@ export function WorkspaceTab() {
 
       {/* Danger Zone */}
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <LogOut className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Danger Zone</h2>
-        </div>
+        <h2 className="text-sm font-semibold">Danger Zone</h2>
 
         <Card>
           <CardContent className="space-y-3">

@@ -297,6 +297,12 @@
   - class UpdateSkillRequest
   - _...2 more_
 - `server/internal/handler/subscriber.go` — class SubscriberResponse
+- `server/internal/handler/wiki.go`
+  - class WikiResponse
+  - class WikiVersionResponse
+  - class CreateWikiRequest
+  - class CollaborationWebhookRequest
+- `server/internal/handler/wiki_snapshot.go` — function NewWikiSnapshotScheduler: (db dbExecutor) *WikiSnapshotScheduler, class WikiSnapshotScheduler
 - `server/internal/handler/workspace.go`
   - class WorkspaceResponse
   - class MemberResponse

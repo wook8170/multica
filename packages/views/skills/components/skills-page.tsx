@@ -10,6 +10,8 @@ import {
   AlertCircle,
   Download,
 } from "lucide-react";
+import { cn } from "@multica/ui/lib/utils";
+import { PageListHeader } from "../../common/page-list-header";
 import type { Skill, CreateSkillRequest, UpdateSkillRequest } from "@multica/core/types";
 import {
   Dialog,
@@ -32,6 +34,7 @@ import { Label } from "@multica/ui/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@multica/ui/components/ui/tabs";
 import { toast } from "sonner";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@multica/ui/components/ui/empty";
 import { api } from "@multica/core/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@multica/core/auth";
@@ -233,9 +236,10 @@ function SkillListItem({
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
-        isSelected ? "bg-accent" : "hover:bg-accent/50"
-      }`}
+      className={cn(
+        "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors",
+        isSelected ? "bg-accent" : "hover:bg-accent/50",
+      )}
     >
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
         <Sparkles className="h-4 w-4 text-muted-foreground" />
@@ -675,7 +679,7 @@ export default function SkillsPage() {
       <div className="flex flex-1 min-h-0">
         {/* List skeleton */}
         <div className="w-72 border-r">
-          <div className="flex h-12 items-center justify-between border-b px-4">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-6 w-6 rounded" />
           </div>
@@ -724,39 +728,37 @@ export default function SkillsPage() {
       <ResizablePanel id="list" defaultSize={280} minSize={240} maxSize={400} groupResizeBehavior="preserve-pixel-size">
         {/* Left column — skill list */}
         <div className="overflow-y-auto h-full border-r">
-          <div className="flex h-12 items-center justify-between border-b px-4">
-            <h1 className="text-sm font-semibold">Skills</h1>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => setShowCreate(true)}
-                  >
-                    <Plus className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                }
-              />
-              <TooltipContent side="bottom">Create skill</TooltipContent>
-            </Tooltip>
-          </div>
+          <PageListHeader
+            title="Skills"
+            actions={
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setShowCreate(true)}
+                    >
+                      <Plus className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  }
+                />
+                <TooltipContent side="bottom">Create skill</TooltipContent>
+              </Tooltip>
+            }
+          />
           {skills.length === 0 ? (
-            <div className="flex flex-col items-center justify-center px-4 py-12">
-              <Sparkles className="h-8 w-8 text-muted-foreground/40" />
-              <p className="mt-3 text-sm text-muted-foreground">No skills yet</p>
-              <p className="mt-1 text-xs text-muted-foreground text-center">
-                Skills define reusable instructions for agents.
-              </p>
-              <Button
-                onClick={() => setShowCreate(true)}
-                size="xs"
-                className="mt-3"
-              >
-                <Plus className="h-3 w-3" />
-                Create Skill
-              </Button>
-            </div>
+            <Empty>
+              <EmptyMedia><Sparkles className="h-10 w-10 text-muted-foreground/30" /></EmptyMedia>
+              <EmptyTitle>No skills yet</EmptyTitle>
+              <EmptyDescription>Skills define reusable instructions for agents.</EmptyDescription>
+              <EmptyContent>
+                <Button onClick={() => setShowCreate(true)} size="xs">
+                  <Plus className="h-3 w-3" />
+                  Create Skill
+                </Button>
+              </EmptyContent>
+            </Empty>
           ) : (
             <div className="divide-y">
               {skills.map((skill) => (
@@ -785,18 +787,16 @@ export default function SkillsPage() {
               onDelete={handleDelete}
             />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-              <Sparkles className="h-10 w-10 text-muted-foreground/30" />
-              <p className="mt-3 text-sm">Select a skill to view details</p>
-              <Button
-                onClick={() => setShowCreate(true)}
-                size="xs"
-                className="mt-3"
-              >
-                <Plus className="h-3 w-3" />
-                Create Skill
-              </Button>
-            </div>
+            <Empty>
+              <EmptyMedia><Sparkles className="h-10 w-10 text-muted-foreground/30" /></EmptyMedia>
+              <EmptyTitle>Select a skill to view details</EmptyTitle>
+              <EmptyContent>
+                <Button onClick={() => setShowCreate(true)} size="xs">
+                  <Plus className="h-3 w-3" />
+                  Create Skill
+                </Button>
+              </EmptyContent>
+            </Empty>
           )}
         </div>
       </ResizablePanel>

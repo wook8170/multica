@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ChevronRight, ListTodo } from "lucide-react";
 import type { IssueStatus } from "@multica/core/types";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@multica/ui/components/ui/empty";
 import { useQuery } from "@tanstack/react-query";
 import { useIssueViewStore, initFilterWorkspaceSync } from "@multica/core/issues/stores/view-store";
 import { useIssuesScopeStore } from "@multica/core/issues/stores/issues-scope-store";
@@ -140,7 +141,7 @@ export function IssuesPage() {
           {workspace?.name ?? "Workspace"}
         </span>
         <ChevronRight className="h-3 w-3 text-muted-foreground" />
-        <span className="text-sm font-medium">Issues</span>
+        <span className="text-sm font-semibold">Issues</span>
       </div>
 
       <ViewStoreProvider store={useIssueViewStore}>
@@ -149,11 +150,11 @@ export function IssuesPage() {
 
         {/* Content: scrollable */}
         {scopedIssues.length === 0 ? (
-          <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-2 text-muted-foreground">
-            <ListTodo className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm">No issues yet</p>
-            <p className="text-xs">Create an issue to get started.</p>
-          </div>
+          <Empty>
+            <EmptyMedia><ListTodo className="h-10 w-10 text-muted-foreground/30" /></EmptyMedia>
+            <EmptyTitle>No issues yet</EmptyTitle>
+            <EmptyDescription>Create an issue to get started.</EmptyDescription>
+          </Empty>
         ) : (
           <div className="flex flex-col flex-1 min-h-0">
             {viewMode === "board" ? (

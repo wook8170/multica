@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { NodeViewWrapper, NodeViewContent } from "@tiptap/react";
-import type { NodeViewProps } from "@tiptap/react";
+import { NodeViewWrapper, NodeViewContent, type NodeViewProps } from "@tiptap/react";
 import { Copy, Check } from "lucide-react";
+import { cn } from "@multica/ui/lib/utils";
+import { MermaidViewer } from "../mermaid-viewer";
 
-function CodeBlockView({ node }: NodeViewProps) {
+function CodeBlockView({ node, editor }: NodeViewProps) {
   const [copied, setCopied] = useState(false);
   const language = node.attrs.language || "";
 
@@ -17,11 +18,13 @@ function CodeBlockView({ node }: NodeViewProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isMermaid = language === "mermaid";
+
   return (
     <NodeViewWrapper className="code-block-wrapper group/code relative my-2">
       <div
         contentEditable={false}
-        className="code-block-header absolute top-0 right-0 z-10 flex items-center gap-1.5 px-2 py-1.5 opacity-0 transition-opacity group-hover/code:opacity-100"
+        className="code-block-header absolute top-0 right-0 z-20 flex items-center gap-1.5 px-2 py-1.5 opacity-0 transition-opacity group-hover/code:opacity-100"
       >
         {language && (
           <span className="text-xs text-muted-foreground select-none">
@@ -41,7 +44,20 @@ function CodeBlockView({ node }: NodeViewProps) {
           )}
         </button>
       </div>
-      <pre spellCheck={false}>
+
+      {isMermaid && (
+        <div contentEditable={false} className="mb-2">
+          <MermaidViewer content={node.textContent} />
+        </div>
+      )}
+
+      <pre 
+        spellCheck={false} 
+        className={cn(
+          isMermaid && !editor.isEditable && "hidden", // Hide text if mermaid and readonly
+          isMermaid && editor.isEditable && "mt-2 opacity-50 focus-within:opacity-100 transition-opacity" // Dim text if mermaid and editing
+        )}
+      >
         {/* @ts-expect-error -- NodeViewContent supports as="code" at runtime */}
         <NodeViewContent as="code" />
       </pre>

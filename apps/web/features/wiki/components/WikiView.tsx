@@ -26,7 +26,7 @@ import * as Y from "yjs";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 
 import { WikiSidebar } from "./WikiSidebar";
-import { WikiHistorySidebar } from "./WikiHistorySidebar";
+import { WikiPropertySidebar } from "./WikiPropertySidebar";
 
 // Dynamic import to avoid SSR hydration mismatch from collaboration state
 const WikiEditor = lazy(() => import("./WikiEditor").then(m => ({ default: m.WikiEditor })));
@@ -662,7 +662,7 @@ export function WikiView() {
             {selectedId && selectedId !== "new" && (() => {
               const w = (rawWikis as any[]).find((x: any) => x.id === selectedId);
               return (
-                <WikiHistorySidebar
+                <WikiPropertySidebar
                   wikiId={selectedId}
                   createdBy={w?.created_by}
                   updatedBy={w?.updated_by}

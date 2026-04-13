@@ -280,3 +280,25 @@
 - item_type: text (required)
 - item_id: uuid (required, fk)
 - position: float (required)
+
+### wikis
+- id: uuid (pk)
+- workspace_id: uuid (required, fk)
+- parent_id: uuid (fk)
+- title: text (required)
+- content: text (required)
+- created_by: uuid (required)
+
+### wiki_versions
+- id: uuid (pk)
+- wiki_id: uuid (required, fk)
+- version_number: integer (required)
+- title: text (required)
+- content: text (required)
+- created_by: uuid (required)
+
+### wiki_tags
+- id: uuid (pk)
+- workspace_id: uuid (required, fk)
+- wiki_id: uuid (required, fk)
+- name: text (required)

@@ -14,6 +14,7 @@ import { ActorAvatar } from "../../common/actor-avatar";
 import { useActorName } from "@multica/core/workspace/hooks";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { Button } from "@multica/ui/components/ui/button";
+import { Empty, EmptyMedia, EmptyTitle, EmptyContent } from "@multica/ui/components/ui/empty";
 import { cn } from "@multica/ui/lib/utils";
 import { toast } from "sonner";
 import {
@@ -55,7 +56,7 @@ function ProjectRow({ project }: { project: Project }) {
   return (
     <AppLink
       href={`/projects/${project.id}`}
-      className="group/row flex h-11 items-center gap-2 px-5 text-sm transition-colors hover:bg-accent/40"
+      className="group/row flex h-11 items-center gap-2 px-4 text-sm transition-colors hover:bg-accent/40"
     >
       {/* Icon + Name */}
       <span className="shrink-0 w-[24px] text-center text-base">{project.icon || "📁"}</span>
@@ -423,10 +424,9 @@ export function ProjectsPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header bar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-5">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
         <div className="flex items-center gap-2">
-          <FolderKanban className="h-4 w-4 text-muted-foreground" />
-          <h1 className="text-sm font-medium">Projects</h1>
+          <h1 className="text-sm font-semibold">Projects</h1>
           {!isLoading && projects.length > 0 && (
             <span className="text-xs text-muted-foreground tabular-nums">{projects.length}</span>
           )}
@@ -446,17 +446,20 @@ export function ProjectsPage() {
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
-            <FolderKanban className="h-10 w-10 mb-3 opacity-30" />
-            <p className="text-sm">No projects yet</p>
-            <Button size="sm" variant="outline" className="mt-3" onClick={() => setCreateOpen(true)}>
-              Create your first project
-            </Button>
-          </div>
+          <Empty>
+            <EmptyMedia><FolderKanban className="h-10 w-10 text-muted-foreground/30" /></EmptyMedia>
+            <EmptyTitle>No projects yet</EmptyTitle>
+            <EmptyContent>
+              <Button size="xs" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-3 w-3" />
+                Create Project
+              </Button>
+            </EmptyContent>
+          </Empty>
         ) : (
           <>
             {/* Column headers */}
-            <div className="sticky top-0 z-[1] flex h-8 items-center gap-2 border-b bg-muted/30 px-5 text-xs font-medium text-muted-foreground">
+            <div className="sticky top-0 z-[1] flex h-8 items-center gap-2 border-b bg-muted/30 px-4 text-xs font-medium text-muted-foreground">
               {/* Icon spacer + Name */}
               <span className="shrink-0 w-[24px]" />
               <span className="min-w-0 flex-1">Name</span>

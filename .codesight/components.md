@@ -23,6 +23,7 @@
 - **Page** [client] — `apps/web/app/(dashboard)/my-issues/page.tsx`
 - **ProjectDetailPage** [client] — props: params — `apps/web/app/(dashboard)/projects/[id]/page.tsx`
 - **Page** [client] — `apps/web/app/(dashboard)/projects/page.tsx`
+- **WikiPage** [client] — `apps/web/app/(dashboard)/wiki/page.tsx`
 - **AboutPage** — `apps/web/app/(landing)/about/page.tsx`
 - **ChangelogPage** — `apps/web/app/(landing)/changelog/page.tsx`
 - **HomepagePage** — `apps/web/app/(landing)/homepage/page.tsx`
@@ -50,6 +51,10 @@
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **LocaleProvider** [client] — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
+- **WikiEditor** — props: id, title, content, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile, onDelete — `apps/web/features/wiki/components/WikiEditor.tsx`
+- **WikiPropertySidebar** [client] — props: wikiId, createdBy, updatedBy, createdAt, updatedAt, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
+- **WikiSidebar** [client] — props: nodes, isLoading, onCreateNew, onSelect, selectedId, isCollaborating, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
+- **WikiView** [client] — `apps/web/features/wiki/components/WikiView.tsx`
 - **WebNavigationProvider** [client] — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** [client] — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** [client] — props: store — `packages/core/issues/stores/view-store-context.tsx`
@@ -73,13 +78,15 @@
 - **ChatWindow** [client] — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** [client] — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
-- **ContentEditor** [client] — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile — `packages/views/editor/content-editor.tsx`
-- **CodeBlockView** [client] — props: node — `packages/views/editor/extensions/code-block-view.tsx`
+- **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
+- **ContentEditor** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **FileCardExtension** [client] — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** [client] — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** [client] — props: node — `packages/views/editor/extensions/mention-view.tsx`
 - **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`
+- **MermaidViewer** [client] — props: content — `packages/views/editor/mermaid-viewer.tsx`
 - **ReadonlyContent** [client] — props: content, className — `packages/views/editor/readonly-content.tsx`
 - **SingleLineDocument** [client] — props: defaultValue, placeholder, className, autoFocus, onSubmit, onBlur, onChange — `packages/views/editor/title-editor.tsx`
 - **InboxDetailLabel** [client] — props: item — `packages/views/inbox/components/inbox-detail-label.tsx`

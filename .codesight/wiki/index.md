@@ -1,6 +1,6 @@
 # multica — Wiki
 
-_Generated 2026-04-10 — re-run `npx codesight --wiki` if the codebase has changed._
+_Generated 2026-04-13 — re-run `npx codesight --wiki` if the codebase has changed._
 
 Structural map compiled from source code via AST. No LLM — deterministic, 200ms.
 
@@ -17,9 +17,9 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 ## Quick Stats
 
 - Routes: **18**
-- Models: **32**
-- Components: **156**
-- Env vars: **38** required, **30** with defaults
+- Models: **35**
+- Components: **163**
+- Env vars: **38** required, **34** with defaults
 
 ## How to Use
 
@@ -45,4 +45,4 @@ These exist in your codebase but are **not** reflected in wiki articles:
 When in doubt, search the source. The wiki is a starting point, not a complete inventory.
 
 ---
-_Last compiled: 2026-04-10 · 6 articles · [codesight](https://github.com/Houseofmvps/codesight)_
+_Last compiled: 2026-04-13 · 6 articles · [codesight](https://github.com/Houseofmvps/codesight)_

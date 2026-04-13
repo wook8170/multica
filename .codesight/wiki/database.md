@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Schema shapes and field types extracted via AST. Read the actual schema source files before writing migrations or query logic.
 
-**unknown** — 32 models
+**unknown** — 35 models
 
 ### user
 
@@ -380,6 +380,37 @@ pk: `id` (uuid) · fk: workspace_id, user_id, item_id
 - `item_type`: text _(required)_
 - `item_id`: uuid _(required, fk)_
 - `position`: float _(required)_
+
+### wikis
+
+pk: `id` (uuid) · fk: workspace_id, parent_id
+
+- `id`: uuid _(pk)_
+- `workspace_id`: uuid _(required, fk)_
+- `parent_id`: uuid _(fk)_
+- `title`: text _(required)_
+- `content`: text _(required)_
+- `created_by`: uuid _(required)_
+
+### wiki_versions
+
+pk: `id` (uuid) · fk: wiki_id
+
+- `id`: uuid _(pk)_
+- `wiki_id`: uuid _(required, fk)_
+- `version_number`: integer _(required)_
+- `title`: text _(required)_
+- `content`: text _(required)_
+- `created_by`: uuid _(required)_
+
+### wiki_tags
+
+pk: `id` (uuid) · fk: workspace_id, wiki_id
+
+- `id`: uuid _(pk)_
+- `workspace_id`: uuid _(required, fk)_
+- `wiki_id`: uuid _(required, fk)_
+- `name`: text _(required)_
 
 ## Schema Source Files
 

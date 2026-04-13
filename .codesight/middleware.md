@@ -19,3 +19,4 @@
 - workspace — `server/internal/middleware/workspace.go`
 - 022_task_lifecycle_guards.down — `server/migrations/022_task_lifecycle_guards.down.sql`
 - 022_task_lifecycle_guards.up — `server/migrations/022_task_lifecycle_guards.up.sql`
+- migrate_binary — `server/scratch/migrate_binary.go`

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Key, Trash2, Copy, Check } from "lucide-react";
+import { Trash2, Copy, Check } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@multica/ui/components/ui/tooltip";
 import type { PersonalAccessToken } from "@multica/core/types";
 import { Input } from "@multica/ui/components/ui/input";
@@ -99,10 +99,7 @@ export function TokensTab() {
   return (
     <div className="space-y-8">
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Key className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">API Tokens</h2>
-        </div>
+        <h2 className="text-sm font-semibold">API Tokens</h2>
 
         <Card>
           <CardContent className="space-y-3">

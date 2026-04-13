@@ -1,8 +1,9 @@
 "use client";
 
-import { User, Palette, Key, Settings, Users, FolderGit2 } from "lucide-react";
+import { User, Palette, Key, Settings, Users, FolderGit2, ChevronRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@multica/ui/components/ui/tabs";
 import { useWorkspaceStore } from "@multica/core/workspace";
+import { WorkspaceAvatar } from "../../workspace/workspace-avatar";
 import { AccountTab } from "./account-tab";
 import { AppearanceTab } from "./appearance-tab";
 import { TokensTab } from "./tokens-tab";
@@ -26,10 +27,18 @@ export function SettingsPage() {
   const workspaceName = useWorkspaceStore((s) => s.workspace?.name);
 
   return (
-    <Tabs defaultValue="profile" orientation="vertical" className="flex-1 min-h-0 gap-0">
+    <div className="flex flex-1 min-h-0 flex-col">
+      {/* Breadcrumb header */}
+      <div className="flex h-12 shrink-0 items-center gap-1.5 border-b px-4">
+        <WorkspaceAvatar name={workspaceName ?? "W"} size="sm" />
+        <span className="text-sm text-muted-foreground">{workspaceName ?? "Workspace"}</span>
+        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+        <span className="text-sm font-semibold">Settings</span>
+      </div>
+
+      <Tabs defaultValue="profile" orientation="vertical" className="flex-1 min-h-0 gap-0">
       {/* Left nav */}
       <div className="w-52 shrink-0 border-r overflow-y-auto p-4">
-        <h1 className="text-sm font-semibold mb-4 px-2">Settings</h1>
         <TabsList variant="line" className="flex-col items-stretch">
           {/* My Account group */}
           <span className="px-2 pb-1 pt-2 text-xs font-medium text-muted-foreground">
@@ -67,5 +76,6 @@ export function SettingsPage() {
         </div>
       </div>
     </Tabs>
+    </div>
   );
 }

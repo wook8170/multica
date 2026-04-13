@@ -1,0 +1,17 @@
+{
+  "name": "@multica/collaboration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.15.0",
+    "@hocuspocus/extension-logger": "^2.15.0",
+    "@hocuspocus/extension-webhook": "^2.15.0",
+    "yjs": "^13.6.23",
+    "dotenv": "^17.4.1"
+  }
+}

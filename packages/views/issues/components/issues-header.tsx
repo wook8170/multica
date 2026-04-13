@@ -304,7 +304,7 @@ export function IssuesHeader({ scopedIssues }: { scopedIssues: Issue[] }) {
     SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? "Manual";
 
   return (
-    <div className="flex h-12 shrink-0 items-center justify-between px-4">
+    <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
       {/* Left: scope buttons */}
       <div className="flex items-center gap-1">
         {SCOPES.map((s) => (
@@ -339,7 +339,7 @@ export function IssuesHeader({ scopedIssues }: { scopedIssues: Issue[] }) {
               render={
                 <TooltipTrigger
                   render={
-                    <Button variant="outline" size="icon-sm" className="relative text-muted-foreground">
+                    <Button variant="ghost" size="icon-xs" className="relative text-muted-foreground">
                       <Filter className="size-4" />
                       {hasActiveFilters && (
                         <span className="absolute top-0 right-0 size-1.5 rounded-full bg-brand" />
@@ -487,7 +487,7 @@ export function IssuesHeader({ scopedIssues }: { scopedIssues: Issue[] }) {
               render={
                 <TooltipTrigger
                   render={
-                    <Button variant="outline" size="icon-sm" className="text-muted-foreground">
+                    <Button variant="ghost" size="icon-xs" className="text-muted-foreground">
                       <SlidersHorizontal className="size-4" />
                     </Button>
                   }
@@ -573,7 +573,7 @@ export function IssuesHeader({ scopedIssues }: { scopedIssues: Issue[] }) {
               render={
                 <TooltipTrigger
                   render={
-                    <Button variant="outline" size="icon-sm" className="text-muted-foreground">
+                    <Button variant="ghost" size="icon-xs" className="text-muted-foreground">
                       {viewMode === "board" ? (
                         <Columns3 className="size-4" />
                       ) : (

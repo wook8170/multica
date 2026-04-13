@@ -14,6 +14,7 @@ POSTGRES_PASSWORD ?= multica
 POSTGRES_PORT ?= 5432
 PORT ?= 8080
 FRONTEND_PORT ?= 3000
+COLLABORATION_PORT ?= 8081
 FRONTEND_ORIGIN ?= http://localhost:$(FRONTEND_PORT)
 MULTICA_APP_URL ?= $(FRONTEND_ORIGIN)
 DATABASE_URL ?= postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable
@@ -45,6 +46,7 @@ setup:
 	@echo "==> Installing dependencies..."
 	pnpm install
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
 	@echo "==> Running migrations..."
 	cd server && go run ./cmd/migrate up
 	@echo ""
@@ -57,6 +59,7 @@ start:
 	@echo "Backend: http://localhost:$(PORT)"
 	@echo "Frontend: http://localhost:$(FRONTEND_PORT)"
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	@bash scripts/ensure-minio.sh "$(ENV_FILE)"
 	@echo "Starting backend and frontend..."
 	@trap 'kill 0' EXIT; \
 		(cd server && go run ./cmd/server) & \
@@ -69,6 +72,7 @@ stop:
 	@echo "Stopping services..."
 	@-lsof -ti:$(PORT) | xargs kill -9 2>/dev/null
 	@-lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null
+	@-lsof -ti:$(COLLABORATION_PORT) | xargs kill -9 2>/dev/null
 	@case "$(DATABASE_URL)" in \
 		""|*@localhost:*|*@localhost/*|*@127.0.0.1:*|*@127.0.0.1/*|*@\[::1\]:*|*@\[::1\]/*) \
 			echo "✓ App processes stopped. Shared PostgreSQL is still running on localhost:$(POSTGRES_PORT)." ;; \

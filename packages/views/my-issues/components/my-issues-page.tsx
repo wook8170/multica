@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { ChevronRight, ListTodo } from "lucide-react";
 import type { IssueStatus } from "@multica/core/types";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@multica/ui/components/ui/empty";
 import { useAuthStore } from "@multica/core/auth";
 import { useWorkspaceStore } from "@multica/core/workspace";
 import { WorkspaceAvatar } from "../../workspace/workspace-avatar";
@@ -167,7 +168,7 @@ export function MyIssuesPage() {
           {workspace?.name ?? "Workspace"}
         </span>
         <ChevronRight className="h-3 w-3 text-muted-foreground" />
-        <span className="text-sm font-medium">My Issues</span>
+        <span className="text-sm font-semibold">My Issues</span>
       </div>
 
       {/* Header: scope tabs (left) + controls (right) */}
@@ -176,11 +177,11 @@ export function MyIssuesPage() {
       {/* Content: scrollable */}
       <ViewStoreProvider store={myIssuesViewStore}>
         {myIssues.length === 0 ? (
-          <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-2 text-muted-foreground">
-            <ListTodo className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm">No issues assigned to you</p>
-            <p className="text-xs">Issues you create or are assigned to will appear here.</p>
-          </div>
+          <Empty>
+            <EmptyMedia><ListTodo className="h-10 w-10 text-muted-foreground/30" /></EmptyMedia>
+            <EmptyTitle>No issues assigned to you</EmptyTitle>
+            <EmptyDescription>Issues you create or are assigned to will appear here.</EmptyDescription>
+          </Empty>
         ) : (
           <div className="flex flex-col flex-1 min-h-0">
             {viewMode === "board" ? (

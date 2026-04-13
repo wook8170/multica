@@ -36,6 +36,7 @@ import {
   ResizableHandle,
 } from "@multica/ui/components/ui/resizable";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { Empty, EmptyMedia, EmptyTitle } from "@multica/ui/components/ui/empty";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -44,6 +45,7 @@ import {
   DropdownMenuSeparator,
 } from "@multica/ui/components/ui/dropdown-menu";
 import { useIsMobile } from "@multica/ui/hooks/use-mobile";
+import { PageListHeader } from "../../common/page-list-header";
 import { InboxListItem, timeAgo } from "./inbox-list-item";
 import { typeLabels } from "./inbox-detail-label";
 
@@ -133,55 +135,51 @@ export function InboxPage() {
   // -- Shared sub-components --------------------------------------------------
 
   const listHeader = (
-    <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-sm font-semibold">Inbox</h1>
-        {unreadCount > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {unreadCount}
-          </span>
-        )}
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="text-muted-foreground"
-            />
-          }
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-auto">
-          <DropdownMenuItem onClick={handleMarkAllRead}>
-            <CheckCheck className="h-4 w-4" />
-            Mark all as read
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleArchiveAll}>
-            <Archive className="h-4 w-4" />
-            Archive all
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleArchiveAllRead}>
-            <BookCheck className="h-4 w-4" />
-            Archive all read
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleArchiveCompleted}>
-            <ListChecks className="h-4 w-4" />
-            Archive completed
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <PageListHeader
+      title="Inbox"
+      count={unreadCount > 0 ? unreadCount : undefined}
+      actions={
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="text-muted-foreground"
+              />
+            }
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto">
+            <DropdownMenuItem onClick={handleMarkAllRead}>
+              <CheckCheck className="h-4 w-4" />
+              Mark all as read
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleArchiveAll}>
+              <Archive className="h-4 w-4" />
+              Archive all
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleArchiveAllRead}>
+              <BookCheck className="h-4 w-4" />
+              Archive all read
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleArchiveCompleted}>
+              <ListChecks className="h-4 w-4" />
+              Archive completed
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      }
+    />
   );
 
   const listBody = items.length === 0 ? (
-    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-      <Inbox className="mb-3 h-8 w-8 text-muted-foreground/50" />
-      <p className="text-sm">No notifications</p>
-    </div>
+    <Empty className="py-16">
+      <EmptyMedia><Inbox className="h-10 w-10 text-muted-foreground/30" /></EmptyMedia>
+      <EmptyTitle>No notifications</EmptyTitle>
+    </Empty>
   ) : (
     <div>
       {items.map((item) => (
@@ -336,14 +334,12 @@ export function InboxPage() {
       <ResizablePanel id="detail" minSize="40%">
       <div className="flex flex-col min-h-0 h-full">
         {detailContent ?? (
-          <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-            <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
-            <p className="text-sm">
-              {items.length === 0
-                ? "Your inbox is empty"
-                : "Select a notification to view details"}
-            </p>
-          </div>
+          <Empty>
+            <EmptyMedia><Inbox className="h-10 w-10 text-muted-foreground/30" /></EmptyMedia>
+            <EmptyTitle>
+              {items.length === 0 ? "Your inbox is empty" : "Select a notification to view details"}
+            </EmptyTitle>
+          </Empty>
         )}
       </div>
       </ResizablePanel>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Crown, Shield, User, Plus, MoreHorizontal, UserMinus, Users } from "lucide-react";
+import { Crown, Shield, User, Plus, MoreHorizontal, UserMinus } from "lucide-react";
 import { ActorAvatar } from "../../common/actor-avatar";
 import type { MemberWithUser, MemberRole } from "@multica/core/types";
 import { Input } from "@multica/ui/components/ui/input";
@@ -221,10 +221,7 @@ export function MembersTab() {
   return (
     <div className="space-y-8">
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Members ({members.length})</h2>
-        </div>
+        <h2 className="text-sm font-semibold">Members ({members.length})</h2>
 
         {canManageWorkspace && (
           <Card>

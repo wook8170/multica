@@ -33,6 +33,7 @@ import { useNavigation } from "../navigation";
 import { IssueMentionCard } from "../issues/components/issue-mention-card";
 import { ImageLightbox } from "./extensions/image-view";
 import { preprocessMarkdown } from "./utils/preprocess";
+import { MermaidViewer } from "./mermaid-viewer";
 import "./content-editor.css";
 
 // ---------------------------------------------------------------------------
@@ -189,19 +190,28 @@ const components: Partial<Components> = {
     </div>
   ),
 
-  // Code — lowlight highlighting for blocks, plain render for inline
+  // Code — mermaid support + lowlight highlighting for blocks
   code: ({ className, children, node, ...props }) => {
-    const lang = /language-(\w+)/.exec(className || "")?.[1];
+    // Extract language (e.g., language-mermaid -> mermaid)
+    const langMatch = /language-(\w+)/.exec(className || "");
+    const lang = langMatch ? langMatch[1] : undefined;
+    
+    // Check if it's a mermaid block
+    if (lang === "mermaid") {
+      const code = String(children).replace(/\n$/, "");
+      return <MermaidViewer content={code} />;
+    }
+
     const isBlock =
       node?.position &&
       node.position.start.line !== node.position.end.line;
 
     if (!isBlock && !lang) {
-      // Inline code — CSS handles styling via .rich-text-editor code
+      // Inline code
       return <code {...props}>{children}</code>;
     }
 
-    // Block code — highlight with lowlight, output hljs classes
+    // Block code — highlight with lowlight
     const code = String(children).replace(/\n$/, "");
     try {
       const tree = lang
@@ -214,7 +224,7 @@ const components: Partial<Components> = {
         />
       );
     } catch {
-      // Fallback — render without highlighting
+      // Fallback
       return (
         <code className={className} {...props}>
           {children}

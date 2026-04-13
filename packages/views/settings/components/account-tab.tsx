@@ -109,7 +109,7 @@ export function AccountTab() {
             <div>
               <Label className="text-xs text-muted-foreground">Name</Label>
               <Input
-                type="search"
+                type="text"
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
                 className="mt-1"

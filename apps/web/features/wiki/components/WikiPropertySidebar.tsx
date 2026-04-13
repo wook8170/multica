@@ -44,7 +44,7 @@ interface WikiPropertiesPanelProps {
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function WikiHistorySidebar({
+export function WikiPropertySidebar({
   wikiId,
   createdBy,
   updatedBy,

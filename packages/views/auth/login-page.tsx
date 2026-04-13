@@ -95,9 +95,15 @@ export function LoginPage({
   const [cooldown, setCooldown] = useState(0);
   const [existingUser, setExistingUser] = useState<User | null>(null);
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Check for existing session when CLI callback is present
   useEffect(() => {
-    if (!cliCallback) return;
+    if (!mounted || !cliCallback) return;
     const token = localStorage.getItem("multica_token");
     if (!token) return;
 
@@ -112,7 +118,8 @@ export function LoginPage({
         api.setToken(null);
         localStorage.removeItem("multica_token");
       });
-  }, [cliCallback]);
+  }, [mounted, cliCallback]);
+
 
   // Cooldown timer for resend
   useEffect(() => {

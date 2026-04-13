@@ -10,6 +10,7 @@ import {
   ResizableHandle,
 } from "@multica/ui/components/ui/resizable";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { Empty, EmptyMedia, EmptyTitle } from "@multica/ui/components/ui/empty";
 import { useAuthStore } from "@multica/core/auth";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { runtimeListOptions, runtimeKeys } from "@multica/core/runtimes/queries";
@@ -54,7 +55,7 @@ export default function RuntimesPage() {
       <div className="flex flex-1 min-h-0">
         {/* List skeleton */}
         <div className="w-72 border-r">
-          <div className="flex h-12 items-center justify-between border-b px-4">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
             <Skeleton className="h-4 w-20" />
           </div>
           <div className="divide-y">
@@ -117,10 +118,10 @@ export default function RuntimesPage() {
         {selected ? (
           <RuntimeDetail key={selected.id} runtime={selected} />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-            <Server className="h-10 w-10 text-muted-foreground/30" />
-            <p className="mt-3 text-sm">Select a runtime to view details</p>
-          </div>
+          <Empty>
+            <EmptyMedia><Server className="h-10 w-10 text-muted-foreground/30" /></EmptyMedia>
+            <EmptyTitle>Select a runtime to view details</EmptyTitle>
+          </Empty>
         )}
       </ResizablePanel>
     </ResizablePanelGroup>

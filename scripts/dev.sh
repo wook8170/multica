@@ -49,17 +49,22 @@ fi
 # ---------- Database ----------
 bash scripts/ensure-postgres.sh "$ENV_FILE"
 
+# ---------- Object storage ----------
+bash scripts/ensure-minio.sh "$ENV_FILE"
+
 echo "==> Running migrations..."
 (cd server && go run ./cmd/migrate up)
 
 # ---------- Start services ----------
 echo ""
 echo "✓ Ready. Starting services..."
-echo "  Backend:  http://localhost:${PORT:-8080}"
-echo "  Frontend: http://localhost:${FRONTEND_PORT:-3000}"
+echo "  Backend:       http://localhost:${PORT:-8080}"
+echo "  Frontend:      http://localhost:${FRONTEND_PORT:-3000}"
+echo "  Collaboration: ws://localhost:${COLLABORATION_PORT:-8081}"
 echo ""
 
 trap 'kill 0' EXIT
 (cd server && go run ./cmd/server) &
+{ (cd apps/collaboration && pnpm dev) || true; } &
 pnpm dev:web &
 wait

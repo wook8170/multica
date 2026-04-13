@@ -4,28 +4,28 @@
 
 **multica** is a typescript project built with next-app, organized as a monorepo.
 
-**Workspaces:** `@multica/desktop` (`apps/desktop`), `@multica/docs` (`apps/docs`), `@multica/web` (`apps/web`), `@multica/core` (`packages/core`), `@multica/eslint-config` (`packages/eslint-config`), `@multica/tsconfig` (`packages/tsconfig`), `@multica/ui` (`packages/ui`), `@multica/views` (`packages/views`)
+**Workspaces:** `@multica/collaboration` (`apps/collaboration`), `@multica/desktop` (`apps/desktop`), `@multica/docs` (`apps/docs`), `@multica/web` (`apps/web`), `@multica/core` (`packages/core`), `@multica/eslint-config` (`packages/eslint-config`), `@multica/tsconfig` (`packages/tsconfig`), `@multica/ui` (`packages/ui`), `@multica/views` (`packages/views`)
 
 ## Scale
 
-18 API routes · 32 database models · 156 UI components · 14 middleware layers · 68 environment variables
+18 API routes · 35 database models · 163 UI components · 15 middleware layers · 72 environment variables
 
 ## Subsystems
 
 - **[Route](./route.md)** — 1 routes
 - **[Use-realtime-sync](./use-realtime-sync.md)** — 17 routes
 
-**Database:** unknown, 32 models — see [database.md](./database.md)
+**Database:** unknown, 35 models — see [database.md](./database.md)
 
-**UI:** 156 components (react) — see [ui.md](./ui.md)
+**UI:** 163 components (react) — see [ui.md](./ui.md)
 
 ## High-Impact Files
 
 Changes to these files have the widest blast radius across the codebase:
 
-- `encoding/json` — imported by **53** files
-- `net/http` — imported by **48** files
-- `log/slog` — imported by **46** files
+- `encoding/json` — imported by **54** files
+- `net/http` — imported by **49** files
+- `log/slog` — imported by **48** files
 - `packages/core/types/index.ts` — imported by **23** files
 - `path/filepath` — imported by **20** files
 - `packages/views/common/actor-avatar.tsx` — imported by **19** files
@@ -47,4 +47,4 @@ Changes to these files have the widest blast radius across the codebase:
 - _...26 more_
 
 ---
-_Back to [index.md](./index.md) · Generated 2026-04-10_
+_Back to [index.md](./index.md) · Generated 2026-04-13_

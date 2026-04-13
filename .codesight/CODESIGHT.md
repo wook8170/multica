@@ -1,10 +1,10 @@
 # multica — AI Context Map
 
 > **Stack:** next-app | none | react | typescript
-> **Monorepo:** @multica/desktop, @multica/docs, @multica/web, @multica/core, @multica/eslint-config, @multica/tsconfig, @multica/ui, @multica/views
+> **Monorepo:** @multica/collaboration, @multica/desktop, @multica/docs, @multica/web, @multica/core, @multica/eslint-config, @multica/tsconfig, @multica/ui, @multica/views
 
-> 1 routes + 17 ws | 32 models | 156 components | 134 lib files | 68 env vars | 14 middleware | 55% test coverage
-> **Token savings:** this file is ~16,100 tokens. Without it, AI exploration would cost ~123,400 tokens. **Saves ~107,400 tokens per conversation.**
+> 1 routes + 17 ws | 35 models | 163 components | 136 lib files | 72 env vars | 15 middleware | 50% test coverage
+> **Token savings:** this file is ~16,600 tokens. Without it, AI exploration would cost ~128,200 tokens. **Saves ~111,600 tokens per conversation.**
 
 ---
 
@@ -317,6 +317,28 @@
 - item_id: uuid (required, fk)
 - position: float (required)
 
+### wikis
+- id: uuid (pk)
+- workspace_id: uuid (required, fk)
+- parent_id: uuid (fk)
+- title: text (required)
+- content: text (required)
+- created_by: uuid (required)
+
+### wiki_versions
+- id: uuid (pk)
+- wiki_id: uuid (required, fk)
+- version_number: integer (required)
+- title: text (required)
+- content: text (required)
+- created_by: uuid (required)
+
+### wiki_tags
+- id: uuid (pk)
+- workspace_id: uuid (required, fk)
+- wiki_id: uuid (required, fk)
+- name: text (required)
+
 ---
 
 # Components
@@ -344,6 +366,7 @@
 - **Page** [client] — `apps/web/app/(dashboard)/my-issues/page.tsx`
 - **ProjectDetailPage** [client] — props: params — `apps/web/app/(dashboard)/projects/[id]/page.tsx`
 - **Page** [client] — `apps/web/app/(dashboard)/projects/page.tsx`
+- **WikiPage** [client] — `apps/web/app/(dashboard)/wiki/page.tsx`
 - **AboutPage** — `apps/web/app/(landing)/about/page.tsx`
 - **ChangelogPage** — `apps/web/app/(landing)/changelog/page.tsx`
 - **HomepagePage** — `apps/web/app/(landing)/homepage/page.tsx`
@@ -371,6 +394,10 @@
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **LocaleProvider** [client] — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
+- **WikiEditor** — props: id, title, content, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile, onDelete — `apps/web/features/wiki/components/WikiEditor.tsx`
+- **WikiPropertySidebar** [client] — props: wikiId, createdBy, updatedBy, createdAt, updatedAt, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
+- **WikiSidebar** [client] — props: nodes, isLoading, onCreateNew, onSelect, selectedId, isCollaborating, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
+- **WikiView** [client] — `apps/web/features/wiki/components/WikiView.tsx`
 - **WebNavigationProvider** [client] — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** [client] — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** [client] — props: store — `packages/core/issues/stores/view-store-context.tsx`
@@ -394,13 +421,15 @@
 - **ChatWindow** [client] — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** [client] — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
-- **ContentEditor** [client] — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile — `packages/views/editor/content-editor.tsx`
-- **CodeBlockView** [client] — props: node — `packages/views/editor/extensions/code-block-view.tsx`
+- **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
+- **ContentEditor** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **FileCardExtension** [client] — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** [client] — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** [client] — props: node — `packages/views/editor/extensions/mention-view.tsx`
 - **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`
+- **MermaidViewer** [client] — props: content — `packages/views/editor/mermaid-viewer.tsx`
 - **ReadonlyContent** [client] — props: content, className — `packages/views/editor/readonly-content.tsx`
 - **SingleLineDocument** [client] — props: defaultValue, placeholder, className, autoFocus, onSubmit, onBlur, onChange — `packages/views/editor/title-editor.tsx`
 - **InboxDetailLabel** [client] — props: item — `packages/views/inbox/components/inbox-detail-label.tsx`
@@ -779,6 +808,12 @@
   - class UpdateSkillRequest
   - _...2 more_
 - `server/internal/handler/subscriber.go` — class SubscriberResponse
+- `server/internal/handler/wiki.go`
+  - class WikiResponse
+  - class WikiVersionResponse
+  - class CreateWikiRequest
+  - class CollaborationWebhookRequest
+- `server/internal/handler/wiki_snapshot.go` — function NewWikiSnapshotScheduler: (db dbExecutor) *WikiSnapshotScheduler, class WikiSnapshotScheduler
 - `server/internal/handler/workspace.go`
   - class WorkspaceResponse
   - class MemberResponse
@@ -986,12 +1021,15 @@
 - `APP_ENV` **required** — server/internal/handler/auth.go
 - `AWS_ACCESS_KEY_ID` (has default) — .env.example
 - `AWS_SECRET_ACCESS_KEY` (has default) — .env.example
+- `BACKEND_URL` (has default) — .env
 - `CLAUDE_CONFIG_DIR` **required** — server/internal/daemon/usage/claude.go
 - `CLOUDFRONT_DOMAIN` **required** — .env.example
 - `CLOUDFRONT_KEY_PAIR_ID` **required** — .env.example
 - `CLOUDFRONT_PRIVATE_KEY` **required** — .env.example
 - `CLOUDFRONT_PRIVATE_KEY_SECRET` (has default) — .env.example
 - `CODEX_HOME` **required** — server/internal/daemon/execenv/codex_home.go
+- `COLLABORATION_PORT` (has default) — .env.example
+- `COLLABORATION_WEBHOOK_SECRET` (has default) — .env.example
 - `COOKIE_DOMAIN` **required** — .env.example
 - `CORS_ALLOWED_ORIGINS` **required** — apps/web/next.config.ts
 - `DATABASE_URL` (has default) — .env.example
@@ -1032,6 +1070,7 @@
 - `MULTICA_WORKSPACE_ID` **required** — .env.example
 - `MULTICA_WORKSPACES_ROOT` **required** — server/internal/daemon/config.go
 - `NEXT_PUBLIC_API_URL` (has default) — .env.example
+- `NEXT_PUBLIC_COLLAB_URL` (has default) — .env
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` **required** — .env.example
 - `NEXT_PUBLIC_WS_URL` (has default) — .env.example
 - `NODE_ENV` **required** — apps/web/components/theme-provider.tsx
@@ -1083,6 +1122,7 @@
 - workspace — `server/internal/middleware/workspace.go`
 - 022_task_lifecycle_guards.down — `server/migrations/022_task_lifecycle_guards.down.sql`
 - 022_task_lifecycle_guards.up — `server/migrations/022_task_lifecycle_guards.up.sql`
+- migrate_binary — `server/scratch/migrate_binary.go`
 
 ---
 
@@ -1090,9 +1130,9 @@
 
 ## Most Imported Files (change these carefully)
 
-- `encoding/json` — imported by **53** files
-- `net/http` — imported by **48** files
-- `log/slog` — imported by **46** files
+- `encoding/json` — imported by **54** files
+- `net/http` — imported by **49** files
+- `log/slog` — imported by **48** files
 - `packages/core/types/index.ts` — imported by **23** files
 - `path/filepath` — imported by **20** files
 - `packages/views/common/actor-avatar.tsx` — imported by **19** files
@@ -1113,9 +1153,9 @@
 
 ## Import Map (who imports what)
 
-- `encoding/json` ← `server/cmd/multica/cmd_agent.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_skill.go` +48 more
-- `net/http` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/server/comment_trigger_integration_test.go` +43 more
-- `log/slog` ← `server/cmd/migrate/main.go`, `server/cmd/server/activity_listeners.go`, `server/cmd/server/listeners.go`, `server/cmd/server/main.go`, `server/cmd/server/notification_listeners.go` +41 more
+- `encoding/json` ← `server/cmd/multica/cmd_agent.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_skill.go` +49 more
+- `net/http` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/server/comment_trigger_integration_test.go` +44 more
+- `log/slog` ← `server/cmd/migrate/main.go`, `server/cmd/server/activity_listeners.go`, `server/cmd/server/listeners.go`, `server/cmd/server/main.go`, `server/cmd/server/notification_listeners.go` +43 more
 - `packages/core/types/index.ts` ← `packages/core/auth/store.ts`, `packages/core/chat/store.ts`, `packages/core/hooks/use-file-upload.ts`, `packages/core/inbox/mutations.ts`, `packages/core/inbox/queries.ts` +18 more
 - `path/filepath` ← `server/cmd/migrate/main.go`, `server/cmd/multica/cmd_attachment.go`, `server/internal/cli/client.go`, `server/internal/cli/config.go`, `server/internal/cli/update.go` +15 more
 - `packages/views/common/actor-avatar.tsx` ← `packages/views/agents/components/agent-detail.tsx`, `packages/views/agents/components/agent-list-item.tsx`, `packages/views/agents/components/tabs/settings-tab.tsx`, `packages/views/editor/extensions/mention-suggestion.tsx`, `packages/views/inbox/components/inbox-list-item.tsx` +14 more
@@ -1128,7 +1168,7 @@
 
 # Test Coverage
 
-> **55%** of routes and models are covered by tests
+> **50%** of routes and models are covered by tests
 > 49 test files found
 
 ## Covered Routes

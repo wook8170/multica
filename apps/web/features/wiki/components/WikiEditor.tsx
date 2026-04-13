@@ -107,16 +107,6 @@ export function WikiEditor({
 
           <div className="w-[1px] h-4 bg-border/40" />
 
-          {/* Properties sidebar toggle */}
-          <Button
-            variant={isHistoryOpen ? "secondary" : "ghost"}
-            size="icon"
-            className={cn("h-8 w-8", !isHistoryOpen && "text-muted-foreground")}
-            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-          >
-            <PanelRight className="h-4 w-4" />
-          </Button>
-
           {/* Save status + save button */}
           {saveStatus === "saved" && (
             <span className="flex items-center gap-1 text-xs text-green-500 px-1">
@@ -151,6 +141,18 @@ export function WikiEditor({
             onClick={onDelete}
           >
             <Trash2 className="h-4 w-4" />
+          </Button>
+
+          <div className="w-[1px] h-4 bg-border/40" />
+
+          {/* Properties sidebar toggle */}
+          <Button
+            variant={isHistoryOpen ? "secondary" : "ghost"}
+            size="icon"
+            className={cn("h-8 w-8", !isHistoryOpen && "text-muted-foreground")}
+            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+          >
+            <PanelRight className="h-4 w-4" />
           </Button>
         </div>
       </div>

@@ -7,8 +7,9 @@ import {
 } from "lucide-react";
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
-  useSensor, useSensors, closestCenter,
+  useSensor, useSensors, pointerWithin, closestCenter,
   type DragStartEvent, type DragMoveEvent, type DragEndEvent,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Button } from "@multica/ui/components/ui/button";
@@ -166,6 +167,14 @@ export function WikiSidebar({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor),
   );
+
+  // pointerWithin: uses actual pointer position — ensures "over" is the item
+  // the pointer is physically inside, not the nearest-center item.
+  // This makes the before/child/after zone detection reliable.
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const hits = pointerWithin(args);
+    return hits.length > 0 ? hits : closestCenter(args);
+  }, []);
 
   const toggleMultiSelect = useCallback((id: string) => {
     setMultiSelected((prev) => {
@@ -358,7 +367,7 @@ export function WikiSidebar({
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={collisionDetection}
             onDragStart={handleDragStart}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}

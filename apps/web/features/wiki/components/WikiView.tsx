@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback, Suspense, lazy } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, Suspense, lazy, type ReactNode } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Library, Plus, Loader2, Clock, ArrowLeft, RotateCcw, X } from "lucide-react";
+import { Library, Plus, Loader2, Clock, ArrowLeft, RotateCcw, X, Trash2 } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import {
   ResizablePanelGroup,
@@ -17,10 +17,21 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@multica/ui/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@multica/ui/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@multica/core/api";
 import { useAuthStore } from "@multica/core/auth";
+import { ReadonlyContent } from "@multica/views/editor";
 import { useWikiStore } from "../store";
 import { cn } from "@multica/ui/lib/utils";
 import * as Y from "yjs";
@@ -97,7 +108,7 @@ interface ConflictState {
   serverVersion: number;
 }
 
-export function WikiView() {
+export function WikiView({ initialSelectedId }: { initialSelectedId?: string | null } = {}) {
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
   const user = useAuthStore((s) => s.user);
@@ -115,6 +126,7 @@ export function WikiView() {
   const [ydoc, setYdoc] = useState<Y.Doc | null>(null);
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [coEditorCount, setCoEditorCount] = useState(0); // number of OTHER users currently editing
+  const [collabConnected, setCollabConnected] = useState(false); // collab server reachable
   const providerRef = useRef<HocuspocusProvider | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
 
@@ -136,7 +148,13 @@ export function WikiView() {
   const [currentTitle, setCurrentTitle] = useState("");
   const [currentContent, setCurrentContent] = useState("");
   const [parentSelection, setParentSelection] = useState<string | null>(null);
+  const [restoreKey, setRestoreKey] = useState(0); // incremented on version restore to force editor remount
   const editorRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  // Confirmation dialogs
+  const [restoreConfirm, setRestoreConfirm] = useState<{ open: boolean; version: any }>({ open: false, version: null });
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [createConfirm, setCreateConfirm] = useState<{ open: boolean; parentId: string | null }>({ open: false, parentId: null });
 
   // Optimistic locking: the server version this client last saw
   const currentVersionRef = useRef<number>(1);
@@ -155,6 +173,12 @@ export function WikiView() {
 
   useEffect(() => { setMounted(true); }, []);
 
+  // Open a specific wiki when navigating from search (URL ?id= param)
+  useEffect(() => {
+    if (!initialSelectedId || initialSelectedId === selectedId) return;
+    setSelectedId(initialSelectedId);
+  }, [initialSelectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Connect/disconnect collaboration provider whenever the selected doc changes
   useEffect(() => {
     // Always clear state first so ContentEditor sees ydoc=null and remounts cleanly.
@@ -163,6 +187,7 @@ export function WikiView() {
     setYdoc(null);
     setProvider(null);
     setCoEditorCount(0);
+    setCollabConnected(false);
 
     // Clean up previous provider before connecting to a new one.
     // destroy() sets local awareness state to null first, so other clients
@@ -192,13 +217,20 @@ export function WikiView() {
           }
         } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
-        newProvider.on("error", (err: Error) => {
+        newProvider.on("error", (err: unknown) => {
           console.error("Collaboration connection error:", err);
           toast.error("Collaboration connection failed");
         });
 
-        // Count other users from awareness — green dot only when 2+ people editing.
-        // Debounced so rapid cursor-move events don't cause the dot to flicker.
+        // Update connection status indicator once fully synced with the server.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        newProvider.on("sync", (payload: any) => {
+          const state = typeof payload === "object" ? payload?.state : payload;
+          if (state && providerRef.current === newProvider) setCollabConnected(true);
+        });
+        newProvider.on("disconnect", () => { setCollabConnected(false); });
+
+        // Track how many OTHER users are currently editing (for the sidebar presence dot).
         const awareness = newProvider.awareness;
         let coEditorTimer: ReturnType<typeof setTimeout> | undefined;
         const updateCoEditorCount = () => {
@@ -208,7 +240,8 @@ export function WikiView() {
             const states = awareness.getStates();
             const localId = awareness.clientID;
             let count = 0;
-            states.forEach((_: any, id: number) => { if (id !== localId) count++; }); // eslint-disable-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            states.forEach((_: any, id: number) => { if (id !== localId) count++; });
             setCoEditorCount(count);
           }, 500);
         };
@@ -291,6 +324,7 @@ export function WikiView() {
       parent_id?: string | null;
       force?: boolean; // when true, saves without base_version (force overwrite)
     }) => {
+      const isCollaborativeSave = coEditorCount > 0;
       const payload: Parameters<typeof api.updateWiki>[1] = {
         title: data.title,
         content: data.content,
@@ -298,7 +332,7 @@ export function WikiView() {
         parent_id: data.parent_id === null ? undefined : data.parent_id,
       };
       if (data.id && data.id !== "new") {
-        if (!data.force) {
+        if (!data.force && !isCollaborativeSave) {
           payload.base_version = currentVersionRef.current;
         }
         return api.updateWiki(data.id, payload);
@@ -322,8 +356,12 @@ export function WikiView() {
       if (result && "id" in result) setSelectedId((result as any).id);
       setParentSelection(null);
     },
-    onError: (err: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    onError: (err: any, variables) => { // eslint-disable-line @typescript-eslint/no-explicit-any
       if (err?.status === 409) {
+        if (coEditorCount > 0) {
+          saveMutation.mutate({ ...variables, force: true });
+          return;
+        }
         // Conflict — handled via dialog, no toast here
         setConflict({ open: true, serverVersion: err?.current_version ?? 0 });
         setSaveStatus("error");
@@ -344,7 +382,7 @@ export function WikiView() {
     onError: () => toast.error("Failed to delete.")
   });
 
-  // Autosave: fires 10 seconds after the last title or content change
+  // Autosave: fires 10 seconds after the last title or content change.
   useEffect(() => {
     if (!selectedId || selectedId === "new" || !mounted) return;
     const last = lastSavedContentRef.current;
@@ -374,9 +412,18 @@ export function WikiView() {
     setCurrentTitle(node.title);
     setCurrentContent(node.content || "");
     setSaveStatus("idle");
+    setRestoreKey(0); // reset so forceDefault doesn't carry over to the new document
+
+    // Expand all ancestors so the item is visible in the sidebar tree
+    const ancestors = getAncestors(rawWikis as any[], node.id);
+    if (ancestors.length > 0) {
+      const next = new Set(expandedNodes);
+      ancestors.forEach((a) => next.add(a.id));
+      setExpandedNodes(next);
+    }
   };
 
-  const handleCreateNew = (parentId: string | null = null) => {
+  const doCreateNew = (parentId: string | null = null) => {
     setSelectedId("new");
     setViewingVersionId(null);
     setParentSelection(parentId);
@@ -386,6 +433,17 @@ export function WikiView() {
       const next = new Set(expandedNodes);
       next.add(parentId);
       setExpandedNodes(next);
+    }
+  };
+
+  const handleCreateNew = (parentId: string | null = null) => {
+    const last = lastSavedContentRef.current;
+    const hasUnsaved = selectedId && selectedId !== "new" && last &&
+      (last.title !== currentTitle || last.content !== currentContent);
+    if (hasUnsaved) {
+      setCreateConfirm({ open: true, parentId });
+    } else {
+      doCreateNew(parentId);
     }
   };
 
@@ -456,17 +514,21 @@ export function WikiView() {
   };
 
   const handleDelete = () => {
+    if (selectedId && selectedId !== "new") setDeleteConfirm(true);
+  };
+
+  const doDelete = () => {
     if (selectedId && selectedId !== "new") deleteMutation.mutate(selectedId);
   };
 
-  const handleRestore = useCallback((version: any) => {
+  const doRestore = useCallback((version: any) => {
     setCurrentTitle(version.title);
     setCurrentContent(version.content);
 
-    // Apply Yjs binary_state immediately (Y.applyUpdate → yText.observe → editor auto-updates)
-    if (version.binary_state) {
-      editorRef.current?.restoreBinaryState(version.binary_state);
-    }
+    // Force ContentEditor to remount so preprocessMarkdown runs on the restored content.
+    // This ensures file card attachments are properly rendered as download blocks.
+    // Binary state restore is skipped — the Markdown content is the source of truth.
+    setRestoreKey((k) => k + 1);
 
     setViewingVersionId(null);
     setIsHistoryOpen(false);
@@ -491,6 +553,10 @@ export function WikiView() {
       toast.success(`Restored to version ${version.version_number}`);
     }
   }, [selectedId, rawWikis, saveMutation]);
+
+  const handleRestore = useCallback((version: any) => {
+    setRestoreConfirm({ open: true, version });
+  }, []);
 
   // Conflict modal handlers
   const handleConflictForce = useCallback(() => {
@@ -554,6 +620,8 @@ export function WikiView() {
           versionTitle={selectedVersion.title}
           versionContent={selectedVersion.content}
           versionNumber={selectedVersion.version_number}
+          createdAt={selectedVersion.created_at}
+          createdBy={selectedVersion.created_by}
           onClose={() => setViewingVersionId(null)}
           onRestore={() => handleRestore(selectedVersion)}
         />
@@ -571,6 +639,7 @@ export function WikiView() {
         <WikiEditor
           ref={editorRef}
           id={selectedId}
+          restoreKey={restoreKey}
           title={currentTitle}
           content={currentContent}
           ancestors={
@@ -604,6 +673,8 @@ export function WikiView() {
           ydoc={ydoc}
           provider={provider}
           user={collabUser}
+          collabConnected={collabConnected}
+          showRemoteCursors={!conflict.open && !restoreConfirm.open && !deleteConfirm && !createConfirm.open}
         />
       </Suspense>
     );
@@ -658,6 +729,84 @@ export function WikiView() {
         </div>
       )}
 
+      {/* Restore version confirmation */}
+      <AlertDialog open={restoreConfirm.open} onOpenChange={(open) => setRestoreConfirm((s) => ({ ...s, open }))}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore this version?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {restoreConfirm.version
+                ? `Version ${restoreConfirm.version.version_number} will replace the current content. The current state will be saved as a new version first.`
+                : "This version will replace the current content."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRestoreConfirm({ open: false, version: null })}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const v = restoreConfirm.version;
+                setRestoreConfirm({ open: false, version: null });
+                if (v) doRestore(v);
+              }}
+            >
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete document confirmation */}
+      <AlertDialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The document and all its history will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteConfirm(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => { setDeleteConfirm(false); doDelete(); }}
+            >
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unsaved changes — create new document confirmation */}
+      <AlertDialog open={createConfirm.open} onOpenChange={(open) => setCreateConfirm((s) => ({ ...s, open }))}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes in the current document. Creating a new document will discard them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCreateConfirm({ open: false, parentId: null })}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                const parentId = createConfirm.parentId;
+                setCreateConfirm({ open: false, parentId: null });
+                doCreateNew(parentId);
+              }}
+            >
+              Discard & create new
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <ResizablePanelGroup
         orientation="horizontal"
         className="flex-1 min-h-0"
@@ -679,7 +828,7 @@ export function WikiView() {
             onCreateNew={handleCreateNew}
             onSelect={handleSelect}
             selectedId={selectedId}
-            isCollaborating={coEditorCount > 0}
+            collaboratingId={coEditorCount > 0 ? selectedId : null}
             onDeleteMultiple={handleDeleteMultiple}
             onDuplicateMultiple={handleDuplicateMultiple}
             onMove={handleMoveWiki}
@@ -711,6 +860,9 @@ export function WikiView() {
         >
           {selectedId && selectedId !== "new" && (() => {
             const w = (rawWikis as any[]).find((x: any) => x.id === selectedId);
+            const childPages = (rawWikis as any[])
+              .filter((x: any) => x.parent_id === selectedId)
+              .map((x: any) => ({ id: x.id, title: x.title }));
             return (
               <WikiPropertySidebar
                 wikiId={selectedId}
@@ -719,6 +871,11 @@ export function WikiView() {
                 updatedBy={w?.updated_by}
                 createdAt={w?.created_at}
                 updatedAt={w?.updated_at}
+                childPages={childPages}
+                onNavigateTo={(id) => {
+                  const wiki = (rawWikis as any[]).find((x: any) => x.id === id);
+                  if (wiki) handleSelect(wiki);
+                }}
                 onRestore={handleRestore}
               />
             );
@@ -729,104 +886,102 @@ export function WikiView() {
   );
 }
 
-/**
- * Character-level diff algorithm (simplified Myers diff).
- * Returns an array of { type, text } segments comparing two strings.
- */
-function charDiff(oldStr: string, newStr: string): { type: 'same' | 'removed' | 'added'; text: string }[] {
-  // LCS (Longest Common Subsequence) based character-level comparison
-  const oldLen = oldStr.length;
-  const newLen = newStr.length;
+// ---------------------------------------------------------------------------
+// Block-level diff helpers
+// ---------------------------------------------------------------------------
 
-  // Performance guard: fall back to line-level diff for very long strings
-  if (oldLen + newLen > 20000) {
-    return simpleFallback(oldStr, newStr);
+/** Split markdown content into top-level blocks separated by blank lines. */
+function splitIntoBlocks(content: string): string[] {
+  return content.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+}
+
+/** True if a block is a standalone file attachment (fileCard div, CDN image, or CDN link). */
+const ATTACHMENT_BLOCK_RE =
+  /^(?:<div\b[^>]*data-type=["']fileCard["']|!\[.*?\]\(https?:\/\/|\[[^\]]+\]\(https?:\/\/)/i;
+
+function isAttachmentBlock(block: string): boolean {
+  return ATTACHMENT_BLOCK_RE.test(block.trim());
+}
+
+type BlockDiffSegment = {
+  type: "same" | "added" | "removed";
+  blocks: string[];
+};
+
+/** LCS-based block-level diff. Returns consecutive same-type blocks grouped. */
+function diffBlocks(oldBlocks: string[], newBlocks: string[]): BlockDiffSegment[] {
+  if (oldBlocks.length + newBlocks.length > 2000) {
+    return [
+      ...(oldBlocks.length ? [{ type: "removed" as const, blocks: oldBlocks }] : []),
+      ...(newBlocks.length ? [{ type: "added" as const, blocks: newBlocks }] : []),
+    ];
   }
-
-  // Build DP table (space-optimized rolling array)
-  const prev = new Uint16Array(newLen + 1);
-  const curr = new Uint16Array(newLen + 1);
-
-  for (let i = 1; i <= oldLen; i++) {
-    for (let j = 0; j <= newLen; j++) prev[j] = curr[j]!;
-    for (let j = 1; j <= newLen; j++) {
-      if (oldStr[i - 1] === newStr[j - 1]) {
-        curr[j] = prev[j - 1]! + 1;
-      } else {
-        curr[j] = Math.max(curr[j - 1]!, prev[j]!);
-      }
+  const m = oldBlocks.length;
+  const n = newBlocks.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i]![j] =
+        oldBlocks[i - 1] === newBlocks[j - 1]
+          ? dp[i - 1]![j - 1]! + 1
+          : Math.max(dp[i - 1]![j]!, dp[i]![j - 1]!);
     }
   }
-
-  // Full table required for backtracking — only for small inputs
-  const dp: number[][] = Array.from({ length: oldLen + 1 }, () => new Array(newLen + 1).fill(0));
-  for (let i = 1; i <= oldLen; i++) {
-    for (let j = 1; j <= newLen; j++) {
-      if (oldStr[i - 1] === newStr[j - 1]) {
-        dp[i]![j] = dp[i - 1]![j - 1]! + 1;
-      } else {
-        dp[i]![j] = Math.max(dp[i - 1]![j]!, dp[i]![j - 1]!);
-      }
-    }
-  }
-
-  // Backtrack to build diff result
-  const result: { type: 'same' | 'removed' | 'added'; text: string }[] = [];
-  let oi = oldLen, ni = newLen;
-
-  const raw: { type: 'same' | 'removed' | 'added'; char: string }[] = [];
-  while (oi > 0 || ni > 0) {
-    if (oi > 0 && ni > 0 && oldStr[oi - 1] === newStr[ni - 1]) {
-      raw.push({ type: 'same', char: oldStr[oi - 1]! });
-      oi--; ni--;
-    } else if (ni > 0 && (oi === 0 || dp[oi]![ni - 1]! >= dp[oi - 1]![ni]!)) {
-      raw.push({ type: 'added', char: newStr[ni - 1]! });
-      ni--;
+  const raw: { type: "same" | "added" | "removed"; block: string }[] = [];
+  let i = m;
+  let j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldBlocks[i - 1] === newBlocks[j - 1]) {
+      raw.unshift({ type: "same", block: newBlocks[j - 1]! });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i]![j - 1]! >= dp[i - 1]![j]!)) {
+      raw.unshift({ type: "added", block: newBlocks[j - 1]! });
+      j--;
     } else {
-      raw.push({ type: 'removed', char: oldStr[oi - 1]! });
-      oi--;
+      raw.unshift({ type: "removed", block: oldBlocks[i - 1]! });
+      i--;
     }
   }
-  raw.reverse();
-
-  // Merge consecutive segments of the same type
+  const segments: BlockDiffSegment[] = [];
   for (const item of raw) {
-    const last = result[result.length - 1];
-    if (last && last.type === item.type) {
-      last.text += item.char;
+    const last = segments[segments.length - 1];
+    if (last?.type === item.type) {
+      last.blocks.push(item.block);
     } else {
-      result.push({ type: item.type, text: item.char });
+      segments.push({ type: item.type, blocks: [item.block] });
     }
   }
-
-  return result;
+  return segments;
 }
 
-/** Fallback for large text: line-level diff */
-function simpleFallback(oldStr: string, newStr: string): { type: 'same' | 'removed' | 'added'; text: string }[] {
-  if (oldStr === newStr) return [{ type: 'same', text: oldStr }];
-  const result: { type: 'same' | 'removed' | 'added'; text: string }[] = [];
-  if (oldStr) result.push({ type: 'removed', text: oldStr });
-  if (newStr) result.push({ type: 'added', text: newStr });
-  return result;
-}
+// ---------------------------------------------------------------------------
+// WikiDiffView
+// ---------------------------------------------------------------------------
 
-/** Strip HTML tags and decode entities using the browser DOM. */
-function htmlToPlainText(html: string): string {
-  if (!html) return "";
-  if (typeof document === "undefined") return html.replace(/<[^>]*>/g, "");
-  const el = document.createElement("div");
-  el.innerHTML = html;
-  return el.textContent ?? el.innerText ?? "";
-}
-
-function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle, versionContent, versionNumber, onClose, onRestore }: any) {
-  // Compare previous version (old) → this version (new)
-  const oldText = htmlToPlainText(prevContent || "");
-  const newText = htmlToPlainText(versionContent || "");
-  const diffSegments = charDiff(oldText, newText);
-  const titleChanged = prevTitle !== versionTitle;
+function WikiDiffView({
+  prevTitle,
+  prevContent,
+  prevVersionNumber,
+  versionTitle,
+  versionContent,
+  versionNumber,
+  createdAt,
+  onClose,
+  onRestore,
+}: any) {
   const isFirstVersion = prevVersionNumber === null;
+  const titleChanged = prevTitle !== versionTitle;
+
+  const segments = useMemo<BlockDiffSegment[]>(() => {
+    if (isFirstVersion) {
+      return [{ type: "same", blocks: splitIntoBlocks(versionContent || "") }];
+    }
+    return diffBlocks(
+      splitIntoBlocks(prevContent || ""),
+      splitIntoBlocks(versionContent || ""),
+    );
+  }, [isFirstVersion, prevContent, versionContent]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
@@ -835,13 +990,32 @@ function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle,
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
           <Clock className="h-3.5 w-3.5 shrink-0" />
           {isFirstVersion ? (
-            <span>Initial version <span className="text-foreground/70 font-semibold">v{versionNumber}</span></span>
+            <span>
+              Initial version{" "}
+              <span className="text-foreground/70 font-semibold">v{versionNumber}</span>
+            </span>
           ) : (
             <span>
               <span className="text-foreground/50">v{prevVersionNumber}</span>
               <span className="mx-1">→</span>
               <span className="text-foreground/70 font-semibold">v{versionNumber}</span>
             </span>
+          )}
+          {createdAt && (
+            <>
+              <span className="text-muted-foreground/40">·</span>
+              <span>
+                {new Date(createdAt).toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}{" "}
+                {new Date(createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -866,62 +1040,60 @@ function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle,
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content — single view like read mode, changed blocks highlighted */}
       <div className="flex-1 overflow-y-auto pt-8 pb-16">
         <div className="mx-auto max-w-2xl px-6">
           {/* Title */}
-          <div className="mb-8">
+          <div className="mb-6">
             {titleChanged ? (
-              <div className="space-y-2">
-                <div className="text-xs text-muted-foreground font-medium mb-2">Title changed:</div>
-                <div className="space-y-1.5">
-                  <h1 className="text-lg font-bold text-destructive/60 line-through opacity-70">
-                    {prevTitle || "Untitled"}
-                  </h1>
-                  <h1 className="text-2xl font-bold text-foreground bg-primary/10 px-2 py-1 rounded">
-                    {versionTitle}
-                  </h1>
-                </div>
+              <div className="space-y-1.5">
+                <h1 className="text-lg font-bold text-destructive/60 line-through opacity-70">
+                  {prevTitle || "Untitled"}
+                </h1>
+                <h1 className="text-2xl font-bold text-foreground bg-green-500/10 px-2 py-1 rounded">
+                  {versionTitle}
+                </h1>
               </div>
             ) : (
-              <h1 className="text-2xl font-bold text-foreground">
-                {versionTitle}
-              </h1>
+              <h1 className="text-2xl font-bold text-foreground">{versionTitle}</h1>
             )}
           </div>
 
-          {/* Content diff */}
-          <div className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-            <div className="text-sm text-muted-foreground font-medium mb-4">Content changes:</div>
-            <div className="text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground/90">
-              {diffSegments.map((seg, idx) => {
-                if (seg.type === 'same') {
-                  return <span key={idx}>{seg.text}</span>;
-                }
-                if (seg.type === 'removed') {
-                  return (
-                    <span
-                      key={idx}
-                      className="bg-destructive/20 text-destructive line-through rounded px-0.5"
-                    >
-                      {seg.text}
-                    </span>
-                  );
-                }
-                return (
-                  <span
-                    key={idx}
-                    className="bg-green-500/20 text-green-700 dark:text-green-400 rounded px-0.5 font-medium"
-                  >
-                    {seg.text}
-                  </span>
-                );
-              })}
-            </div>
+          {/* Diff content */}
+          <div>
+            {segments.map((segment, idx) => {
+              const content = segment.blocks.join("\n\n");
+
+              if (segment.type === "same") {
+                return <ReadonlyContent key={idx} content={content} />;
+              }
+
+              const pureAttachment = segment.blocks.every(isAttachmentBlock);
+              const diffClass = segment.type === "added" ? "diff-added" : "diff-removed";
+
+              if (pureAttachment) {
+                // Attachment-only block: keep card layout as-is, only border/bg color changes
+                return <ReadonlyContent key={idx} content={content} className={diffClass} />;
+              }
+
+              // Text block: left-border stripe + subtle background tint
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    "border-l-2 pl-3 my-0.5",
+                    segment.type === "added"
+                      ? "border-green-500/50 bg-green-500/6"
+                      : "border-destructive/50 bg-destructive/6 opacity-75",
+                  )}
+                >
+                  <ReadonlyContent content={content} />
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
     </div>
   );
 }
-

@@ -171,10 +171,8 @@ export function WikiPropertySidebar({
     [currentContent, rawHistory],
   );
 
-  if (!isHistoryOpen) return null;
-
   return (
-    <div className="flex h-full w-64 flex-col border-l bg-background">
+    <div className="flex h-full w-full flex-col border-l bg-background">
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
         <span className="text-sm font-semibold text-foreground">Properties</span>

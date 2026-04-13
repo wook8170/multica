@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense, lazy } from "react";
-import { useDefaultLayout } from "react-resizable-panels";
+import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
 import { Library, Plus, Loader2, Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import {
@@ -119,6 +119,18 @@ export function WikiView() {
   const ydocRef = useRef<Y.Doc | null>(null);
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({ id: "multica_wiki_layout" });
+  const propertySidebarRef = usePanelRef();
+
+  // Sync isHistoryOpen → panel collapse/expand
+  useEffect(() => {
+    const panel = propertySidebarRef.current;
+    if (!panel) return;
+    if (isHistoryOpen) {
+      if (panel.isCollapsed()) panel.expand();
+    } else {
+      if (!panel.isCollapsed()) panel.collapse();
+    }
+  }, [isHistoryOpen, propertySidebarRef]);
 
   // Editor state
   const [currentTitle, setCurrentTitle] = useState("");
@@ -677,28 +689,40 @@ export function WikiView() {
         <ResizableHandle />
 
         {/* Main editor */}
-        <ResizablePanel id="wiki-editor" minSize="40%">
-          <div className="flex h-full w-full overflow-hidden">
-            <div className="flex-1 h-full min-w-0 overflow-hidden">
-              {renderMainContent()}
-            </div>
+        <ResizablePanel id="wiki-editor" minSize="30%">
+          {renderMainContent()}
+        </ResizablePanel>
 
-            {/* Properties + History panel */}
-            {selectedId && selectedId !== "new" && (() => {
-              const w = (rawWikis as any[]).find((x: any) => x.id === selectedId);
-              return (
-                <WikiPropertySidebar
-                  wikiId={selectedId}
-                  currentContent={currentContent}
-                  createdBy={w?.created_by}
-                  updatedBy={w?.updated_by}
-                  createdAt={w?.created_at}
-                  updatedAt={w?.updated_at}
-                  onRestore={handleRestore}
-                />
-              );
-            })()}
-          </div>
+        <ResizableHandle />
+
+        {/* Properties sidebar */}
+        <ResizablePanel
+          id="wiki-property"
+          defaultSize={260}
+          minSize={200}
+          maxSize={440}
+          collapsible
+          groupResizeBehavior="preserve-pixel-size"
+          panelRef={propertySidebarRef}
+          onResize={(size) => {
+            const open = size.inPixels > 0;
+            if (open !== isHistoryOpen) setIsHistoryOpen(open);
+          }}
+        >
+          {selectedId && selectedId !== "new" && (() => {
+            const w = (rawWikis as any[]).find((x: any) => x.id === selectedId);
+            return (
+              <WikiPropertySidebar
+                wikiId={selectedId}
+                currentContent={currentContent}
+                createdBy={w?.created_by}
+                updatedBy={w?.updated_by}
+                createdAt={w?.created_at}
+                updatedAt={w?.updated_at}
+                onRestore={handleRestore}
+              />
+            );
+          })()}
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

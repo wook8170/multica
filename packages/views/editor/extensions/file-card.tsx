@@ -20,12 +20,15 @@ import { FileText, Loader2, Download } from "lucide-react";
 // ---------------------------------------------------------------------------
 
 const IMAGE_EXTS = /\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff?)$/i;
+// Uploaded files are keyed as {uuid}.{ext} regardless of CDN/MinIO/S3 domain
+const UPLOAD_UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]+$/i;
 
-/** Check if a URL points to our upload CDN (CloudFront or S3 bucket). */
+/** Check if a URL points to an uploaded file (any storage backend). */
 export function isCdnUrl(url: string): boolean {
   try {
     const u = new URL(url);
     return (
+      UPLOAD_UUID_RE.test(u.pathname) ||
       u.hostname.endsWith(".copilothub.ai") ||
       u.hostname.endsWith(".amazonaws.com")
     );
@@ -34,7 +37,7 @@ export function isCdnUrl(url: string): boolean {
   }
 }
 
-/** Check if a CDN URL is a non-image file that should render as a file card. */
+/** Check if an uploaded URL is a non-image file that should render as a file card. */
 export function isFileCardUrl(url: string): boolean {
   return isCdnUrl(url) && !IMAGE_EXTS.test(new URL(url).pathname);
 }

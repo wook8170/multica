@@ -554,8 +554,6 @@ export function WikiView() {
           versionTitle={selectedVersion.title}
           versionContent={selectedVersion.content}
           versionNumber={selectedVersion.version_number}
-          onClose={() => setViewingVersionId(null)}
-          onRestore={() => handleRestore(selectedVersion)}
         />
       );
     }
@@ -820,7 +818,7 @@ function htmlToPlainText(html: string): string {
   return el.textContent ?? el.innerText ?? "";
 }
 
-function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle, versionContent, versionNumber, onClose, onRestore }: any) {
+function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle, versionContent, versionNumber }: any) {
   // Compare previous version (old) → this version (new)
   const oldText = htmlToPlainText(prevContent || "");
   const newText = htmlToPlainText(versionContent || "");
@@ -843,15 +841,6 @@ function WikiDiffView({ prevTitle, prevContent, prevVersionNumber, versionTitle,
               <span className="text-foreground/70 font-semibold">v{versionNumber}</span>
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-7 px-3 text-xs">
-            Close
-          </Button>
-          <Button variant="default" size="sm" onClick={onRestore} className="h-7 px-3 text-xs font-medium">
-            <ArrowLeft className="mr-1.5 h-3 w-3" />
-            Restore
-          </Button>
         </div>
       </div>
 

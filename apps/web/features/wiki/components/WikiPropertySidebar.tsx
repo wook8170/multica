@@ -57,11 +57,12 @@ export function WikiPropertySidebar({
   const [historyOpen, setHistoryOpen] = useState(true);
   const { getActorName } = useActorName();
 
-  const { data: history = [], isLoading } = useQuery({
+  const { data: rawHistory, isLoading } = useQuery({
     queryKey: ["wiki-history", wikiId],
     queryFn: () => api.getWikiHistory(wikiId),
     enabled: !!wikiId && isHistoryOpen,
   });
+  const history: any[] = Array.isArray(rawHistory) ? rawHistory : [];
 
   if (!isHistoryOpen) return null;
 

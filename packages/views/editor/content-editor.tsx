@@ -1495,7 +1495,7 @@ function RemoteCursor({
     (headPos.y >= scrollContainer.scrollTop &&
       headPos.y <= scrollContainer.scrollTop + scrollContainer.clientHeight &&
       headPos.x >= scrollContainer.scrollLeft &&
-      headPos.x <= scrollContainer.x <= scrollContainer.scrollLeft + scrollContainer.clientWidth);
+      headPos.x <= scrollContainer.scrollLeft + scrollContainer.clientWidth);
 
   if (!isVisibleInScrollContainer) return null;
 

@@ -90,9 +90,7 @@ const TitleEditor = forwardRef<TitleEditorRef, TitleEditorProps>(
 
     const editor = useEditor({
       immediatelyRender: false,
-      content: defaultValue
-        ? { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: defaultValue }] }] }
-        : "",
+      content: `<p>${defaultValue}</p>`,
       extensions: [
         SingleLineDocument,
         Paragraph,

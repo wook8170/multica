@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, X, Clock, Loader2, FileText, Download, Info, Trash2, RotateCcw } from "lucide-react";
+import { ChevronRight, Clock, Loader2, FileText, Download, Info, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@multica/ui/components/ui/button";
 import {
@@ -179,7 +179,7 @@ export function WikiPropertySidebar({
   onRestore,
 }: WikiPropertiesPanelProps) {
   const queryClient = useQueryClient();
-  const { isHistoryOpen, setIsHistoryOpen, viewingVersionId, setViewingVersionId } = useWikiStore();
+  const { isHistoryOpen, viewingVersionId, setViewingVersionId } = useWikiStore();
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [subPagesOpen, setSubPagesOpen] = useState(true);
   const [attachmentsOpen, setAttachmentsOpen] = useState(true);
@@ -221,14 +221,6 @@ export function WikiPropertySidebar({
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
         <span className="text-sm font-semibold text-foreground">Properties</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
-          onClick={() => setIsHistoryOpen(false)}
-        >
-          <X className="h-4 w-4" />
-        </Button>
       </div>
 
       {/* Content */}
@@ -287,16 +279,16 @@ export function WikiPropertySidebar({
               </button>
 
               {attachmentsOpen && (
-                <div className="pl-2 space-y-1.5">
+                <div className="pl-2 space-y-1">
                   {attachments.map((att) => (
                     <a
                       key={att.href}
                       href={att.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex items-center gap-2 rounded-md border border-border/50 bg-accent/10 px-2.5 py-1.5 transition-colors hover:bg-muted no-underline"
+                      className="group flex min-h-8 items-center gap-2 rounded-md border border-border/50 bg-accent/10 px-2.5 py-1 transition-colors hover:bg-muted no-underline"
                     >
-                      <AttachmentFileIcon href={att.href} filename={att.filename} className="h-3.5 w-3.5" />
+                      <AttachmentFileIcon href={att.href} filename={att.filename} className="h-3.5 w-3.5 shrink-0" />
                       <p className="min-w-0 flex-1 truncate text-xs text-foreground/80 leading-tight">
                         {att.filename}
                       </p>
@@ -324,13 +316,13 @@ export function WikiPropertySidebar({
               </button>
 
               {subPagesOpen && (
-                <div className="pl-2 space-y-1.5">
+                <div className="pl-2 space-y-1">
                   {childPages.map((child) => (
                     <button
                       key={child.id}
                       type="button"
                       onClick={() => onNavigateTo?.(child.id)}
-                      className="group flex w-full items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-left transition-colors hover:bg-muted"
+                      className="group flex min-h-8 w-full items-center gap-2 rounded-md border border-border/50 bg-accent/10 px-2.5 py-1 text-left transition-colors hover:bg-muted"
                     >
                       <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <span className="min-w-0 flex-1 truncate text-xs text-foreground/80 leading-tight">

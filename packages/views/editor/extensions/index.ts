@@ -33,10 +33,9 @@ import { TableDeleteShortcutExtension } from "./table-delete-shortcut";
 const lowlight = createLowlight(common);
 
 const LinkEditable = Link.extend({ inclusive: false }).configure({
-  openOnClick: false,
+  openOnClick: true,
   autolink: true,
-  linkOnPaste: true,
-  defaultProtocol: "https",
+  linkOnPaste: false,
 });
 
 const LinkReadonly = Link.configure({
@@ -192,9 +191,6 @@ export function createEditorExtensions(
         return ReactNodeViewRenderer(CodeBlockView);
       },
     }).configure({ lowlight }),
-    // ⚠️ Link MUST appear before markdownPaste in this array.
-    // linkOnPaste relies on Link's handlePaste plugin firing first;
-    // markdownPaste's handlePaste is a catch-all that returns true.
     editable ? LinkEditable : LinkReadonly,
     ImageExtension,
     Table.configure({

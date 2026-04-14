@@ -13,7 +13,6 @@ import {
   useRef,
   useCallback,
   useState,
-  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import * as Y from "yjs";
@@ -54,26 +53,55 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@multica/ui/components/ui/alert-dialog";
-import { EditorBubbleMenu } from "./bubble-menu";
-import { EditorLinkPreview } from "./link-preview";
 import "./content-editor.css";
 import type { AmbiguousPastePayload } from "./extensions/file-upload";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Blob URLs (blob:http://…) are process-local and expire on reload. Strip them
- *  from serialised markdown so they never reach the database. */
-const BLOB_IMAGE_RE = /!\[[^\]]*\]\(blob:[^)]*\)\n?/g;
-
-function stripBlobUrls(md: string): string {
-  return md.replace(BLOB_IMAGE_RE, "");
+interface ContentEditorProps {
+  defaultValue?: string;
+  onUpdate?: (markdown: string) => void;
+  placeholder?: string;
+  editable?: boolean;
+  className?: string;
+  debounceMs?: number;
+  onSubmit?: () => void;
+  onBlur?: () => void;
+  onUploadFile?: (file: File) => Promise<UploadResult | null>;
+  showToolbar?: boolean;
+  // Collaboration (Agent D)
+  ydoc?: any;
+  provider?: any;
+  user?: { name: string; color: string; id?: string };
+  field?: string;
+  showRemoteCursors?: boolean;
+  // When true, forces defaultValue into the editor even if the Yjs fragment already has content
+  // (used for version restore to override collaborative state)
+  forceDefault?: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Constants & Menus
-// ---------------------------------------------------------------------------
+interface ContentEditorRef {
+  getMarkdown: () => string;
+  getBinaryState: () => string | null;
+  restoreBinaryState: (base64State: string) => void;
+  clearContent: () => void;
+  focus: () => void;
+  uploadFile: (file: File) => void;
+}
+
+interface AmbiguousPasteState {
+  open: boolean;
+  files: File[];
+  html: string;
+}
+
+interface TableEdgeControlsState {
+  visible: boolean;
+  rightVisible: boolean;
+  bottomVisible: boolean;
+  rightX: number;
+  rightY: number;
+  bottomX: number;
+  bottomY: number;
+}
 
 const TABLE_BG_COLORS = [
   "#ffffff",
@@ -119,10 +147,6 @@ const TABLE_TEXT_COLOR_MENU = [
   { label: "Gray", value: "#6b7280" },
 ];
 
-// ---------------------------------------------------------------------------
-// Helper Functions
-// ---------------------------------------------------------------------------
-
 function extractFirstTableHtml(html: string): string {
   try {
     const parser = new DOMParser();
@@ -166,59 +190,6 @@ function setEditorContent(editor: any, value: string) { // eslint-disable-line @
     return;
   }
   editor.commands.setContent(preprocessMarkdown(value), { contentType: "markdown" });
-}
-
-// ---------------------------------------------------------------------------
-// Main Component
-// ---------------------------------------------------------------------------
-
-interface ContentEditorProps {
-  defaultValue?: string;
-  onUpdate?: (markdown: string) => void;
-  placeholder?: string;
-  editable?: boolean;
-  className?: string;
-  debounceMs?: number;
-  onSubmit?: () => void;
-  onBlur?: () => void;
-  onUploadFile?: (file: File) => Promise<UploadResult | null>;
-  showToolbar?: boolean;
-  // Collaboration (Agent D)
-  ydoc?: any;
-  provider?: any;
-  user?: { name: string; color: string; id?: string };
-  field?: string;
-  showRemoteCursors?: boolean;
-  // When true, forces defaultValue into the editor even if the Yjs fragment already has content
-  // (used for version restore to override collaborative state)
-  forceDefault?: boolean;
-}
-
-interface ContentEditorRef {
-  getMarkdown: () => string;
-  getBinaryState: () => string | null;
-  restoreBinaryState: (base64State: string) => void;
-  clearContent: () => void;
-  focus: () => void;
-  uploadFile: (file: File) => void;
-  /** True when file uploads are still in progress. */
-  hasActiveUploads: () => boolean;
-}
-
-interface AmbiguousPasteState {
-  open: boolean;
-  files: File[];
-  html: string;
-}
-
-interface TableEdgeControlsState {
-  visible: boolean;
-  rightVisible: boolean;
-  bottomVisible: boolean;
-  rightX: number;
-  rightY: number;
-  bottomX: number;
-  bottomY: number;
 }
 
 const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
@@ -321,7 +292,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         debounceRef.current = setTimeout(() => {
           const nextContent = editorNeedsHtmlPersistence(ed)
             ? ed.getHTML()
-            : stripBlobUrls(ed.getMarkdown()).replace(/&nbsp;/g, " ").replace(/\u00a0/g, " ");
+            : ed.getMarkdown().replace(/&nbsp;/g, " ").replace(/\u00a0/g, " ");
           onUpdateRef.current?.(nextContent);
         }, debounceMs);
       },
@@ -329,37 +300,6 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         onBlurRef.current?.();
       },
       editorProps: {
-        handleDOMEvents: {
-          click(_view, event) {
-            const target = event.target as HTMLElement;
-            // Skip links inside NodeView wrappers — they handle their own clicks
-            if (target.closest("[data-node-view-wrapper]")) return false;
-
-            const link = target.closest("a");
-            const href = link?.getAttribute("href");
-            if (!href || href.startsWith("mention://")) return false;
-
-            if (editable) {
-              // Edit mode: don't open link on click. ProseMirror's
-              // mousedown/mouseup cycle (already completed by the time
-              // this click handler runs) places the cursor on the link.
-              // LinkBubbleMenu detects cursor-on-link and shows the
-              // preview card with Open / Copy / Edit actions.
-              return false;
-            }
-
-            // Readonly mode: open immediately.
-            event.preventDefault();
-            if (href.startsWith("/")) {
-              window.dispatchEvent(
-                new CustomEvent("multica:navigate", { detail: { path: href } }),
-              );
-            } else {
-              window.open(href, "_blank", "noopener,noreferrer");
-            }
-            return true;
-          },
-        },
         attributes: {
           class: cn(
             "rich-text-editor text-sm outline-none px-4 py-3 leading-relaxed",
@@ -391,7 +331,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       ?? editor?.getAttributes("tableHeader").textAlign
       ?? "left") as "left" | "center" | "right";
 
-    const focusEditorAtMouse = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const focusEditorAtMouse = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
       if (!editor) return;
       const currentSelection = editor.state.selection as { constructor?: { name?: string } };
       if (currentSelection?.constructor?.name === "CellSelection") return;
@@ -472,7 +412,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       setTableEdgeControls(nextControls);
     }, [hideTableEdgeControls]);
 
-    const handleEditorMouseMove = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const handleEditorMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
       if (!editable || !editor) {
         hideTableEdgeControls();
         return;
@@ -603,6 +543,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     };
 
     // Awareness: share cursor position and display remote cursors.
+    // Presence layer fully decoupled from Content Sync.
     useEffect(() => {
       if (!editor || !ydoc || !provider || !user) return;
 
@@ -611,6 +552,9 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       let lastCursorState: { from: number; to: number } | null = null;
       let cursorThrottleTimer: ReturnType<typeof setTimeout> | null = null;
 
+      // Local cursor sharing: throttled at 50ms.
+      // No IME guard — awareness must update during Korean composition too,
+      // otherwise the remote avatar freezes and disappears until composition ends.
       const setLocalCursor = () => {
         if (cursorThrottleTimer) return;
 
@@ -630,9 +574,16 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         }, 50);
       };
 
+      // Listen to both selectionUpdate (cursor move) and update (content change during IME)
       editor.on("selectionUpdate", setLocalCursor);
       editor.on("update", setLocalCursor);
 
+      // Receive remote cursors.
+      // Uses the Y.js awareness change payload { added, updated, removed } to apply
+      // surgical updates instead of rebuilding the whole cursor map on every event.
+      // Clients are only removed when they explicitly disconnect (appear in `removed`).
+      // Temporary absence of `cursor` state (e.g., partial awareness updates) is ignored
+      // so the avatar never unmounts and remounts on every keystroke.
       const handleAwarenessChange = (changes: { added: number[]; updated: number[]; removed: number[] } | null) => {
         try {
           const states = awareness.getStates();
@@ -643,9 +594,11 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
             let dirty = false;
 
             if (changes === null) {
+              // Initial population: read all current states
               states.forEach((state: any, clientID: any) => {
                 if (clientID === localStateId) return;
                 if (state?.cursor && state?.user) {
+                  // Key by actual user ID so the same user on reconnect updates in place
                   const userKey = state.user.id || String(clientID);
                   clientUserMapRef.current[String(clientID)] = userKey;
                   cursorLastSeenRef.current[userKey] = now;
@@ -656,12 +609,14 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
               return dirty ? next : prev;
             }
 
+            // Add / update — cancel any pending grace-period removal first
             for (const clientID of [...(changes.added ?? []), ...(changes.updated ?? [])]) {
               if (clientID === localStateId) continue;
               const state = states.get(clientID);
-              if (!state?.cursor || !state?.user) continue;
+              if (!state?.cursor || !state?.user) continue; // partial update — keep last position
               const userKey = state.user.id || String(clientID);
               clientUserMapRef.current[String(clientID)] = userKey;
+              // Cancel grace timer for this user (reconnect case)
               if (removalTimersRef.current[userKey]) {
                 clearTimeout(removalTimersRef.current[userKey]);
                 delete removalTimersRef.current[userKey];
@@ -674,6 +629,8 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
               }
             }
 
+            // Removed clients: look up stable userKey via clientUserMap,
+            // then schedule a short grace period (handles brief network hiccups).
             for (const clientID of (changes.removed ?? [])) {
               const userKey = clientUserMapRef.current[String(clientID)];
               delete clientUserMapRef.current[String(clientID)];
@@ -700,6 +657,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
 
       awareness.on("change", handleAwarenessChange);
 
+      // Stale cursor TTL cleanup: remove ghost cursors not updated for 30 seconds
       const STALE_TTL_MS = 30_000;
       const ttlCleanup = setInterval(() => {
         const now = Date.now();
@@ -716,16 +674,18 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         }
       }, 15_000);
 
+      // Remove cursor on tab hide, restore on tab focus (prevents ghost cursors)
       const handleVisibilityChange = () => {
         if (document.hidden) {
           awareness.setLocalState(null);
         } else {
-          lastCursorState = null;
+          lastCursorState = null; // force re-send
           setLocalCursor();
         }
       };
       document.addEventListener("visibilitychange", handleVisibilityChange);
 
+      // Set initial state
       setLocalCursor();
       handleAwarenessChange(null);
 
@@ -735,6 +695,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         Object.values(removalTimersRef.current).forEach(clearTimeout);
         removalTimersRef.current = {};
         clientUserMapRef.current = {};
+        // Clear local cursor immediately on unmount (document exit)
         awareness.setLocalState(null);
         awareness.off("change", handleAwarenessChange);
         editor.off("selectionUpdate", setLocalCursor);
@@ -743,23 +704,34 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       };
     }, [editor, ydoc, provider, user]);
 
-    // Initial content seeding
+    // Initial content seeding: when the Y.XmlFragment is empty (new doc / first collaborator),
+    // populate it from defaultValue. The Collaboration extension owns all subsequent syncing.
     useEffect(() => {
       if (!editor || !ydoc || !provider) return;
 
       const fieldName = field || "content";
       const seed = () => {
         const fragment = ydoc.getXmlFragment(fieldName);
+        // Seed when: (a) new/empty document, or (b) forceDefault is set (version restore).
+        // forceDefault is read from a ref so the closure always gets the latest value
+        // without adding it as a dep (this effect must only re-run on editor/ydoc/provider change).
+        // Also check editor.isEmpty to catch the case where TipTap initialised an empty
+        // paragraph into the fragment (length > 0 but still visually empty).
         const isEmpty = fragment.length === 0 || editor.isEmpty;
         if ((isEmpty || forceDefaultRef.current) && defaultValue) {
           setEditorContent(editor, defaultValue);
         }
       };
 
+      // Seed immediately so the editor is never blank while waiting for the collab
+      // server. If the server later sends non-empty content, the Collaboration
+      // extension's Yjs merge will take over and update the editor automatically.
       seed();
 
       if (provider.isSynced) return;
 
+      // Also seed after sync in case the server sends a non-empty document
+      // that overwrote our immediate seed (edge case: server has older empty state).
       const onSync = (payload: { state: boolean } | boolean) => {
         const isSynced = typeof payload === "object" ? payload.state : payload;
         if (!isSynced) return;
@@ -809,7 +781,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     }, [editor, editable, defaultValue]);
 
     useImperativeHandle(ref, () => ({
-      getMarkdown: () => stripBlobUrls(editor?.getMarkdown() ?? ""),
+      getMarkdown: () => editor?.getMarkdown() ?? "",
       getBinaryState: () => {
         if (!ydoc) return null;
         const update = Y.encodeStateAsUpdate(ydoc);
@@ -827,27 +799,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         const endPos = editor.state.doc.content.size;
         uploadAndInsertFile(editor, file, onUploadFileRef.current, endPos);
       },
-      hasActiveUploads: () => {
-        if (!editor) return false;
-        let uploading = false;
-        editor.state.doc.descendants((node) => {
-          if (node.attrs.uploading) uploading = true;
-          return !uploading;
-        });
-        return uploading;
-      },
     }));
-
-    const handleContainerMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (!editable || !editor) return;
-
-      const target = event.target as HTMLElement;
-      if (target.closest(".ProseMirror")) return;
-      if (target.closest("a, button, input, textarea, [role='button'], [data-node-view-wrapper]")) return;
-
-      event.preventDefault();
-      editor.commands.focus("end");
-    };
 
     if (!editor) return null;
 
@@ -1110,18 +1062,10 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
               className="flex-1 overflow-y-auto relative pt-7"
               onMouseMove={handleEditorMouseMove}
               onMouseLeave={handleEditorMouseLeave}
-              onMouseDown={handleContainerMouseDown}
             >
-              <EditorContent className="flex-1 min-h-full" editor={editor} />
+              <EditorContent editor={editor} />
 
-              {editable && (
-                <>
-                  <EditorBubbleMenu editor={editor} />
-                  <EditorLinkPreview editor={editor} />
-                </>
-              )}
-
-              {/* Remote user cursors */}
+              {/* Remote user cursors (Presence layer, decoupled from Content) */}
               {showRemoteCursors && Object.entries(remoteCursors).map(([clientID, { user: remoteUser, cursor }]) => {
                 if (!cursor) return null;
                 return (

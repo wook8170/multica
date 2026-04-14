@@ -5,7 +5,7 @@
 
 > 267 routes (17 inferred) + 17 ws | 35 models | 164 components | 137 lib files | 72 env vars | 15 middleware | 18% test coverage
 > **Token savings:** this file is ~21,300 tokens. Without it, AI exploration would cost ~267,100 tokens. **Saves ~245,800 tokens per conversation.**
-> **Last scanned:** 2026-04-13 12:54 — re-run after significant changes
+> **Last scanned:** 2026-04-14 04:27 — re-run after significant changes
 
 ---
 
@@ -659,7 +659,7 @@
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
 - **AttachmentFileIcon** [client] — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
-- **ContentEditor** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **TABLE_BG_COLORS** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **AttachmentCard** [client] — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`

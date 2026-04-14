@@ -144,6 +144,7 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     }
   }, [isHistoryOpen, propertySidebarRef]);
 
+
   // Editor state
   const [currentTitle, setCurrentTitle] = useState("");
   const [currentContent, setCurrentContent] = useState("");
@@ -384,7 +385,7 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
 
   // Autosave: fires 10 seconds after the last title or content change.
   useEffect(() => {
-    if (!selectedId || selectedId === "new" || !mounted) return;
+    if (!selectedId || !mounted) return;
     const last = lastSavedContentRef.current;
     if (last && last.title === currentTitle && last.content === currentContent) return;
 
@@ -423,17 +424,34 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     }
   };
 
+  const createNewMutation = useMutation({
+    mutationFn: (data: { parentId: string | null }) =>
+      api.createWiki({ title: "Untitled", content: "", parent_id: data.parentId ?? undefined }),
+    onSuccess: (result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["wikis"] });
+      if (result && "id" in result) {
+        const newId = (result as any).id; // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (variables.parentId) {
+          const next = new Set(expandedNodes);
+          next.add(variables.parentId);
+          setExpandedNodes(next);
+        }
+        clearTimeout(autosaveTimerRef.current);
+        setSelectedId(newId);
+        setViewingVersionId(null);
+        setParentSelection(null);
+        setCurrentTitle("Untitled");
+        setCurrentContent("");
+        lastSavedContentRef.current = { title: "Untitled", content: "" };
+        setSaveStatus("idle");
+        setRestoreKey(0);
+      }
+    },
+    onError: () => toast.error("Failed to create document."),
+  });
+
   const doCreateNew = (parentId: string | null = null) => {
-    setSelectedId("new");
-    setViewingVersionId(null);
-    setParentSelection(parentId);
-    setCurrentTitle("");
-    setCurrentContent("");
-    if (parentId) {
-      const next = new Set(expandedNodes);
-      next.add(parentId);
-      setExpandedNodes(next);
-    }
+    createNewMutation.mutate({ parentId });
   };
 
   const handleCreateNew = (parentId: string | null = null) => {
@@ -531,7 +549,6 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     setRestoreKey((k) => k + 1);
 
     setViewingVersionId(null);
-    setIsHistoryOpen(false);
 
     // Save restored content to server as a new version (restore = new snapshot)
     if (selectedId && selectedId !== "new") {
@@ -642,17 +659,9 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
           restoreKey={restoreKey}
           title={currentTitle}
           content={currentContent}
-          ancestors={
-            selectedId && selectedId !== "new"
-              ? getAncestors(rawWikis as any[], selectedId)
-              : parentSelection
-                ? getAncestors(rawWikis as any[], parentSelection).concat(
-                    (() => { const p = (rawWikis as any[]).find((w: any) => w.id === parentSelection); return p ? [{ id: p.id, title: p.title }] : []; })()
-                  )
-                : []
-          }
+          ancestors={selectedId ? getAncestors(rawWikis as any[], selectedId) : []}
           childPages={
-            selectedId && selectedId !== "new"
+            selectedId
               ? (rawWikis as any[])
                   .filter((w: any) => w.parent_id === selectedId)
                   .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -663,7 +672,7 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
             const wiki = (rawWikis as any[]).find((w: any) => w.id === id);
             if (wiki) handleSelect(wiki);
           }}
-          onCreateChild={selectedId && selectedId !== "new" ? () => handleCreateNew(selectedId) : undefined}
+          onCreateChild={selectedId ? () => handleCreateNew(selectedId) : undefined}
           onUpdateTitle={setCurrentTitle}
           onUpdateContent={setCurrentContent}
           onSave={handleSave}
@@ -858,14 +867,14 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
             if (open !== isHistoryOpen) setIsHistoryOpen(open);
           }}
         >
-          {selectedId && selectedId !== "new" && (() => {
+          {selectedId && (() => {
             const w = (rawWikis as any[]).find((x: any) => x.id === selectedId);
             const childPages = (rawWikis as any[])
               .filter((x: any) => x.parent_id === selectedId)
               .map((x: any) => ({ id: x.id, title: x.title }));
             return (
               <WikiPropertySidebar
-                wikiId={selectedId}
+                wikiId={w ? selectedId : undefined}
                 currentContent={currentContent}
                 createdBy={w?.created_by}
                 updatedBy={w?.updated_by}
@@ -890,9 +899,60 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
 // Block-level diff helpers
 // ---------------------------------------------------------------------------
 
-/** Split markdown content into top-level blocks separated by blank lines. */
+/** Split markdown content into top-level blocks separated by blank lines, respecting code fences. */
 function splitIntoBlocks(content: string): string[] {
-  return content.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+  if (!content) return [];
+
+  const lines = content.split("\n");
+  const blocks: string[] = [];
+  let currentBlock: string[] = [];
+  let inFence = false;
+  let fenceChar = "";
+  let pendingBlank = false;
+
+  const commit = () => {
+    const joined = currentBlock.join("\n").trim();
+    if (joined) blocks.push(joined);
+    currentBlock = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isBlank = !trimmed;
+
+    if (isBlank) {
+      if (inFence) {
+        currentBlock.push(line);
+      } else {
+        pendingBlank = true;
+      }
+      continue;
+    }
+
+    // Non-blank line — split here if a blank separator was pending and we're outside a fence
+    if (pendingBlank && !inFence) {
+      commit();
+    }
+    pendingBlank = false;
+
+    // Toggle fence state (``` or ~~~)
+    const fenceMatch = /^(```+|~~~+)/.exec(trimmed);
+    if (fenceMatch) {
+      const fence = fenceMatch[1]!.slice(0, 3);
+      if (!inFence) {
+        inFence = true;
+        fenceChar = fence;
+      } else if (fence === fenceChar) {
+        inFence = false;
+        fenceChar = "";
+      }
+    }
+
+    currentBlock.push(line);
+  }
+
+  commit();
+  return blocks;
 }
 
 /** True if a block is a standalone file attachment (fileCard div, CDN image, or CDN link). */
@@ -1099,7 +1159,7 @@ function WikiDiffView({
                     )}
                   >
                     {indicator}
-                    <ReadonlyContent content={block} />
+                    <ReadonlyContent content={block} className={diffClass} />
                   </div>
                 );
               });

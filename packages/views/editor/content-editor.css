@@ -235,13 +235,20 @@
 .rich-text-editor .tableWrapper {
   overflow-x: auto;
   margin: 1rem 0;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
 }
 
 .rich-text-editor table {
   min-width: 100%;
   border-collapse: collapse;
+  border: 1px solid var(--border);
+}
+
+.rich-text-editor .tableWrapper,
+.rich-text-editor .tableWrapper * {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .rich-text-editor colgroup {
@@ -266,6 +273,29 @@
   text-align: left;
   padding: 0.625rem 1rem;
   font-size: 0.875rem;
+}
+
+.rich-text-editor th:not(:last-child),
+.rich-text-editor td:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.rich-text-editor .selectedCell {
+  position: relative;
+}
+
+.rich-text-editor .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
+.rich-text-editor .tableWrapper.ProseMirror-selectednode,
+.rich-text-editor table.ProseMirror-selectednode {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 
 .rich-text-editor th {
@@ -395,13 +425,15 @@
 
 .rich-text-editor.diff-added .attachment-card-shell {
   border-color: color-mix(in srgb, #22c55e 35%, transparent);
-  background: color-mix(in srgb, #22c55e 6%, transparent);
+  background: color-mix(in srgb, #22c55e 12%, var(--muted));
 }
 
 .rich-text-editor.diff-added .attachment-card-shell p,
 .rich-text-editor.diff-added .attachment-card-shell svg,
 .rich-text-editor.diff-added .markdown-file-preview-content,
-.rich-text-editor.diff-added .markdown-file-preview-content * {
+.rich-text-editor.diff-added .markdown-file-preview-content *,
+.rich-text-editor.diff-added .text-file-preview-content,
+.rich-text-editor.diff-added .text-file-preview-content * {
   color: color-mix(in srgb, #16a34a 80%, var(--foreground));
 }
 
@@ -412,14 +444,16 @@
 
 .rich-text-editor.diff-removed .attachment-card-shell {
   border-color: color-mix(in srgb, var(--destructive) 35%, transparent);
-  background: color-mix(in srgb, var(--destructive) 6%, transparent);
+  background: color-mix(in srgb, var(--destructive) 12%, var(--muted));
   opacity: 0.75;
 }
 
 .rich-text-editor.diff-removed .attachment-card-shell p,
 .rich-text-editor.diff-removed .attachment-card-shell svg,
 .rich-text-editor.diff-removed .markdown-file-preview-content,
-.rich-text-editor.diff-removed .markdown-file-preview-content * {
+.rich-text-editor.diff-removed .markdown-file-preview-content *,
+.rich-text-editor.diff-removed .text-file-preview-content,
+.rich-text-editor.diff-removed .text-file-preview-content * {
   color: color-mix(in srgb, var(--destructive) 80%, var(--foreground));
 }
 
@@ -429,8 +463,58 @@
   opacity: 0.75;
 }
 
+/* Attachment card hover in diff view */
+.rich-text-editor.diff-added .attachment-card-header:hover {
+  background: color-mix(in srgb, #22c55e 20%, var(--muted));
+}
+
+.rich-text-editor.diff-added .attachment-action-button:hover {
+  background-color: color-mix(in srgb, #22c55e 15%, var(--muted));
+}
+
+.rich-text-editor.diff-removed .attachment-card-header:hover {
+  background: color-mix(in srgb, var(--destructive) 20%, var(--muted));
+}
+
+.rich-text-editor.diff-removed .attachment-action-button:hover {
+  background-color: color-mix(in srgb, var(--destructive) 15%, var(--muted));
+}
+
+/* Code blocks in diff view */
+.rich-text-editor.diff-added pre {
+  background: color-mix(in srgb, #22c55e 12%, var(--muted));
+  border-color: color-mix(in srgb, #22c55e 35%, transparent);
+}
+
+.rich-text-editor.diff-removed pre {
+  background: color-mix(in srgb, var(--destructive) 12%, var(--muted));
+  border-color: color-mix(in srgb, var(--destructive) 35%, transparent);
+  opacity: 0.75;
+}
+
+/* PDF preview and attachment preview in diff view */
+.rich-text-editor.diff-added .attachment-preview {
+  background: color-mix(in srgb, #22c55e 8%, var(--background));
+  border-color: color-mix(in srgb, #22c55e 35%, transparent);
+}
+
+.rich-text-editor.diff-added .pdf-file-preview {
+  background: color-mix(in srgb, #22c55e 10%, var(--muted));
+}
+
+.rich-text-editor.diff-removed .attachment-preview {
+  background: color-mix(in srgb, var(--destructive) 8%, var(--background));
+  border-color: color-mix(in srgb, var(--destructive) 35%, transparent);
+  opacity: 0.75;
+}
+
+.rich-text-editor.diff-removed .pdf-file-preview {
+  background: color-mix(in srgb, var(--destructive) 10%, var(--muted));
+  opacity: 0.75;
+}
+
 .rich-text-editor .attachment-card-header {
-  min-height: 3.25rem;
+  min-height: 2.75rem;
 }
 
 .rich-text-editor .attachment-preview-loading,
@@ -514,8 +598,6 @@
 }
 
 .rich-text-editor .pdf-file-preview {
-  margin-top: -0.25rem;
-  margin-bottom: 0.75rem;
   height: min(70vh, 640px);
   background: color-mix(in srgb, var(--muted) 45%, transparent);
 }
@@ -537,6 +619,40 @@
 
 .rich-text-editor .markdown-file-preview-content > *:last-child {
   margin-bottom: 0;
+}
+
+.rich-text-editor .text-file-preview-content {
+  max-height: min(60vh, 540px);
+  overflow: auto;
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+}
+
+.rich-text-editor .text-file-preview-pre {
+  margin: 0;
+  padding: 0.875rem 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--foreground);
+  background: transparent;
+}
+
+.rich-text-editor .text-file-preview-pre code {
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+.rich-text-editor .text-file-preview-truncated {
+  padding: 0.5rem 1rem;
+  border-top: 1px dashed var(--border);
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
 }
 
 /* Images — generic fallback (non-NodeView contexts) */

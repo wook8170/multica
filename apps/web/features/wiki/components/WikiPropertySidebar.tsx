@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, X, Clock, ArrowLeft, Loader2, FileText, Download, Info, Trash2 } from "lucide-react";
+import { ChevronRight, X, Clock, Loader2, FileText, Download, Info, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@multica/ui/components/ui/button";
 import {
@@ -153,7 +153,7 @@ interface ChildPage {
 }
 
 interface WikiPropertiesPanelProps {
-  wikiId: string;
+  wikiId?: string;
   currentContent?: string;
   createdBy?: string;
   updatedBy?: string;
@@ -201,7 +201,7 @@ export function WikiPropertySidebar({
   );
 
   const compactHistoryMutation = useMutation({
-    mutationFn: () => api.compactWikiHistory(wikiId),
+    mutationFn: () => api.compactWikiHistory(wikiId!),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ["wiki-history", wikiId] });
       const changedCount = result.deleted_versions + result.cleared_binary_state;
@@ -294,7 +294,7 @@ export function WikiPropertySidebar({
                       href={att.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 transition-colors hover:bg-muted no-underline"
+                      className="group flex items-center gap-2 rounded-md border border-border/50 bg-accent/10 px-2.5 py-1.5 transition-colors hover:bg-muted no-underline"
                     >
                       <AttachmentFileIcon href={att.href} filename={att.filename} className="h-3.5 w-3.5" />
                       <p className="min-w-0 flex-1 truncate text-xs text-foreground/80 leading-tight">
@@ -363,7 +363,7 @@ export function WikiPropertySidebar({
                   size="icon"
                   className="h-6 w-6 text-muted-foreground hover:bg-muted hover:text-foreground"
                   aria-label="Clean history"
-                  disabled={compactHistoryMutation.isPending}
+                  disabled={!wikiId || compactHistoryMutation.isPending}
                   onClick={() => setCompactConfirmOpen(true)}
                 >
                   {compactHistoryMutation.isPending ? (
@@ -414,23 +414,50 @@ export function WikiPropertySidebar({
                     <span className="text-xs text-muted-foreground">No versions yet</span>
                   </div>
                 ) : (
-                  <div className="space-y-0.5">
-                    {(() => {
-                      const maxVer = Math.max(...history.map((v: any) => v.version_number ?? 0));
-                      return history.map((version: any) => {
-                      const isSelected = viewingVersionId === version.id;
-                      const isLatest = version.version_number === maxVer;
+                  <div className="relative pl-4">
+                    {/* Timeline rail — aligned to History chevron center (abs x=23) */}
+                    {/* Context: sidebar p-4 (16) + history body pl-2 (8) = wrapper at x=24. */}
+                    {/* Rail left-[-2px] w-0.5 → abs 22..24, center = 23 = chevron center ✓ */}
+                    <span
+                      aria-hidden
+                      className="absolute left-[-2px] top-0 bottom-0 w-0.5 bg-repeat-y"
+                      style={{
+                        backgroundImage:
+                          "linear-gradient(to bottom, var(--border) 50%, transparent 50%)",
+                        backgroundSize: "2px 6px",
+                      }}
+                    />
+                    <div className="space-y-0.5">
+                      {(() => {
+                        const maxVer = Math.max(...history.map((v: any) => v.version_number ?? 0));
+                        return history.map((version: any) => {
+                        const isSelected = viewingVersionId === version.id;
+                        const isLatest = version.version_number === maxVer;
 
-                      return (
-                        <div
-                          key={version.id}
-                          onClick={() => setViewingVersionId(isSelected ? null : version.id)}
-                          className={cn(
-                            "group flex flex-col gap-1 rounded-md px-2 py-2 -mx-2 cursor-pointer transition-colors",
-                            isSelected ? "bg-primary/10" : "hover:bg-accent/50",
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-2 min-w-0">
+                        return (
+                          <div
+                            key={version.id}
+                            onClick={() => setViewingVersionId(isSelected ? null : version.id)}
+                            className={cn(
+                              "group relative flex flex-col gap-0.5 rounded-md px-2 py-2 cursor-pointer transition-colors",
+                              isSelected ? "bg-primary/10" : "hover:bg-muted",
+                            )}
+                          >
+                            {/* Timeline dot — center at abs x=23 (chevron center) */}
+                            {/* card abs left = 40 (16 + 8 + 16). size-[10px], left-[-22px] → abs 18..28, center = 23 ✓ */}
+                            <span
+                              aria-hidden
+                              className={cn(
+                                "absolute left-[-22px] top-1/2 -translate-y-1/2 size-[10px] rounded-full ring-2 ring-background transition-[background-color,border-color]",
+                                isLatest
+                                  ? "bg-primary shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_20%,transparent)]"
+                                  : isSelected
+                                    ? "bg-muted-foreground/70"
+                                    : "bg-background border border-muted-foreground/40 group-hover:border-muted-foreground/70",
+                              )}
+                            />
+
+                            {/* Row 1: version label */}
                             <div className="flex items-center gap-1.5 min-w-0">
                               {isLatest ? (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-semibold leading-none shrink-0">
@@ -445,37 +472,41 @@ export function WikiPropertySidebar({
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-muted-foreground/60 truncate shrink-0">
-                              {new Date(version.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                              {" · "}
-                              {new Date(version.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </span>
-                          </div>
 
-                          {version.created_by && (
-                            <div className="flex items-center gap-1.5">
-                              <ActorAvatar actorType="member" actorId={version.created_by} size={14} />
-                              <span className="text-[11px] text-muted-foreground/70 truncate">
-                                {getActorName("member", version.created_by)}
+                            {/* Row 2: date · time + restore button (always rendered, invisible when latest) */}
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                              <span className="text-[10px] text-muted-foreground/60 shrink-0">
+                                {new Date(version.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                {" · "}
+                                {new Date(version.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                               </span>
+                              {!isLatest && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => { e.stopPropagation(); onRestore?.(version); }}
+                                  className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-40 transition-opacity"
+                                  title="Restore this version"
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                </Button>
+                              )}
                             </div>
-                          )}
 
-                          {isSelected && !isLatest && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={(e) => { e.stopPropagation(); onRestore?.(version); }}
-                              className="h-6 px-2 text-xs font-medium mt-1 w-full"
-                            >
-                              <ArrowLeft className="mr-1 h-3 w-3" />
-                              Restore
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    });
-                    })()}
+                            {/* Row 3: author */}
+                            {version.created_by && (
+                              <div className="flex items-center gap-1.5">
+                                <ActorAvatar actorType="member" actorId={version.created_by} size={14} />
+                                <span className="text-[11px] text-muted-foreground/70 truncate">
+                                  {getActorName("member", version.created_by)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                      })()}
+                    </div>
                   </div>
                 )}
               </div>

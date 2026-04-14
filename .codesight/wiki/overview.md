@@ -14,9 +14,9 @@
 
 - **[Auth](./auth.md)** — 5 routes — touches: auth, db, payment, upload
 - **[Payments](./payments.md)** — 5 routes — touches: auth, db, payment, upload, cache
-- **[X-Agent-ID](./X-Agent-ID.md)** — 1 routes — touches: auth, db
-- **[X-Task-ID](./X-Task-ID.md)** — 1 routes — touches: auth, db
-- **[X-User-ID](./X-User-ID.md)** — 1 routes — touches: auth, db
+- **[X-Agent-ID](./x-agent-id.md)** — 1 routes — touches: auth, db
+- **[X-Task-ID](./x-task-id.md)** — 1 routes — touches: auth, db
+- **[X-User-ID](./x-user-id.md)** — 1 routes — touches: auth, db
 - **[Active-task](./active-task.md)** — 2 routes — touches: auth, db, payment, upload
 - **[Activity](./activity.md)** — 2 routes — touches: auth, db, payment, upload
 - **[Agent](./agent.md)** — 1 routes — touches: auth, db, queue
@@ -120,4 +120,4 @@ Changes to these files have the widest blast radius across the codebase:
 - _...26 more_
 
 ---
-_Back to [index.md](./index.md) · Generated 2026-04-13_
+_Back to [index.md](./index.md) · Generated 2026-04-14_

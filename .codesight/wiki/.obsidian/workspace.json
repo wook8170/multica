@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "wiki.md",
-                "mode": "source",
-                "source": false
+                "file": "wikis.md",
+                "mode": "preview",
+                "source": true
               },
               "icon": "lucide-file",
-              "title": "wiki"
+              "title": "wikis"
             }
           }
         ]
@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "index",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -74,7 +74,8 @@
               "title": "북마크"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
@@ -185,6 +186,11 @@
   },
   "active": "47f76fdedf46a1fa",
   "lastOpenFiles": [
+    "index.md",
+    "wiki.md",
+    "database.md",
+    "usage.md",
+    "wikis.md",
     "workspace-id.md",
     "workspaces.md",
     "X-Agent-ID.md",
@@ -192,14 +198,10 @@
     "X-User-ID.md",
     "comment.md",
     "batch-update.md",
-    "database.md",
     "log.md",
     "ui.md",
-    "index.md",
     "runtime.md",
     "search.md",
-    "wiki.md",
-    "wikis.md",
     "overview.md",
     "api.md",
     "archive.md",
@@ -209,7 +211,6 @@
     "archive-all-read.md",
     "archive-all.md",
     "agents.md",
-    "agent.md",
-    "activity.md"
+    "agent.md"
   ]
 }

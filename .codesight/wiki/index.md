@@ -1,6 +1,6 @@
 # multica — Wiki
 
-_Generated 2026-04-13 — re-run `npx codesight --wiki` if the codebase has changed._
+_Generated 2026-04-14 — re-run `npx codesight --wiki` if the codebase has changed._
 
 Structural map compiled from source code via AST. No LLM — deterministic, 200ms.
 
@@ -12,9 +12,9 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Database](./database.md)
 - [Auth](./auth.md)
 - [Payments](./payments.md)
-- [X-Agent-ID](./X-Agent-ID.md)
-- [X-Task-ID](./X-Task-ID.md)
-- [X-User-ID](./X-User-ID.md)
+- [X-agent-id](./x-agent-id.md)
+- [X-task-id](./x-task-id.md)
+- [X-user-id](./x-user-id.md)
 - [Active-task](./active-task.md)
 - [Activity](./activity.md)
 - [Agent](./agent.md)
@@ -118,4 +118,4 @@ These exist in your codebase but are **not** reflected in wiki articles:
 When in doubt, search the source. The wiki is a starting point, not a complete inventory.
 
 ---
-_Last compiled: 2026-04-13 · 78 articles · [codesight](https://github.com/Houseofmvps/codesight)_
+_Last compiled: 2026-04-14 · 78 articles · [codesight](https://github.com/Houseofmvps/codesight)_

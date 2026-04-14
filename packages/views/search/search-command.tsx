@@ -1,7 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clock, FileText, FolderKanban, Loader2, MessageSquare, SearchIcon } from "lucide-react";
+import {
+  Clock,
+  FileText,
+  Loader2,
+  MessageSquare,
+  SearchIcon,
+  Inbox,
+  CircleUser,
+  ListTodo,
+  FolderKanban,
+  Bot,
+  Monitor,
+  BookOpenText,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 import { Command as CommandPrimitive } from "cmdk";
 import type { SearchIssueResult, SearchProjectResult, SearchWikiResult } from "@multica/core/types";
 import { api } from "@multica/core/api";
@@ -56,6 +71,25 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   );
 }
 
+interface NavPage {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  keywords: string[];
+}
+
+const navPages: NavPage[] = [
+  { href: "/inbox", label: "Inbox", icon: Inbox, keywords: ["inbox", "notifications"] },
+  { href: "/my-issues", label: "My Issues", icon: CircleUser, keywords: ["my", "issues", "assigned"] },
+  { href: "/issues", label: "Issues", icon: ListTodo, keywords: ["issues", "tasks", "bugs"] },
+  { href: "/projects", label: "Projects", icon: FolderKanban, keywords: ["projects", "kanban"] },
+  { href: "/wiki", label: "Wiki", icon: BookOpenText, keywords: ["wiki", "documents", "knowledge"] },
+  { href: "/agents", label: "Agents", icon: Bot, keywords: ["agents", "bots", "ai"] },
+  { href: "/runtimes", label: "Runtimes", icon: Monitor, keywords: ["runtimes", "environments"] },
+  { href: "/skills", label: "Skills", icon: BookOpenText, keywords: ["skills", "library"] },
+  { href: "/settings", label: "Settings", icon: Settings, keywords: ["settings", "config", "preferences"] },
+];
+
 interface SearchResults {
   issues: SearchIssueResult[];
   projects: SearchProjectResult[];
@@ -73,9 +107,18 @@ export function SearchCommand() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const filteredPages = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return navPages.filter(
+      (page) =>
+        page.label.toLowerCase().includes(q) ||
+        page.keywords.some((kw) => kw.includes(q)),
+    );
+  }, [query]);
+
   const hasResults = results.issues.length > 0 || results.projects.length > 0 || (results.wikis?.length ?? 0) > 0;
 
-  // Global Cmd+K / Ctrl+K shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -87,7 +130,6 @@ export function SearchCommand() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Close on single ESC — capture phase fires before base-ui Dialog's handlers
   useEffect(() => {
     if (!open) return;
     const handleEsc = (e: KeyboardEvent) => {
@@ -101,7 +143,6 @@ export function SearchCommand() {
     return () => document.removeEventListener("keydown", handleEsc, true);
   }, [open, setOpen]);
 
-  // Cleanup debounce/abort on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -109,7 +150,6 @@ export function SearchCommand() {
     };
   }, []);
 
-  // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setQuery("");
@@ -184,6 +224,14 @@ export function SearchCommand() {
     [push, setOpen],
   );
 
+  const handlePageSelect = useCallback(
+    (href: string) => {
+      setOpen(false);
+      push(href);
+    },
+    [push, setOpen],
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
@@ -193,14 +241,13 @@ export function SearchCommand() {
         <DialogHeader className="sr-only">
           <DialogTitle>Search</DialogTitle>
           <DialogDescription>
-            Search issues and projects by title or description
+            Search pages, issues, and projects
           </DialogDescription>
         </DialogHeader>
         <CommandPrimitive
           shouldFilter={false}
           className="flex size-full flex-col overflow-hidden rounded-xl bg-popover text-popover-foreground"
         >
-          {/* Search input */}
           <div className="flex items-center gap-3 border-b px-4 py-3">
             <SearchIcon className="size-5 shrink-0 text-muted-foreground" />
             <CommandPrimitive.Input
@@ -214,15 +261,35 @@ export function SearchCommand() {
             </kbd>
           </div>
 
-          {/* Results list */}
           <CommandPrimitive.List className="max-h-[min(400px,50vh)] overflow-y-auto overflow-x-hidden">
+            {filteredPages.length > 0 && (
+              <CommandPrimitive.Group className="p-2">
+                <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  Pages
+                </div>
+                {filteredPages.map((page) => (
+                  <CommandPrimitive.Item
+                    key={page.href}
+                    value={`page:${page.href}`}
+                    onSelect={() => handlePageSelect(page.href)}
+                    className="flex cursor-default select-none items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-accent"
+                  >
+                    <page.icon className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">
+                      <HighlightText text={page.label} query={query} />
+                    </span>
+                  </CommandPrimitive.Item>
+                ))}
+              </CommandPrimitive.Group>
+            )}
+
             {isLoading && (
               <div className="flex items-center justify-center py-10">
                 <Loader2 className="size-5 animate-spin text-muted-foreground" />
               </div>
             )}
 
-            {!isLoading && query.trim() && !hasResults && (
+            {!isLoading && query.trim() && !hasResults && filteredPages.length === 0 && (
               <CommandPrimitive.Empty className="py-10 text-center text-sm text-muted-foreground">
                 No results found.
               </CommandPrimitive.Empty>

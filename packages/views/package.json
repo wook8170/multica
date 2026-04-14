@@ -21,7 +21,6 @@
     "./projects/components": "./projects/components/index.ts",
     "./modals/registry": "./modals/registry.tsx",
     "./modals/create-issue": "./modals/create-issue.tsx",
-    "./modals/create-workspace": "./modals/create-workspace.tsx",
     "./my-issues": "./my-issues/index.ts",
     "./skills": "./skills/index.ts",
     "./agents": "./agents/index.ts",
@@ -32,7 +31,8 @@
     "./auth": "./auth/index.ts",
     "./search": "./search/index.ts",
     "./chat": "./chat/index.ts",
-    "./settings": "./settings/index.ts"
+    "./settings": "./settings/index.ts",
+    "./onboarding": "./onboarding/index.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -40,6 +40,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@floating-ui/dom": "^1.7.6",
+    "@floating-ui/react-dom": "^2.1.8",
     "@hocuspocus/provider": "catalog:",
     "@multica/core": "workspace:*",
     "@multica/ui": "workspace:*",
@@ -93,6 +94,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "jsdom": "catalog:",
+    "rehype-sanitize": "^6.0.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

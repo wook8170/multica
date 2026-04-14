@@ -2,11 +2,12 @@
 
 > **Navigation aid.** Component inventory and prop signatures extracted via AST. Read the source files before adding props or modifying component logic.
 
-**164 components** (react)
+**174 components** (react)
 
 ## Client Components
 
 - **Page** — `apps/web/app/(auth)/login/page.tsx`
+- **OnboardingPage** — `apps/web/app/(auth)/onboarding/page.tsx`
 - **IssueDetailPage** — props: params — `apps/web/app/(dashboard)/issues/[id]/page.tsx`
 - **Page** — `apps/web/app/(dashboard)/issues/page.tsx`
 - **Layout** — `apps/web/app/(dashboard)/layout.tsx`
@@ -34,10 +35,10 @@
 - **WebNavigationProvider** — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** — props: store — `packages/core/issues/stores/view-store-context.tsx`
-- **AuthInitializer** — props: onLogin, onLogout, storage — `packages/core/platform/auth-initializer.tsx`
-- **CoreProvider** — props: apiBaseUrl, wsUrl, storage, onLogin, onLogout — `packages/core/platform/core-provider.tsx`
-- **QueryProvider** — props: showDevtools — `packages/core/provider.tsx`
-- **WSProvider** — props: wsUrl, authStore, workspaceStore, storage, onToast — `packages/core/realtime/provider.tsx`
+- **AuthInitializer** — props: onLogin, onLogout, storage, cookieAuth — `packages/core/platform/auth-initializer.tsx`
+- **CoreProvider** — props: apiBaseUrl, wsUrl, storage, cookieAuth, onLogin, onLogout — `packages/core/platform/core-provider.tsx`
+- **QueryProvider** — `packages/core/provider.tsx`
+- **WSProvider** — props: wsUrl, authStore, workspaceStore, storage, cookieAuth, onToast — `packages/core/realtime/provider.tsx`
 - **AgentDetail** — props: agent, runtimes, onUpdate, onArchive, onRestore — `packages/views/agents/components/agent-detail.tsx`
 - **AgentListItem** — props: agent, isSelected, onClick — `packages/views/agents/components/agent-list-item.tsx`
 - **AgentsPage** — `packages/views/agents/components/agents-page.tsx`
@@ -46,20 +47,23 @@
 - **SettingsTab** — props: agent, runtimes, onSave — `packages/views/agents/components/tabs/settings-tab.tsx`
 - **SkillsTab** — props: agent — `packages/views/agents/components/tabs/skills-tab.tsx`
 - **TasksTab** — props: agent — `packages/views/agents/components/tabs/tasks-tab.tsx`
-- **LoginPage** — props: logo, onSuccess, google, cliCallback, lastWorkspaceId, onTokenObtained — `packages/views/auth/login-page.tsx`
+- **LoginPage** — props: logo, onSuccess, google, cliCallback, lastWorkspaceId, onTokenObtained, onGoogleLogin — `packages/views/auth/login-page.tsx`
 - **ChatFab** — `packages/views/chat/components/chat-fab.tsx`
 - **ChatInput** — props: onSend, onStop, isRunning, disabled — `packages/views/chat/components/chat-input.tsx`
-- **ChatMessageList** — props: messages, agent, timelineItems, isWaiting — `packages/views/chat/components/chat-message-list.tsx`
+- **ChatMessageList** — props: messages, timelineItems, isWaiting — `packages/views/chat/components/chat-message-list.tsx`
+- **ChatResizeHandles** — props: onDragStart — `packages/views/chat/components/chat-resize-handles.tsx`
 - **ChatSessionHistory** — `packages/views/chat/components/chat-session-history.tsx`
 - **ChatWindow** — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
 - **Markdown** — `packages/views/common/markdown.tsx`
 - **AttachmentFileIcon** — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
+- **MarkButton** — props: editor, mark, icon, label, shortcut — `packages/views/editor/bubble-menu.tsx`
 - **CodeBlockView** — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **AttachmentCard** — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** — props: node — `packages/views/editor/extensions/mention-view.tsx`
+- **LinkPreviewCard** — props: href, onMouseDown — `packages/views/editor/link-preview.tsx`
 - **MermaidViewer** — props: content — `packages/views/editor/mermaid-viewer.tsx`
 - **ReadonlyContent** — props: content, className — `packages/views/editor/readonly-content.tsx`
 - **SingleLineDocument** — props: defaultValue, placeholder, className, autoFocus, onSubmit, onBlur, onChange — `packages/views/editor/title-editor.tsx`
@@ -93,8 +97,8 @@
 - **StatusPicker** — props: status, onUpdate, customTrigger, triggerRender, controlledOpen, controlledOnOpenChange, align — `packages/views/issues/components/pickers/status-picker.tsx`
 - **ReplyInput** — props: issueId, placeholder, avatarType, avatarId, onSubmit, size — `packages/views/issues/components/reply-input.tsx`
 - **AppSidebar** — props: topSlot, searchSlot, headerClassName, headerStyle — `packages/views/layout/app-sidebar.tsx`
-- **DashboardGuard** — props: loginPath, loadingFallback — `packages/views/layout/dashboard-guard.tsx`
-- **DashboardLayout** — props: extra, searchSlot, loadingIndicator — `packages/views/layout/dashboard-layout.tsx`
+- **DashboardGuard** — props: loginPath, onboardingPath, loadingFallback — `packages/views/layout/dashboard-guard.tsx`
+- **DashboardLayout** — props: extra, searchSlot, loadingIndicator, loginPath, onboardingPath — `packages/views/layout/dashboard-layout.tsx`
 - **CreateIssueModal** — props: onClose, data — `packages/views/modals/create-issue.tsx`
 - **CreateWorkspaceModal** — props: onClose — `packages/views/modals/create-workspace.tsx`
 - **ModalRegistry** — `packages/views/modals/registry.tsx`
@@ -102,6 +106,11 @@
 - **MyIssuesPage** — `packages/views/my-issues/components/my-issues-page.tsx`
 - **AppLink** — props: href, onClick — `packages/views/navigation/app-link.tsx`
 - **NavigationProvider** — props: value — `packages/views/navigation/context.tsx`
+- **OnboardingWizard** — props: onComplete — `packages/views/onboarding/onboarding-wizard.tsx`
+- **StepAgent** — props: wsId, onNext, onAgentCreated — `packages/views/onboarding/step-agent.tsx`
+- **StepComplete** — props: wsId, agent, onEnter — `packages/views/onboarding/step-complete.tsx`
+- **StepRuntime** — props: wsId, onNext — `packages/views/onboarding/step-runtime.tsx`
+- **StepWorkspace** — props: onNext — `packages/views/onboarding/step-workspace.tsx`
 - **ProjectDetail** — props: projectId — `packages/views/projects/components/project-detail.tsx`
 - **ProjectPicker** — props: projectId, onUpdate, triggerRender, align — `packages/views/projects/components/project-picker.tsx`
 - **ProjectsPage** — `packages/views/projects/components/projects-page.tsx`
@@ -127,6 +136,7 @@
 - **DesktopShell** — `apps/desktop/src/renderer/src/components/desktop-layout.tsx`
 - **TabBar** — `apps/desktop/src/renderer/src/components/tab-bar.tsx`
 - **TabContent** — `apps/desktop/src/renderer/src/components/tab-content.tsx`
+- **UpdateNotification** — `apps/desktop/src/renderer/src/components/update-notification.tsx`
 - **IssueDetailPage** — `apps/desktop/src/renderer/src/pages/issue-detail-page.tsx`
 - **DesktopLoginPage** — `apps/desktop/src/renderer/src/pages/login.tsx`
 - **ProjectDetailPage** — `apps/desktop/src/renderer/src/pages/project-detail-page.tsx`
@@ -154,7 +164,7 @@
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **WikiEditor** — props: id, title, content, restoreKey, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile — `apps/web/features/wiki/components/WikiEditor.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
-- **TABLE_BG_COLORS** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **BLOB_IMAGE_RE** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`
 - **PriorityIcon** — props: priority, className, inheritColor — `packages/views/issues/components/priority-icon.tsx`
 - **ProgressRing** — props: done, total, size — `packages/views/issues/components/progress-ring.tsx`

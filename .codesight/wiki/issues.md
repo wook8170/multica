@@ -2,11 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Issues subsystem handles **20 routes** and touches: auth, db, payment.
+The Issues subsystem handles **22 routes** and touches: auth, db, payment.
 
 ## Routes
 
 - `GET` `/api/issues/search` [auth, db, payment, upload]
+  `server/cmd/server/router.go`
+- `GET` `/api/issues/child-progress` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `GET` `/api/issues` [auth, db, payment, upload]
   `server/cmd/server/router.go`
@@ -45,6 +47,8 @@ The Issues subsystem handles **20 routes** and touches: auth, db, payment.
 - `GET` `/api/issues/attachments` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `GET` `/api/issues/children` [auth, db, payment, upload]
+  `server/cmd/server/router.go`
+- `GET` `/issues/{issueId}/gc-check` params(issueId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

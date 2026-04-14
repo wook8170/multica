@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Tasks subsystem handles **13 routes** and touches: auth, db, payment.
+The Tasks subsystem handles **14 routes** and touches: auth, db, payment.
 
 ## Routes
 
@@ -27,6 +27,8 @@ The Tasks subsystem handles **13 routes** and touches: auth, db, payment.
 - `GET` `/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `POST` `/tasks/{taskId}/cancel` params(taskId) [auth, db, payment, upload]
+  `server/cmd/server/router.go`
+- `GET` `/api/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `GET` `/tasks` [auth, db, payment, upload]
   `server/cmd/server/router.go`

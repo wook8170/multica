@@ -4,6 +4,7 @@
 - **DesktopShell** — `apps/desktop/src/renderer/src/components/desktop-layout.tsx`
 - **TabBar** — `apps/desktop/src/renderer/src/components/tab-bar.tsx`
 - **TabContent** — `apps/desktop/src/renderer/src/components/tab-content.tsx`
+- **UpdateNotification** — `apps/desktop/src/renderer/src/components/update-notification.tsx`
 - **IssueDetailPage** — `apps/desktop/src/renderer/src/pages/issue-detail-page.tsx`
 - **DesktopLoginPage** — `apps/desktop/src/renderer/src/pages/login.tsx`
 - **ProjectDetailPage** — `apps/desktop/src/renderer/src/pages/project-detail-page.tsx`
@@ -16,6 +17,7 @@
 - **Layout** — `apps/docs/app/docs/layout.tsx`
 - **Layout** — `apps/docs/app/layout.tsx`
 - **Page** [client] — `apps/web/app/(auth)/login/page.tsx`
+- **OnboardingPage** [client] — `apps/web/app/(auth)/onboarding/page.tsx`
 - **IssueDetailPage** [client] — props: params — `apps/web/app/(dashboard)/issues/[id]/page.tsx`
 - **Page** [client] — `apps/web/app/(dashboard)/issues/page.tsx`
 - **Layout** [client] — `apps/web/app/(dashboard)/layout.tsx`
@@ -58,10 +60,10 @@
 - **WebNavigationProvider** [client] — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** [client] — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** [client] — props: store — `packages/core/issues/stores/view-store-context.tsx`
-- **AuthInitializer** [client] — props: onLogin, onLogout, storage — `packages/core/platform/auth-initializer.tsx`
-- **CoreProvider** [client] — props: apiBaseUrl, wsUrl, storage, onLogin, onLogout — `packages/core/platform/core-provider.tsx`
-- **QueryProvider** [client] — props: showDevtools — `packages/core/provider.tsx`
-- **WSProvider** [client] — props: wsUrl, authStore, workspaceStore, storage, onToast — `packages/core/realtime/provider.tsx`
+- **AuthInitializer** [client] — props: onLogin, onLogout, storage, cookieAuth — `packages/core/platform/auth-initializer.tsx`
+- **CoreProvider** [client] — props: apiBaseUrl, wsUrl, storage, cookieAuth, onLogin, onLogout — `packages/core/platform/core-provider.tsx`
+- **QueryProvider** [client] — `packages/core/provider.tsx`
+- **WSProvider** [client] — props: wsUrl, authStore, workspaceStore, storage, cookieAuth, onToast — `packages/core/realtime/provider.tsx`
 - **AgentDetail** [client] — props: agent, runtimes, onUpdate, onArchive, onRestore — `packages/views/agents/components/agent-detail.tsx`
 - **AgentListItem** [client] — props: agent, isSelected, onClick — `packages/views/agents/components/agent-list-item.tsx`
 - **AgentsPage** [client] — `packages/views/agents/components/agents-page.tsx`
@@ -70,23 +72,26 @@
 - **SettingsTab** [client] — props: agent, runtimes, onSave — `packages/views/agents/components/tabs/settings-tab.tsx`
 - **SkillsTab** [client] — props: agent — `packages/views/agents/components/tabs/skills-tab.tsx`
 - **TasksTab** [client] — props: agent — `packages/views/agents/components/tabs/tasks-tab.tsx`
-- **LoginPage** [client] — props: logo, onSuccess, google, cliCallback, lastWorkspaceId, onTokenObtained — `packages/views/auth/login-page.tsx`
+- **LoginPage** [client] — props: logo, onSuccess, google, cliCallback, lastWorkspaceId, onTokenObtained, onGoogleLogin — `packages/views/auth/login-page.tsx`
 - **ChatFab** [client] — `packages/views/chat/components/chat-fab.tsx`
 - **ChatInput** [client] — props: onSend, onStop, isRunning, disabled — `packages/views/chat/components/chat-input.tsx`
-- **ChatMessageList** [client] — props: messages, agent, timelineItems, isWaiting — `packages/views/chat/components/chat-message-list.tsx`
+- **ChatMessageList** [client] — props: messages, timelineItems, isWaiting — `packages/views/chat/components/chat-message-list.tsx`
+- **ChatResizeHandles** [client] — props: onDragStart — `packages/views/chat/components/chat-resize-handles.tsx`
 - **ChatSessionHistory** [client] — `packages/views/chat/components/chat-session-history.tsx`
 - **ChatWindow** [client] — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** [client] — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
 - **AttachmentFileIcon** [client] — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
-- **TABLE_BG_COLORS** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **MarkButton** [client] — props: editor, mark, icon, label, shortcut — `packages/views/editor/bubble-menu.tsx`
+- **BLOB_IMAGE_RE** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **AttachmentCard** [client] — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** [client] — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** [client] — props: node — `packages/views/editor/extensions/mention-view.tsx`
 - **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`
+- **LinkPreviewCard** [client] — props: href, onMouseDown — `packages/views/editor/link-preview.tsx`
 - **MermaidViewer** [client] — props: content — `packages/views/editor/mermaid-viewer.tsx`
 - **ReadonlyContent** [client] — props: content, className — `packages/views/editor/readonly-content.tsx`
 - **SingleLineDocument** [client] — props: defaultValue, placeholder, className, autoFocus, onSubmit, onBlur, onChange — `packages/views/editor/title-editor.tsx`
@@ -123,8 +128,8 @@
 - **ReplyInput** [client] — props: issueId, placeholder, avatarType, avatarId, onSubmit, size — `packages/views/issues/components/reply-input.tsx`
 - **StatusIcon** — props: status, className, inheritColor — `packages/views/issues/components/status-icon.tsx`
 - **AppSidebar** [client] — props: topSlot, searchSlot, headerClassName, headerStyle — `packages/views/layout/app-sidebar.tsx`
-- **DashboardGuard** [client] — props: loginPath, loadingFallback — `packages/views/layout/dashboard-guard.tsx`
-- **DashboardLayout** [client] — props: extra, searchSlot, loadingIndicator — `packages/views/layout/dashboard-layout.tsx`
+- **DashboardGuard** [client] — props: loginPath, onboardingPath, loadingFallback — `packages/views/layout/dashboard-guard.tsx`
+- **DashboardLayout** [client] — props: extra, searchSlot, loadingIndicator, loginPath, onboardingPath — `packages/views/layout/dashboard-layout.tsx`
 - **CreateIssueModal** [client] — props: onClose, data — `packages/views/modals/create-issue.tsx`
 - **CreateWorkspaceModal** [client] — props: onClose — `packages/views/modals/create-workspace.tsx`
 - **ModalRegistry** [client] — `packages/views/modals/registry.tsx`
@@ -132,6 +137,11 @@
 - **MyIssuesPage** [client] — `packages/views/my-issues/components/my-issues-page.tsx`
 - **AppLink** [client] — props: href, onClick — `packages/views/navigation/app-link.tsx`
 - **NavigationProvider** [client] — props: value — `packages/views/navigation/context.tsx`
+- **OnboardingWizard** [client] — props: onComplete — `packages/views/onboarding/onboarding-wizard.tsx`
+- **StepAgent** [client] — props: wsId, onNext, onAgentCreated — `packages/views/onboarding/step-agent.tsx`
+- **StepComplete** [client] — props: wsId, agent, onEnter — `packages/views/onboarding/step-complete.tsx`
+- **StepRuntime** [client] — props: wsId, onNext — `packages/views/onboarding/step-runtime.tsx`
+- **StepWorkspace** [client] — props: onNext — `packages/views/onboarding/step-workspace.tsx`
 - **ProjectDetail** [client] — props: projectId — `packages/views/projects/components/project-detail.tsx`
 - **ProjectPicker** [client] — props: projectId, onUpdate, triggerRender, align — `packages/views/projects/components/project-picker.tsx`
 - **ProjectsPage** [client] — `packages/views/projects/components/projects-page.tsx`

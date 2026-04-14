@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Issue subsystem handles **7 routes** and touches: auth, db, queue.
+The Issue subsystem handles **8 routes** and touches: auth, db, queue.
 
 ## Routes
 
@@ -17,6 +17,8 @@ The Issue subsystem handles **7 routes** and touches: auth, db, queue.
 - `GET` `assignee_ids` [auth, db, queue, upload]
   `server/internal/handler/issue.go`
 - `GET` `creator_id` [auth, db, queue, upload]
+  `server/internal/handler/issue.go`
+- `GET` `project_id` [auth, db, queue, upload]
   `server/internal/handler/issue.go`
 - `GET` `open_only` [auth, db, queue, upload]
   `server/internal/handler/issue.go`

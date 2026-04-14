@@ -1,5 +1,6 @@
 # Libraries
 
+- `apps/desktop/src/main/updater.ts` — function setupAutoUpdater: (getMainWindow) => void
 - `apps/desktop/src/renderer/src/hooks/use-document-title.ts` — function useDocumentTitle: (title) => void
 - `apps/desktop/src/renderer/src/hooks/use-tab-history.ts` — function useTabHistory: () => void, const popDirectionHints
 - `apps/desktop/src/renderer/src/hooks/use-tab-router-sync.ts` — function useTabRouterSync: (tabId, router) => void
@@ -9,13 +10,14 @@
   - interface Tab
   - const useTabStore
 - `apps/web/features/auth/auth-cookie.ts` — function setLoggedInCookie: () => void, function clearLoggedInCookie: () => void
-- `apps/web/proxy.ts` — function proxy: (request) => void, const config
+- `apps/web/proxy.ts` — function proxy: (_request) => void, const config
 - `e2e/fixtures.ts` — class TestApiClient
 - `e2e/helpers.ts`
   - function loginAsDefault: (page) => void
   - function createTestApi: () => Promise<TestApiClient>
   - function openWorkspaceMenu: (page) => void
 - `packages/core/api/client.ts`
+  - class ApiError
   - class ApiClient
   - interface ApiClientOptions
   - interface LoginResponse
@@ -42,6 +44,9 @@
   - interface ChatTimelineItem
   - interface ChatState
   - interface ChatStoreOptions
+  - const CHAT_MIN_W
+  - const CHAT_MIN_H
+  - _...2 more_
 - `packages/core/hooks/use-file-upload.ts`
   - function useFileUpload: (api, onError?) => void
   - interface UploadResult
@@ -73,10 +78,10 @@
   - function issueListOptions: (wsId) => void
   - function myIssueListOptions: (wsId, scope, filter) => void
   - function issueDetailOptions: (wsId, id) => void
+  - function childIssueProgressOptions: (wsId) => void
   - function childIssuesOptions: (wsId, id) => void
   - function issueTimelineOptions: (issueId) => void
-  - function issueReactionsOptions: (issueId) => void
-  - _...5 more_
+  - _...6 more_
 - `packages/core/issues/stores/view-store.ts`
   - function createIssueViewStore: (persistKey) => StoreApi<IssueViewState>
   - function registerViewStoreForWorkspaceSync: (store, subscribeToWorkspace?) => void
@@ -97,7 +102,7 @@
   - function useCreatePin: () => void
   - function useDeletePin: () => void
   - function useReorderPins: () => void
-- `packages/core/pins/queries.ts` — function pinListOptions: (wsId) => void, const pinKeys
+- `packages/core/pins/queries.ts` — function pinListOptions: (wsId, userId) => void, const pinKeys
 - `packages/core/platform/persist-storage.ts` — function createPersistStorage: (adapter) => StateStorage
 - `packages/core/platform/storage-cleanup.ts` — function clearWorkspaceStorage: (adapter, wsId) => void
 - `packages/core/platform/workspace-storage.ts`
@@ -123,7 +128,11 @@
   - function runtimeListOptions: (wsId, owner?) => void
   - function latestCliVersionOptions: () => void
   - const runtimeKeys
-- `packages/core/utils.ts` — function timeAgo: (dateStr) => string
+- `packages/core/utils.ts`
+  - function timeAgo: (dateStr) => string
+  - function generateUUID: () => string
+  - function createSafeId: () => string
+  - function createRequestId: (length) => string
 - `packages/core/workspace/hooks.ts` — function useActorName: () => void
 - `packages/core/workspace/index.ts` — function registerWorkspaceStore: (store) => void, const useWorkspaceStore: WorkspaceStoreInstance
 - `packages/core/workspace/mutations.ts`
@@ -149,6 +158,10 @@
 - `packages/ui/markdown/mentions.ts` — function preprocessMentionShortcodes: (text) => string
 - `server/cmd/server/router.go` — function NewRouter: (pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Router
 - `server/internal/auth/cloudfront.go` — function NewCloudFrontSignerFromEnv: () *CloudFrontSigner, class CloudFrontSigner
+- `server/internal/auth/cookie.go`
+  - function SetAuthCookies: (w http.ResponseWriter, token string) error
+  - function ClearAuthCookies: (w http.ResponseWriter)
+  - function ValidateCSRF: (r *http.Request) bool
 - `server/internal/auth/jwt.go`
   - function JWTSecret: () []byte
   - function GeneratePATToken: () (string, error)
@@ -179,7 +192,7 @@
   - class HeartbeatResponse
   - class PendingPing
   - class PendingUpdate
-  - _...2 more_
+  - _...3 more_
 - `server/internal/daemon/config.go`
   - function LoadConfig: (overrides Overrides) (Config, error)
   - function NormalizeServerBaseURL: (raw string) (string, error)
@@ -189,11 +202,11 @@
 - `server/internal/daemon/execenv/execenv.go`
   - function Prepare: (params PrepareParams, logger *slog.Logger) (*Environment, error)
   - function Reuse: (workDir, provider string, task TaskContextForEnv, logger *slog.Logger) *Environment
+  - function WriteGCMeta: (envRoot, issueID, workspaceID string) error
+  - function ReadGCMeta: (envRoot string) (*GCMeta, error)
   - class RepoContextForEnv
   - class PrepareParams
-  - class TaskContextForEnv
-  - class SkillContextForEnv
-  - _...2 more_
+  - _...5 more_
 - `server/internal/daemon/execenv/runtime_config.go` — function InjectRuntimeConfig: (workDir, provider string, ctx TaskContextForEnv) error
 - `server/internal/daemon/health.go` — class HealthResponse
 - `server/internal/daemon/prompt.go` — function BuildPrompt: (task Task) string
@@ -251,7 +264,7 @@
   - class TaskFailRequest
   - _...2 more_
 - `server/internal/handler/file.go` — class AttachmentResponse
-- `server/internal/handler/handler.go` — function New: (queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *events.Bus, emailService *service.EmailService, s3 *storage.S3Storage, cfSigner *auth.CloudFrontSigner) *Handler, class Handler
+- `server/internal/handler/handler.go` — function New: (queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *events.Bus, emailService *service.EmailService, store storage.Storage, cfSigner *auth.CloudFrontSigner) *Handler, class Handler
 - `server/internal/handler/inbox.go` — class InboxItemResponse
 - `server/internal/handler/issue.go`
   - class IssueResponse
@@ -326,9 +339,11 @@
   - interface Resolver
 - `server/internal/middleware/auth.go` — function Auth: (queries *db.Queries) func(http.Handler) http.Handler
 - `server/internal/middleware/cloudfront.go` — function RefreshCloudFrontCookies: (signer *auth.CloudFrontSigner) func(http.Handler) http.Handler
+- `server/internal/middleware/csp.go` — function ContentSecurityPolicy: (next http.Handler) http.Handler
 - `server/internal/middleware/daemon_auth.go`
   - function DaemonWorkspaceIDFromContext: (ctx context.Context) string
   - function DaemonIDFromContext: (ctx context.Context) string
+  - function WithDaemonContext: (ctx context.Context, workspaceID, daemonID string) context.Context
   - function DaemonAuth: (queries *db.Queries) func(http.Handler) http.Handler
 - `server/internal/middleware/request_logger.go` — function RequestLogger: (next http.Handler) http.Handler
 - `server/internal/middleware/workspace.go`
@@ -340,18 +355,21 @@
   - function RequireWorkspaceMemberFromURL: (queries *db.Queries, param string) func(http.Handler) http.Handler
   - _...1 more_
 - `server/internal/realtime/hub.go`
+  - function SetAllowedOrigins: (origins []string)
   - function NewHub: () *Hub
   - function HandleWebSocket: (hub *Hub, mc MembershipChecker, pr PATResolver, w http.ResponseWriter, r *http.Request)
   - class Client
   - class Hub
   - interface MembershipChecker
-  - interface PATResolver
+  - _...1 more_
+- `server/internal/sanitize/html.go` — function HTML: (input string) string
 - `server/internal/service/email.go` — function NewEmailService: () *EmailService, class EmailService
 - `server/internal/service/task.go`
   - function NewTaskService: (q *db.Queries, hub *realtime.Hub, bus *events.Bus) *TaskService
   - class TaskService
   - class AgentSkillData
   - class AgentSkillFileData
+- `server/internal/storage/local.go` — function NewLocalStorageFromEnv: () *LocalStorage, class LocalStorage
 - `server/internal/storage/s3.go` — function NewS3StorageFromEnv: () *S3Storage, class S3Storage
 - `server/internal/util/mention.go`
   - function ParseMentions: (content string) []Mention
@@ -394,7 +412,7 @@
   - class LinkAttachmentsToCommentParams
   - class LinkAttachmentsToIssueParams
   - class ListAttachmentsByCommentParams
-  - _...1 more_
+  - _...2 more_
 - `server/pkg/db/generated/chat.sql.go`
   - class CreateChatMessageParams
   - class CreateChatSessionParams
@@ -407,10 +425,10 @@
   - class CountCommentsParams
   - class CreateCommentParams
   - class GetCommentInWorkspaceParams
+  - class HasAgentCommentedSinceParams
   - class ListCommentsParams
   - class ListCommentsPaginatedParams
-  - class ListCommentsSinceParams
-  - _...2 more_
+  - _...3 more_
 - `server/pkg/db/generated/daemon_token.sql.go` — class CreateDaemonTokenParams, class DeleteDaemonTokensByWorkspaceAndDaemonParams
 - `server/pkg/db/generated/db.go`
   - function New: (db DBTX) *Queries
@@ -425,13 +443,13 @@
   - class CreateInboxItemParams
   - _...4 more_
 - `server/pkg/db/generated/issue.sql.go`
+  - class ChildIssueProgressRow
   - class CountCreatedIssueAssigneesParams
   - class CountCreatedIssueAssigneesRow
   - class CountIssuesParams
   - class CreateIssueParams
   - class GetIssueByNumberParams
-  - class GetIssueInWorkspaceParams
-  - _...6 more_
+  - _...7 more_
 - `server/pkg/db/generated/issue_reaction.sql.go` — class AddIssueReactionParams, class RemoveIssueReactionParams
 - `server/pkg/db/generated/member.sql.go`
   - class CreateMemberParams
@@ -462,11 +480,13 @@
   - class UpdateProjectParams
 - `server/pkg/db/generated/reaction.sql.go` — class AddReactionParams, class RemoveReactionParams
 - `server/pkg/db/generated/runtime.sql.go`
+  - class DeleteStaleOfflineRuntimesRow
   - class FailTasksForOfflineRuntimesRow
   - class GetAgentRuntimeForWorkspaceParams
   - class ListAgentRuntimesByOwnerParams
   - class MarkStaleRuntimesOfflineRow
-  - class UpsertAgentRuntimeParams
+  - class MigrateAgentsToRuntimeParams
+  - _...1 more_
 - `server/pkg/db/generated/runtime_usage.sql.go`
   - class GetRuntimeTaskHourlyActivityRow
   - class GetRuntimeUsageSummaryRow

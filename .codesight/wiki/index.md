@@ -29,12 +29,16 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Batch-delete](./batch-delete.md)
 - [Batch-update](./batch-update.md)
 - [Chat](./chat.md)
+- [Child-progress](./child-progress.md)
 - [Children](./children.md)
+- [Cli-token](./cli-token.md)
 - [Client_test](./client_test.md)
 - [Cmd_auth](./cmd_auth.md)
 - [Cmd_issue](./cmd_issue.md)
 - [Comment](./comment.md)
 - [Comments](./comments.md)
+- [Cookie](./cookie.md)
+- [Csp_test](./csp_test.md)
 - [Daemon](./daemon.md)
 - [Daily](./daily.md)
 - [Deregister](./deregister.md)
@@ -42,6 +46,7 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Files](./files.md)
 - [Heartbeat](./heartbeat.md)
 - [History](./history.md)
+- [Hub](./hub.md)
 - [Hub_test](./hub_test.md)
 - [Import](./import.md)
 - [Inbox](./inbox.md)
@@ -75,6 +80,7 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Unsubscribe](./unsubscribe.md)
 - [Update](./update.md)
 - [Upload-file](./upload-file.md)
+- [Uploads](./uploads.md)
 - [Usage](./usage.md)
 - [Use-realtime-sync](./use-realtime-sync.md)
 - [Wiki](./wiki.md)
@@ -89,10 +95,10 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 
 ## Quick Stats
 
-- Routes: **293**
+- Routes: **305**
 - Models: **36**
-- Components: **164**
-- Env vars: **38** required, **34** with defaults
+- Components: **174**
+- Env vars: **47** required, **36** with defaults
 
 ## How to Use
 
@@ -119,4 +125,4 @@ These exist in your codebase but are **not** reflected in wiki articles:
 When in doubt, search the source. The wiki is a starting point, not a complete inventory.
 
 ---
-_Last compiled: 2026-04-14 · 79 articles · [codesight](https://github.com/Houseofmvps/codesight)_
+_Last compiled: 2026-04-14 · 85 articles · [codesight](https://github.com/Houseofmvps/codesight)_

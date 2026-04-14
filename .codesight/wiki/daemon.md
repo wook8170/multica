@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Daemon subsystem handles **15 routes** and touches: auth, db, payment.
+The Daemon subsystem handles **16 routes** and touches: auth, db, payment.
 
 ## Routes
 
@@ -35,6 +35,8 @@ The Daemon subsystem handles **15 routes** and touches: auth, db, payment.
 - `POST` `/api/daemon/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `GET` `/api/daemon/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+  `server/cmd/server/router.go`
+- `GET` `/api/daemon/issues/{issueId}/gc-check` params(issueId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Related Models

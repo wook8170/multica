@@ -8,11 +8,11 @@
 
 ## Scale
 
-293 API routes · 36 database models · 164 UI components · 137 library files · 15 middleware layers · 72 environment variables
+305 API routes · 36 database models · 174 UI components · 142 library files · 17 middleware layers · 83 environment variables
 
 ## Subsystems
 
-- **[Auth](./auth.md)** — 5 routes — touches: auth, db, payment, upload
+- **[Auth](./auth.md)** — 6 routes — touches: auth, db, payment, upload
 - **[Payments](./payments.md)** — 5 routes — touches: auth, db, payment, upload, cache
 - **[X-Agent-ID](./x-agent-id.md)** — 1 routes — touches: auth, db
 - **[X-Task-ID](./x-task-id.md)** — 1 routes — touches: auth, db
@@ -31,24 +31,29 @@
 - **[Batch-delete](./batch-delete.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Batch-update](./batch-update.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Chat](./chat.md)** — 6 routes — touches: auth, db, payment, upload, queue
+- **[Child-progress](./child-progress.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Children](./children.md)** — 2 routes — touches: auth, db, payment, upload
+- **[Cli-token](./cli-token.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Client_test](./client_test.md)** — 3 routes — touches: auth
 - **[Cmd_auth](./cmd_auth.md)** — 3 routes — touches: auth, db
 - **[Cmd_issue](./cmd_issue.md)** — 1 routes — touches: auth, upload
 - **[Comment](./comment.md)** — 3 routes — touches: auth, db, queue, upload
 - **[Comments](./comments.md)** — 8 routes — touches: auth, db, payment, upload
-- **[Daemon](./daemon.md)** — 15 routes — touches: auth, db, payment, upload
+- **[Cookie](./cookie.md)** — 1 routes — touches: auth
+- **[Csp_test](./csp_test.md)** — 1 routes
+- **[Daemon](./daemon.md)** — 16 routes — touches: auth, db, payment, upload
 - **[Daily](./daily.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Deregister](./deregister.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Draft](./draft.md)** — 6 routes — touches: auth, db, payment, upload
 - **[Files](./files.md)** — 6 routes — touches: auth, db, payment, upload
 - **[Heartbeat](./heartbeat.md)** — 1 routes — touches: auth, db, payment, upload
 - **[History](./history.md)** — 4 routes — touches: auth, db, payment, upload
+- **[Hub](./hub.md)** — 1 routes — touches: auth, db
 - **[Hub_test](./hub_test.md)** — 1 routes — touches: auth
 - **[Import](./import.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Inbox](./inbox.md)** — 8 routes — touches: auth, db, payment, upload
-- **[Issue](./issue.md)** — 7 routes — touches: auth, db, queue, upload
-- **[Issues](./issues.md)** — 20 routes — touches: auth, db, payment, upload
+- **[Issue](./issue.md)** — 8 routes — touches: auth, db, queue, upload
+- **[Issues](./issues.md)** — 22 routes — touches: auth, db, payment, upload
 - **[Leave](./leave.md)** — 2 routes — touches: auth, db, payment, upload
 - **[Mark-all-read](./mark-all-read.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Me](./me.md)** — 2 routes — touches: auth, db, payment, upload
@@ -70,13 +75,14 @@
 - **[Subscribers](./subscribers.md)** — 2 routes — touches: auth, db, payment, upload
 - **[Summary](./summary.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Task-runs](./task-runs.md)** — 2 routes — touches: auth, db, payment, upload
-- **[Tasks](./tasks.md)** — 13 routes — touches: auth, db, payment, upload
+- **[Tasks](./tasks.md)** — 14 routes — touches: auth, db, payment, upload
 - **[Timeline](./timeline.md)** — 2 routes — touches: auth, db, payment, upload
 - **[Tokens](./tokens.md)** — 3 routes — touches: auth, db, payment, upload
 - **[Unread-count](./unread-count.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Unsubscribe](./unsubscribe.md)** — 2 routes — touches: auth, db, payment, upload
 - **[Update](./update.md)** — 4 routes — touches: auth, db, payment, upload
 - **[Upload-file](./upload-file.md)** — 1 routes — touches: auth, db, payment, upload
+- **[Uploads](./uploads.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Usage](./usage.md)** — 5 routes — touches: auth, db, payment, upload
 - **[Use-realtime-sync](./use-realtime-sync.md)** — 17 routes
 - **[Wiki](./wiki.md)** — 1 routes — touches: auth, db, payment
@@ -89,24 +95,26 @@
 
 **Database:** unknown, 36 models — see [database.md](./database.md)
 
-**UI:** 164 components (react) — see [ui.md](./ui.md)
+**UI:** 174 components (react) — see [ui.md](./ui.md)
 
-**Libraries:** 137 files — see [libraries.md](./libraries.md)
+**Libraries:** 142 files — see [libraries.md](./libraries.md)
 
 ## High-Impact Files
 
 Changes to these files have the widest blast radius across the codebase:
 
-- `encoding/json` — imported by **54** files
-- `log/slog` — imported by **49** files
-- `net/http` — imported by **49** files
-- `packages/core/types/index.ts` — imported by **23** files
-- `path/filepath` — imported by **20** files
+- `encoding/json` — imported by **65** files
+- `net/http` — imported by **57** files
+- `log/slog` — imported by **55** files
+- `path/filepath` — imported by **32** files
+- `packages/core/types/index.ts` — imported by **25** files
 - `packages/views/common/actor-avatar.tsx` — imported by **19** files
 
 ## Required Environment Variables
 
-- `APP_ENV` — `server/internal/handler/auth.go`
+- `ALLOWED_ORIGINS` — `.env.example`
+- `APP_ENV` — `server/internal/auth/cookie.go`
+- `AWS_ENDPOINT_URL` — `server/internal/storage/s3.go`
 - `CLAUDE_CONFIG_DIR` — `server/internal/daemon/usage/claude.go`
 - `CLOUDFRONT_DOMAIN` — `.env.example`
 - `CLOUDFRONT_KEY_PAIR_ID` — `.env.example`
@@ -116,9 +124,7 @@ Changes to these files have the widest blast radius across the codebase:
 - `CORS_ALLOWED_ORIGINS` — `apps/web/next.config.ts`
 - `ELECTRON_RENDERER_URL` — `apps/desktop/src/main/index.ts`
 - `GOOGLE_CLIENT_ID` — `.env.example`
-- `GOOGLE_CLIENT_SECRET` — `.env.example`
-- `LOG_LEVEL` — `server/internal/logger/logger.go`
-- _...26 more_
+- _...35 more_
 
 ---
 _Back to [index.md](./index.md) · Generated 2026-04-14_

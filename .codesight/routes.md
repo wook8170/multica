@@ -34,7 +34,7 @@
 - `GET` `X-Total-Count` params() [auth, upload]
 - `POST` `/api/daemon/register` params() [auth, db, payment, upload] ✓
 - `POST` `/api/daemon/deregister` params() [auth, db, payment, upload]
-- `POST` `/api/daemon/heartbeat` params() [auth, db, payment, upload]
+- `POST` `/api/daemon/heartbeat` params() [auth, db, payment, upload] ✓
 - `POST` `/api/daemon/runtimes/{runtimeId}/tasks/claim` params(runtimeId) [auth, db, payment, upload]
 - `GET` `/api/daemon/runtimes/{runtimeId}/tasks/pending` params(runtimeId) [auth, db, payment, upload]
 - `POST` `/api/daemon/runtimes/{runtimeId}/usage` params(runtimeId) [auth, db, payment, upload]
@@ -48,6 +48,7 @@
 - `POST` `/api/daemon/tasks/{taskId}/usage` params(taskId) [auth, db, payment, upload]
 - `POST` `/api/daemon/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
 - `GET` `/api/daemon/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+- `GET` `/api/daemon/issues/{issueId}/gc-check` params(issueId) [auth, db, payment, upload]
 - `GET` `/api/workspaces/members` params() [auth, db, payment, upload]
 - `POST` `/api/workspaces/leave` params() [auth, db, payment, upload]
 - `POST` `/api/workspaces/members` params() [auth, db, payment, upload]
@@ -55,6 +56,7 @@
 - `POST` `/{id}/leave` params(id) [auth, db, payment, upload]
 - `POST` `/{id}/members` params(id) [auth, db, payment, upload]
 - `GET` `/api/issues/search` params() [auth, db, payment, upload]
+- `GET` `/api/issues/child-progress` params() [auth, db, payment, upload]
 - `POST` `/api/issues/batch-update` params() [auth, db, payment, upload]
 - `POST` `/api/issues/batch-delete` params() [auth, db, payment, upload]
 - `POST` `/api/issues/comments` params() [auth, db, payment, upload]
@@ -142,9 +144,11 @@
 - `POST` `/{id}/history/compact` params(id) [auth, db, payment, upload]
 - `GET` `/health` params() [auth, db, payment, upload] ✓
 - `GET` `/ws` params() [auth, db, payment, upload] ✓
+- `GET` `/uploads/*` params() [auth, db, payment, upload]
 - `POST` `/auth/send-code` params() [auth, db, payment, upload] ✓
 - `POST` `/auth/verify-code` params() [auth, db, payment, upload] ✓
 - `POST` `/auth/google` params() [auth, db, payment, upload]
+- `POST` `/auth/logout` params() [auth, db, payment, upload]
 - `POST` `/register` params() [auth, db, payment, upload]
 - `POST` `/deregister` params() [auth, db, payment, upload]
 - `POST` `/heartbeat` params() [auth, db, payment, upload]
@@ -161,13 +165,16 @@
 - `POST` `/tasks/{taskId}/usage` params(taskId) [auth, db, payment, upload]
 - `POST` `/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
 - `GET` `/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+- `GET` `/issues/{issueId}/gc-check` params(issueId) [auth, db, payment, upload]
 - `GET` `/api/me` params() [auth, db, payment, upload] ✓
 - `PATCH` `/api/me` params() [auth, db, payment, upload] ✓
-- `POST` `/api/upload-file` params() [auth, db, payment, upload]
+- `POST` `/api/cli-token` params() [auth, db, payment, upload]
+- `POST` `/api/upload-file` params() [auth, db, payment, upload] ✓
 - `POST` `/leave` params() [auth, db, payment, upload]
 - `POST` `/api/internal/collaboration/webhook` params() [auth, db, payment, upload]
 - `GET` `/api/assignee-frequency` params() [auth, db, payment, upload]
 - `GET` `/search` params() [auth, db, payment, upload]
+- `GET` `/child-progress` params() [auth, db, payment, upload]
 - `POST` `/batch-update` params() [auth, db, payment, upload]
 - `POST` `/batch-delete` params() [auth, db, payment, upload]
 - `POST` `/comments` params() [auth, db, payment, upload] ✓
@@ -184,6 +191,7 @@
 - `DELETE` `/reactions` params() [auth, db, payment, upload]
 - `GET` `/attachments` params() [auth, db, payment, upload]
 - `GET` `/children` params() [auth, db, payment, upload]
+- `GET` `/api/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
 - `PUT` `/reorder` params() [auth, db, payment, upload]
 - `DELETE` `/{itemType}/{itemId}` params(itemType, itemId) [auth, db, payment, upload]
 - `GET` `/api/attachments/{id}` params(id) [auth, db, payment, upload]
@@ -213,6 +221,7 @@
 - `PATCH` `/move` params() [auth, db, payment, upload]
 - `GET` `/history` params() [auth, db, payment, upload]
 - `POST` `/history/compact` params() [auth, db, payment, upload]
+- `GET` `X-CSRF-Token` params() [auth]
 - `GET` `Content-Type` params() [auth]
 - `GET` `Authorization` params() [auth]
 - `GET` `X-Workspace-ID` params() [auth]
@@ -233,11 +242,14 @@
 - `GET` `assignee_id` params() [auth, db, queue, upload] ✓
 - `GET` `assignee_ids` params() [auth, db, queue, upload]
 - `GET` `creator_id` params() [auth, db, queue, upload]
+- `GET` `project_id` params() [auth, db, queue, upload] ✓
 - `GET` `open_only` params() [auth, db, queue, upload]
 - `GET` `days` params() [auth, db, cache]
 - `GET` `owner` params() [auth, db, cache] ✓
 - `GET` `X-Webhook-Secret` params() [auth, db, payment]
 - `GET` `X-User-Email` params() [auth]
+- `GET` `Content-Security-Policy` params()
+- `GET` `Origin` params() [auth, db]
 - `ALL` `/ws` params() [auth] ✓
 
 ## WebSocket Events

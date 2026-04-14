@@ -37,6 +37,7 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 	args := buildClaudeArgs(opts)
 
 	cmd := exec.CommandContext(runCtx, execPath, args...)
+	cmd.WaitDelay = 10 * time.Second
 	if opts.Cwd != "" {
 		cmd.Dir = opts.Cwd
 	}
@@ -52,23 +53,26 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 		cancel()
 		return nil, fmt.Errorf("claude stdin pipe: %w", err)
 	}
+	closeStdin := func() {
+		if stdin != nil {
+			_ = stdin.Close()
+			stdin = nil
+		}
+	}
 	cmd.Stderr = newLogWriter(b.cfg.Logger, "[claude:stderr] ")
 
 	if err := cmd.Start(); err != nil {
+		closeStdin()
 		cancel()
 		return nil, fmt.Errorf("start claude: %w", err)
 	}
 	if err := writeClaudeInput(stdin, prompt); err != nil {
-		_ = stdin.Close()
+		closeStdin()
 		cancel()
 		_ = cmd.Wait()
 		return nil, fmt.Errorf("write claude input: %w", err)
 	}
-	if err := stdin.Close(); err != nil {
-		cancel()
-		_ = cmd.Wait()
-		return nil, fmt.Errorf("close claude stdin: %w", err)
-	}
+	closeStdin()
 
 	b.cfg.Logger.Info("claude started", "pid", cmd.Process.Pid, "cwd", opts.Cwd, "model", opts.Model)
 
@@ -86,6 +90,12 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 		finalStatus := "completed"
 		var finalError string
 		usage := make(map[string]TokenUsage)
+
+		// Close stdout when the context is cancelled so scanner.Scan() unblocks.
+		go func() {
+			<-runCtx.Done()
+			_ = stdout.Close()
+		}()
 
 		scanner := bufio.NewScanner(stdout)
 		scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
@@ -112,6 +122,7 @@ func (b *claudeBackend) Execute(ctx context.Context, prompt string, opts ExecOpt
 				}
 				trySend(msgCh, Message{Type: MessageStatus, Status: "running"})
 			case "result":
+				closeStdin()
 				sessionID = msg.SessionID
 				if msg.ResultText != "" {
 					output.Reset()

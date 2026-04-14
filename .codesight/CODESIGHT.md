@@ -3,9 +3,9 @@
 > **Stack:** next-app, chi | none | react | typescript
 > **Monorepo:** @multica/collaboration, @multica/desktop, @multica/docs, @multica/web, @multica/core, @multica/eslint-config, @multica/tsconfig, @multica/ui, @multica/views, server
 
-> 276 routes (17 inferred) + 17 ws | 36 models | 164 components | 137 lib files | 72 env vars | 15 middleware | 18% test coverage
-> **Token savings:** this file is ~21,400 tokens. Without it, AI exploration would cost ~272,200 tokens. **Saves ~250,700 tokens per conversation.**
-> **Last scanned:** 2026-04-14 08:44 — re-run after significant changes
+> 288 routes (17 inferred) + 17 ws | 36 models | 174 components | 142 lib files | 83 env vars | 17 middleware | 20% test coverage
+> **Token savings:** this file is ~22,500 tokens. Without it, AI exploration would cost ~284,900 tokens. **Saves ~262,400 tokens per conversation.**
+> **Last scanned:** 2026-04-14 09:12 — re-run after significant changes
 
 ---
 
@@ -45,7 +45,7 @@
 - `GET` `X-Total-Count` params() [auth, upload]
 - `POST` `/api/daemon/register` params() [auth, db, payment, upload] ✓
 - `POST` `/api/daemon/deregister` params() [auth, db, payment, upload]
-- `POST` `/api/daemon/heartbeat` params() [auth, db, payment, upload]
+- `POST` `/api/daemon/heartbeat` params() [auth, db, payment, upload] ✓
 - `POST` `/api/daemon/runtimes/{runtimeId}/tasks/claim` params(runtimeId) [auth, db, payment, upload]
 - `GET` `/api/daemon/runtimes/{runtimeId}/tasks/pending` params(runtimeId) [auth, db, payment, upload]
 - `POST` `/api/daemon/runtimes/{runtimeId}/usage` params(runtimeId) [auth, db, payment, upload]
@@ -59,6 +59,7 @@
 - `POST` `/api/daemon/tasks/{taskId}/usage` params(taskId) [auth, db, payment, upload]
 - `POST` `/api/daemon/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
 - `GET` `/api/daemon/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+- `GET` `/api/daemon/issues/{issueId}/gc-check` params(issueId) [auth, db, payment, upload]
 - `GET` `/api/workspaces/members` params() [auth, db, payment, upload]
 - `POST` `/api/workspaces/leave` params() [auth, db, payment, upload]
 - `POST` `/api/workspaces/members` params() [auth, db, payment, upload]
@@ -66,6 +67,7 @@
 - `POST` `/{id}/leave` params(id) [auth, db, payment, upload]
 - `POST` `/{id}/members` params(id) [auth, db, payment, upload]
 - `GET` `/api/issues/search` params() [auth, db, payment, upload]
+- `GET` `/api/issues/child-progress` params() [auth, db, payment, upload]
 - `POST` `/api/issues/batch-update` params() [auth, db, payment, upload]
 - `POST` `/api/issues/batch-delete` params() [auth, db, payment, upload]
 - `POST` `/api/issues/comments` params() [auth, db, payment, upload]
@@ -153,9 +155,11 @@
 - `POST` `/{id}/history/compact` params(id) [auth, db, payment, upload]
 - `GET` `/health` params() [auth, db, payment, upload] ✓
 - `GET` `/ws` params() [auth, db, payment, upload] ✓
+- `GET` `/uploads/*` params() [auth, db, payment, upload]
 - `POST` `/auth/send-code` params() [auth, db, payment, upload] ✓
 - `POST` `/auth/verify-code` params() [auth, db, payment, upload] ✓
 - `POST` `/auth/google` params() [auth, db, payment, upload]
+- `POST` `/auth/logout` params() [auth, db, payment, upload]
 - `POST` `/register` params() [auth, db, payment, upload]
 - `POST` `/deregister` params() [auth, db, payment, upload]
 - `POST` `/heartbeat` params() [auth, db, payment, upload]
@@ -172,13 +176,16 @@
 - `POST` `/tasks/{taskId}/usage` params(taskId) [auth, db, payment, upload]
 - `POST` `/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
 - `GET` `/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
+- `GET` `/issues/{issueId}/gc-check` params(issueId) [auth, db, payment, upload]
 - `GET` `/api/me` params() [auth, db, payment, upload] ✓
 - `PATCH` `/api/me` params() [auth, db, payment, upload] ✓
-- `POST` `/api/upload-file` params() [auth, db, payment, upload]
+- `POST` `/api/cli-token` params() [auth, db, payment, upload]
+- `POST` `/api/upload-file` params() [auth, db, payment, upload] ✓
 - `POST` `/leave` params() [auth, db, payment, upload]
 - `POST` `/api/internal/collaboration/webhook` params() [auth, db, payment, upload]
 - `GET` `/api/assignee-frequency` params() [auth, db, payment, upload]
 - `GET` `/search` params() [auth, db, payment, upload]
+- `GET` `/child-progress` params() [auth, db, payment, upload]
 - `POST` `/batch-update` params() [auth, db, payment, upload]
 - `POST` `/batch-delete` params() [auth, db, payment, upload]
 - `POST` `/comments` params() [auth, db, payment, upload] ✓
@@ -195,6 +202,7 @@
 - `DELETE` `/reactions` params() [auth, db, payment, upload]
 - `GET` `/attachments` params() [auth, db, payment, upload]
 - `GET` `/children` params() [auth, db, payment, upload]
+- `GET` `/api/tasks/{taskId}/messages` params(taskId) [auth, db, payment, upload]
 - `PUT` `/reorder` params() [auth, db, payment, upload]
 - `DELETE` `/{itemType}/{itemId}` params(itemType, itemId) [auth, db, payment, upload]
 - `GET` `/api/attachments/{id}` params(id) [auth, db, payment, upload]
@@ -224,6 +232,7 @@
 - `PATCH` `/move` params() [auth, db, payment, upload]
 - `GET` `/history` params() [auth, db, payment, upload]
 - `POST` `/history/compact` params() [auth, db, payment, upload]
+- `GET` `X-CSRF-Token` params() [auth]
 - `GET` `Content-Type` params() [auth]
 - `GET` `Authorization` params() [auth]
 - `GET` `X-Workspace-ID` params() [auth]
@@ -244,11 +253,14 @@
 - `GET` `assignee_id` params() [auth, db, queue, upload] ✓
 - `GET` `assignee_ids` params() [auth, db, queue, upload]
 - `GET` `creator_id` params() [auth, db, queue, upload]
+- `GET` `project_id` params() [auth, db, queue, upload] ✓
 - `GET` `open_only` params() [auth, db, queue, upload]
 - `GET` `days` params() [auth, db, cache]
 - `GET` `owner` params() [auth, db, cache] ✓
 - `GET` `X-Webhook-Secret` params() [auth, db, payment]
 - `GET` `X-User-Email` params() [auth]
+- `GET` `Content-Security-Policy` params()
+- `GET` `Origin` params() [auth, db]
 - `ALL` `/ws` params() [auth] ✓
 
 ## WebSocket Events
@@ -596,6 +608,7 @@
 - **DesktopShell** — `apps/desktop/src/renderer/src/components/desktop-layout.tsx`
 - **TabBar** — `apps/desktop/src/renderer/src/components/tab-bar.tsx`
 - **TabContent** — `apps/desktop/src/renderer/src/components/tab-content.tsx`
+- **UpdateNotification** — `apps/desktop/src/renderer/src/components/update-notification.tsx`
 - **IssueDetailPage** — `apps/desktop/src/renderer/src/pages/issue-detail-page.tsx`
 - **DesktopLoginPage** — `apps/desktop/src/renderer/src/pages/login.tsx`
 - **ProjectDetailPage** — `apps/desktop/src/renderer/src/pages/project-detail-page.tsx`
@@ -608,6 +621,7 @@
 - **Layout** — `apps/docs/app/docs/layout.tsx`
 - **Layout** — `apps/docs/app/layout.tsx`
 - **Page** [client] — `apps/web/app/(auth)/login/page.tsx`
+- **OnboardingPage** [client] — `apps/web/app/(auth)/onboarding/page.tsx`
 - **IssueDetailPage** [client] — props: params — `apps/web/app/(dashboard)/issues/[id]/page.tsx`
 - **Page** [client] — `apps/web/app/(dashboard)/issues/page.tsx`
 - **Layout** [client] — `apps/web/app/(dashboard)/layout.tsx`
@@ -650,10 +664,10 @@
 - **WebNavigationProvider** [client] — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** [client] — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** [client] — props: store — `packages/core/issues/stores/view-store-context.tsx`
-- **AuthInitializer** [client] — props: onLogin, onLogout, storage — `packages/core/platform/auth-initializer.tsx`
-- **CoreProvider** [client] — props: apiBaseUrl, wsUrl, storage, onLogin, onLogout — `packages/core/platform/core-provider.tsx`
-- **QueryProvider** [client] — props: showDevtools — `packages/core/provider.tsx`
-- **WSProvider** [client] — props: wsUrl, authStore, workspaceStore, storage, onToast — `packages/core/realtime/provider.tsx`
+- **AuthInitializer** [client] — props: onLogin, onLogout, storage, cookieAuth — `packages/core/platform/auth-initializer.tsx`
+- **CoreProvider** [client] — props: apiBaseUrl, wsUrl, storage, cookieAuth, onLogin, onLogout — `packages/core/platform/core-provider.tsx`
+- **QueryProvider** [client] — `packages/core/provider.tsx`
+- **WSProvider** [client] — props: wsUrl, authStore, workspaceStore, storage, cookieAuth, onToast — `packages/core/realtime/provider.tsx`
 - **AgentDetail** [client] — props: agent, runtimes, onUpdate, onArchive, onRestore — `packages/views/agents/components/agent-detail.tsx`
 - **AgentListItem** [client] — props: agent, isSelected, onClick — `packages/views/agents/components/agent-list-item.tsx`
 - **AgentsPage** [client] — `packages/views/agents/components/agents-page.tsx`
@@ -662,23 +676,26 @@
 - **SettingsTab** [client] — props: agent, runtimes, onSave — `packages/views/agents/components/tabs/settings-tab.tsx`
 - **SkillsTab** [client] — props: agent — `packages/views/agents/components/tabs/skills-tab.tsx`
 - **TasksTab** [client] — props: agent — `packages/views/agents/components/tabs/tasks-tab.tsx`
-- **LoginPage** [client] — props: logo, onSuccess, google, cliCallback, lastWorkspaceId, onTokenObtained — `packages/views/auth/login-page.tsx`
+- **LoginPage** [client] — props: logo, onSuccess, google, cliCallback, lastWorkspaceId, onTokenObtained, onGoogleLogin — `packages/views/auth/login-page.tsx`
 - **ChatFab** [client] — `packages/views/chat/components/chat-fab.tsx`
 - **ChatInput** [client] — props: onSend, onStop, isRunning, disabled — `packages/views/chat/components/chat-input.tsx`
-- **ChatMessageList** [client] — props: messages, agent, timelineItems, isWaiting — `packages/views/chat/components/chat-message-list.tsx`
+- **ChatMessageList** [client] — props: messages, timelineItems, isWaiting — `packages/views/chat/components/chat-message-list.tsx`
+- **ChatResizeHandles** [client] — props: onDragStart — `packages/views/chat/components/chat-resize-handles.tsx`
 - **ChatSessionHistory** [client] — `packages/views/chat/components/chat-session-history.tsx`
 - **ChatWindow** [client] — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** [client] — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
 - **AttachmentFileIcon** [client] — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
-- **TABLE_BG_COLORS** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **MarkButton** [client] — props: editor, mark, icon, label, shortcut — `packages/views/editor/bubble-menu.tsx`
+- **BLOB_IMAGE_RE** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **AttachmentCard** [client] — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** [client] — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** [client] — props: node — `packages/views/editor/extensions/mention-view.tsx`
 - **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`
+- **LinkPreviewCard** [client] — props: href, onMouseDown — `packages/views/editor/link-preview.tsx`
 - **MermaidViewer** [client] — props: content — `packages/views/editor/mermaid-viewer.tsx`
 - **ReadonlyContent** [client] — props: content, className — `packages/views/editor/readonly-content.tsx`
 - **SingleLineDocument** [client] — props: defaultValue, placeholder, className, autoFocus, onSubmit, onBlur, onChange — `packages/views/editor/title-editor.tsx`
@@ -715,8 +732,8 @@
 - **ReplyInput** [client] — props: issueId, placeholder, avatarType, avatarId, onSubmit, size — `packages/views/issues/components/reply-input.tsx`
 - **StatusIcon** — props: status, className, inheritColor — `packages/views/issues/components/status-icon.tsx`
 - **AppSidebar** [client] — props: topSlot, searchSlot, headerClassName, headerStyle — `packages/views/layout/app-sidebar.tsx`
-- **DashboardGuard** [client] — props: loginPath, loadingFallback — `packages/views/layout/dashboard-guard.tsx`
-- **DashboardLayout** [client] — props: extra, searchSlot, loadingIndicator — `packages/views/layout/dashboard-layout.tsx`
+- **DashboardGuard** [client] — props: loginPath, onboardingPath, loadingFallback — `packages/views/layout/dashboard-guard.tsx`
+- **DashboardLayout** [client] — props: extra, searchSlot, loadingIndicator, loginPath, onboardingPath — `packages/views/layout/dashboard-layout.tsx`
 - **CreateIssueModal** [client] — props: onClose, data — `packages/views/modals/create-issue.tsx`
 - **CreateWorkspaceModal** [client] — props: onClose — `packages/views/modals/create-workspace.tsx`
 - **ModalRegistry** [client] — `packages/views/modals/registry.tsx`
@@ -724,6 +741,11 @@
 - **MyIssuesPage** [client] — `packages/views/my-issues/components/my-issues-page.tsx`
 - **AppLink** [client] — props: href, onClick — `packages/views/navigation/app-link.tsx`
 - **NavigationProvider** [client] — props: value — `packages/views/navigation/context.tsx`
+- **OnboardingWizard** [client] — props: onComplete — `packages/views/onboarding/onboarding-wizard.tsx`
+- **StepAgent** [client] — props: wsId, onNext, onAgentCreated — `packages/views/onboarding/step-agent.tsx`
+- **StepComplete** [client] — props: wsId, agent, onEnter — `packages/views/onboarding/step-complete.tsx`
+- **StepRuntime** [client] — props: wsId, onNext — `packages/views/onboarding/step-runtime.tsx`
+- **StepWorkspace** [client] — props: onNext — `packages/views/onboarding/step-workspace.tsx`
 - **ProjectDetail** [client] — props: projectId — `packages/views/projects/components/project-detail.tsx`
 - **ProjectPicker** [client] — props: projectId, onUpdate, triggerRender, align — `packages/views/projects/components/project-picker.tsx`
 - **ProjectsPage** [client] — `packages/views/projects/components/projects-page.tsx`
@@ -761,6 +783,7 @@
 
 # Libraries
 
+- `apps/desktop/src/main/updater.ts` — function setupAutoUpdater: (getMainWindow) => void
 - `apps/desktop/src/renderer/src/hooks/use-document-title.ts` — function useDocumentTitle: (title) => void
 - `apps/desktop/src/renderer/src/hooks/use-tab-history.ts` — function useTabHistory: () => void, const popDirectionHints
 - `apps/desktop/src/renderer/src/hooks/use-tab-router-sync.ts` — function useTabRouterSync: (tabId, router) => void
@@ -770,13 +793,14 @@
   - interface Tab
   - const useTabStore
 - `apps/web/features/auth/auth-cookie.ts` — function setLoggedInCookie: () => void, function clearLoggedInCookie: () => void
-- `apps/web/proxy.ts` — function proxy: (request) => void, const config
+- `apps/web/proxy.ts` — function proxy: (_request) => void, const config
 - `e2e/fixtures.ts` — class TestApiClient
 - `e2e/helpers.ts`
   - function loginAsDefault: (page) => void
   - function createTestApi: () => Promise<TestApiClient>
   - function openWorkspaceMenu: (page) => void
 - `packages/core/api/client.ts`
+  - class ApiError
   - class ApiClient
   - interface ApiClientOptions
   - interface LoginResponse
@@ -803,6 +827,9 @@
   - interface ChatTimelineItem
   - interface ChatState
   - interface ChatStoreOptions
+  - const CHAT_MIN_W
+  - const CHAT_MIN_H
+  - _...2 more_
 - `packages/core/hooks/use-file-upload.ts`
   - function useFileUpload: (api, onError?) => void
   - interface UploadResult
@@ -834,10 +861,10 @@
   - function issueListOptions: (wsId) => void
   - function myIssueListOptions: (wsId, scope, filter) => void
   - function issueDetailOptions: (wsId, id) => void
+  - function childIssueProgressOptions: (wsId) => void
   - function childIssuesOptions: (wsId, id) => void
   - function issueTimelineOptions: (issueId) => void
-  - function issueReactionsOptions: (issueId) => void
-  - _...5 more_
+  - _...6 more_
 - `packages/core/issues/stores/view-store.ts`
   - function createIssueViewStore: (persistKey) => StoreApi<IssueViewState>
   - function registerViewStoreForWorkspaceSync: (store, subscribeToWorkspace?) => void
@@ -858,7 +885,7 @@
   - function useCreatePin: () => void
   - function useDeletePin: () => void
   - function useReorderPins: () => void
-- `packages/core/pins/queries.ts` — function pinListOptions: (wsId) => void, const pinKeys
+- `packages/core/pins/queries.ts` — function pinListOptions: (wsId, userId) => void, const pinKeys
 - `packages/core/platform/persist-storage.ts` — function createPersistStorage: (adapter) => StateStorage
 - `packages/core/platform/storage-cleanup.ts` — function clearWorkspaceStorage: (adapter, wsId) => void
 - `packages/core/platform/workspace-storage.ts`
@@ -884,7 +911,11 @@
   - function runtimeListOptions: (wsId, owner?) => void
   - function latestCliVersionOptions: () => void
   - const runtimeKeys
-- `packages/core/utils.ts` — function timeAgo: (dateStr) => string
+- `packages/core/utils.ts`
+  - function timeAgo: (dateStr) => string
+  - function generateUUID: () => string
+  - function createSafeId: () => string
+  - function createRequestId: (length) => string
 - `packages/core/workspace/hooks.ts` — function useActorName: () => void
 - `packages/core/workspace/index.ts` — function registerWorkspaceStore: (store) => void, const useWorkspaceStore: WorkspaceStoreInstance
 - `packages/core/workspace/mutations.ts`
@@ -910,6 +941,10 @@
 - `packages/ui/markdown/mentions.ts` — function preprocessMentionShortcodes: (text) => string
 - `server/cmd/server/router.go` — function NewRouter: (pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Router
 - `server/internal/auth/cloudfront.go` — function NewCloudFrontSignerFromEnv: () *CloudFrontSigner, class CloudFrontSigner
+- `server/internal/auth/cookie.go`
+  - function SetAuthCookies: (w http.ResponseWriter, token string) error
+  - function ClearAuthCookies: (w http.ResponseWriter)
+  - function ValidateCSRF: (r *http.Request) bool
 - `server/internal/auth/jwt.go`
   - function JWTSecret: () []byte
   - function GeneratePATToken: () (string, error)
@@ -940,7 +975,7 @@
   - class HeartbeatResponse
   - class PendingPing
   - class PendingUpdate
-  - _...2 more_
+  - _...3 more_
 - `server/internal/daemon/config.go`
   - function LoadConfig: (overrides Overrides) (Config, error)
   - function NormalizeServerBaseURL: (raw string) (string, error)
@@ -950,11 +985,11 @@
 - `server/internal/daemon/execenv/execenv.go`
   - function Prepare: (params PrepareParams, logger *slog.Logger) (*Environment, error)
   - function Reuse: (workDir, provider string, task TaskContextForEnv, logger *slog.Logger) *Environment
+  - function WriteGCMeta: (envRoot, issueID, workspaceID string) error
+  - function ReadGCMeta: (envRoot string) (*GCMeta, error)
   - class RepoContextForEnv
   - class PrepareParams
-  - class TaskContextForEnv
-  - class SkillContextForEnv
-  - _...2 more_
+  - _...5 more_
 - `server/internal/daemon/execenv/runtime_config.go` — function InjectRuntimeConfig: (workDir, provider string, ctx TaskContextForEnv) error
 - `server/internal/daemon/health.go` — class HealthResponse
 - `server/internal/daemon/prompt.go` — function BuildPrompt: (task Task) string
@@ -1012,7 +1047,7 @@
   - class TaskFailRequest
   - _...2 more_
 - `server/internal/handler/file.go` — class AttachmentResponse
-- `server/internal/handler/handler.go` — function New: (queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *events.Bus, emailService *service.EmailService, s3 *storage.S3Storage, cfSigner *auth.CloudFrontSigner) *Handler, class Handler
+- `server/internal/handler/handler.go` — function New: (queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *events.Bus, emailService *service.EmailService, store storage.Storage, cfSigner *auth.CloudFrontSigner) *Handler, class Handler
 - `server/internal/handler/inbox.go` — class InboxItemResponse
 - `server/internal/handler/issue.go`
   - class IssueResponse
@@ -1087,9 +1122,11 @@
   - interface Resolver
 - `server/internal/middleware/auth.go` — function Auth: (queries *db.Queries) func(http.Handler) http.Handler
 - `server/internal/middleware/cloudfront.go` — function RefreshCloudFrontCookies: (signer *auth.CloudFrontSigner) func(http.Handler) http.Handler
+- `server/internal/middleware/csp.go` — function ContentSecurityPolicy: (next http.Handler) http.Handler
 - `server/internal/middleware/daemon_auth.go`
   - function DaemonWorkspaceIDFromContext: (ctx context.Context) string
   - function DaemonIDFromContext: (ctx context.Context) string
+  - function WithDaemonContext: (ctx context.Context, workspaceID, daemonID string) context.Context
   - function DaemonAuth: (queries *db.Queries) func(http.Handler) http.Handler
 - `server/internal/middleware/request_logger.go` — function RequestLogger: (next http.Handler) http.Handler
 - `server/internal/middleware/workspace.go`
@@ -1101,18 +1138,21 @@
   - function RequireWorkspaceMemberFromURL: (queries *db.Queries, param string) func(http.Handler) http.Handler
   - _...1 more_
 - `server/internal/realtime/hub.go`
+  - function SetAllowedOrigins: (origins []string)
   - function NewHub: () *Hub
   - function HandleWebSocket: (hub *Hub, mc MembershipChecker, pr PATResolver, w http.ResponseWriter, r *http.Request)
   - class Client
   - class Hub
   - interface MembershipChecker
-  - interface PATResolver
+  - _...1 more_
+- `server/internal/sanitize/html.go` — function HTML: (input string) string
 - `server/internal/service/email.go` — function NewEmailService: () *EmailService, class EmailService
 - `server/internal/service/task.go`
   - function NewTaskService: (q *db.Queries, hub *realtime.Hub, bus *events.Bus) *TaskService
   - class TaskService
   - class AgentSkillData
   - class AgentSkillFileData
+- `server/internal/storage/local.go` — function NewLocalStorageFromEnv: () *LocalStorage, class LocalStorage
 - `server/internal/storage/s3.go` — function NewS3StorageFromEnv: () *S3Storage, class S3Storage
 - `server/internal/util/mention.go`
   - function ParseMentions: (content string) []Mention
@@ -1155,7 +1195,7 @@
   - class LinkAttachmentsToCommentParams
   - class LinkAttachmentsToIssueParams
   - class ListAttachmentsByCommentParams
-  - _...1 more_
+  - _...2 more_
 - `server/pkg/db/generated/chat.sql.go`
   - class CreateChatMessageParams
   - class CreateChatSessionParams
@@ -1168,10 +1208,10 @@
   - class CountCommentsParams
   - class CreateCommentParams
   - class GetCommentInWorkspaceParams
+  - class HasAgentCommentedSinceParams
   - class ListCommentsParams
   - class ListCommentsPaginatedParams
-  - class ListCommentsSinceParams
-  - _...2 more_
+  - _...3 more_
 - `server/pkg/db/generated/daemon_token.sql.go` — class CreateDaemonTokenParams, class DeleteDaemonTokensByWorkspaceAndDaemonParams
 - `server/pkg/db/generated/db.go`
   - function New: (db DBTX) *Queries
@@ -1186,13 +1226,13 @@
   - class CreateInboxItemParams
   - _...4 more_
 - `server/pkg/db/generated/issue.sql.go`
+  - class ChildIssueProgressRow
   - class CountCreatedIssueAssigneesParams
   - class CountCreatedIssueAssigneesRow
   - class CountIssuesParams
   - class CreateIssueParams
   - class GetIssueByNumberParams
-  - class GetIssueInWorkspaceParams
-  - _...6 more_
+  - _...7 more_
 - `server/pkg/db/generated/issue_reaction.sql.go` — class AddIssueReactionParams, class RemoveIssueReactionParams
 - `server/pkg/db/generated/member.sql.go`
   - class CreateMemberParams
@@ -1223,11 +1263,13 @@
   - class UpdateProjectParams
 - `server/pkg/db/generated/reaction.sql.go` — class AddReactionParams, class RemoveReactionParams
 - `server/pkg/db/generated/runtime.sql.go`
+  - class DeleteStaleOfflineRuntimesRow
   - class FailTasksForOfflineRuntimesRow
   - class GetAgentRuntimeForWorkspaceParams
   - class ListAgentRuntimesByOwnerParams
   - class MarkStaleRuntimesOfflineRow
-  - class UpsertAgentRuntimeParams
+  - class MigrateAgentsToRuntimeParams
+  - _...1 more_
 - `server/pkg/db/generated/runtime_usage.sql.go`
   - class GetRuntimeTaskHourlyActivityRow
   - class GetRuntimeUsageSummaryRow
@@ -1272,8 +1314,10 @@
 
 ## Environment Variables
 
-- `APP_ENV` **required** — server/internal/handler/auth.go
+- `ALLOWED_ORIGINS` **required** — .env.example
+- `APP_ENV` **required** — server/internal/auth/cookie.go
 - `AWS_ACCESS_KEY_ID` (has default) — .env.example
+- `AWS_ENDPOINT_URL` **required** — server/internal/storage/s3.go
 - `AWS_SECRET_ACCESS_KEY` (has default) — .env.example
 - `BACKEND_URL` (has default) — .env.example
 - `CLAUDE_CONFIG_DIR` **required** — server/internal/daemon/usage/claude.go
@@ -1293,7 +1337,10 @@
 - `GOOGLE_CLIENT_ID` **required** — .env.example
 - `GOOGLE_CLIENT_SECRET` **required** — .env.example
 - `GOOGLE_REDIRECT_URI` (has default) — .env.example
+- `HERMES_HOME` **required** — server/internal/daemon/usage/hermes.go
 - `JWT_SECRET` (has default) — .env.example
+- `LOCAL_UPLOAD_BASE_URL` (has default) — .env.example
+- `LOCAL_UPLOAD_DIR` (has default) — .env.example
 - `LOG_LEVEL` **required** — server/internal/logger/logger.go
 - `MINIO_CONSOLE_PORT` (has default) — .env.example
 - `MINIO_DATA_DIR` (has default) — .env.example
@@ -1314,6 +1361,8 @@
 - `MULTICA_DAEMON_ID` **required** — .env.example
 - `MULTICA_DAEMON_POLL_INTERVAL` (has default) — .env.example
 - `MULTICA_DAEMON_PORT` **required** — server/cmd/multica/cmd_repo.go
+- `MULTICA_GC_ENABLED` **required** — server/internal/daemon/config.go
+- `MULTICA_GEMINI_MODEL` **required** — server/internal/daemon/config.go
 - `MULTICA_HERMES_MODEL` **required** — server/internal/daemon/config.go
 - `MULTICA_KEEP_ENV_AFTER_TASK` **required** — server/internal/daemon/config.go
 - `MULTICA_OPENCLAW_MODEL` **required** — server/internal/daemon/config.go
@@ -1328,6 +1377,7 @@
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` **required** — .env.example
 - `NEXT_PUBLIC_WS_URL` (has default) — .env.example
 - `NODE_ENV` **required** — apps/web/components/theme-provider.tsx
+- `OPENCLAW_HOME` **required** — server/internal/daemon/usage/openclaw.go
 - `PATH` **required** — server/internal/daemon/daemon.go
 - `PLAYWRIGHT_BASE_URL` **required** — playwright.config.ts
 - `PORT` (has default) — .env.example
@@ -1343,7 +1393,10 @@
 - `S3_REGION` (has default) — .env.example
 - `STANDALONE` **required** — apps/web/next.config.ts
 - `VITE_API_URL` **required** — apps/desktop/src/renderer/src/App.tsx
+- `VITE_REMOTE_API` **required** — apps/desktop/src/renderer/src/App.tsx
+- `VITE_WEB_URL` **required** — apps/desktop/src/renderer/src/pages/login.tsx
 - `VITE_WS_URL` **required** — apps/desktop/src/renderer/src/App.tsx
+- `XDG_DATA_HOME` **required** — server/internal/daemon/usage/opencode.go
 
 ## Config Files
 
@@ -1369,14 +1422,16 @@
 - cloudfront — `server/internal/middleware/cloudfront.go`
 - daemon_auth — `server/internal/middleware/daemon_auth.go`
 
-## logging
-- request_logger — `server/internal/middleware/request_logger.go`
-
 ## custom
+- csp — `server/internal/middleware/csp.go`
+- csp_test — `server/internal/middleware/csp_test.go`
 - workspace — `server/internal/middleware/workspace.go`
 - 022_task_lifecycle_guards.down — `server/migrations/022_task_lifecycle_guards.down.sql`
 - 022_task_lifecycle_guards.up — `server/migrations/022_task_lifecycle_guards.up.sql`
 - migrate_binary — `server/scratch/migrate_binary.go`
+
+## logging
+- request_logger — `server/internal/middleware/request_logger.go`
 
 ---
 
@@ -1384,52 +1439,53 @@
 
 ## Most Imported Files (change these carefully)
 
-- `encoding/json` — imported by **54** files
-- `log/slog` — imported by **49** files
-- `net/http` — imported by **49** files
-- `packages/core/types/index.ts` — imported by **23** files
-- `path/filepath` — imported by **20** files
+- `encoding/json` — imported by **65** files
+- `net/http` — imported by **57** files
+- `log/slog` — imported by **55** files
+- `path/filepath` — imported by **32** files
+- `packages/core/types/index.ts` — imported by **25** files
 - `packages/views/common/actor-avatar.tsx` — imported by **19** files
 - `packages/core/api/index.ts` — imported by **16** files
+- `os/exec` — imported by **16** files
 - `packages/views/navigation/index.ts` — imported by **15** files
-- `os/exec` — imported by **12** files
+- `net/http/httptest` — imported by **13** files
 - `apps/web/features/landing/i18n/index.ts` — imported by **10** files
 - `packages/core/types/storage.ts` — imported by **10** files
 - `packages/core/platform/storage.ts` — imported by **9** files
+- `packages/views/editor/index.ts` — imported by **9** files
 - `apps/web/features/landing/components/shared.tsx` — imported by **8** files
+- `packages/core/api/client.ts` — imported by **8** files
 - `packages/core/platform/workspace-storage.ts` — imported by **8** files
 - `packages/views/issues/components/status-icon.tsx` — imported by **8** files
 - `packages/views/issues/components/index.ts` — imported by **8** files
-- `packages/views/editor/index.ts` — imported by **8** files
 - `packages/views/runtimes/utils.ts` — imported by **8** files
-- `net/http/httptest` — imported by **8** files
-- `packages/core/logger.ts` — imported by **7** files
 
 ## Import Map (who imports what)
 
-- `encoding/json` ← `server/cmd/multica/cmd_agent.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_skill.go` +49 more
-- `log/slog` ← `server/cmd/migrate/main.go`, `server/cmd/server/activity_listeners.go`, `server/cmd/server/listeners.go`, `server/cmd/server/main.go`, `server/cmd/server/notification_listeners.go` +44 more
-- `net/http` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/server/comment_trigger_integration_test.go` +44 more
-- `packages/core/types/index.ts` ← `packages/core/auth/store.ts`, `packages/core/chat/store.ts`, `packages/core/hooks/use-file-upload.ts`, `packages/core/inbox/mutations.ts`, `packages/core/inbox/queries.ts` +18 more
-- `path/filepath` ← `server/cmd/migrate/main.go`, `server/cmd/multica/cmd_attachment.go`, `server/internal/cli/client.go`, `server/internal/cli/config.go`, `server/internal/cli/update.go` +15 more
+- `encoding/json` ← `server/cmd/multica/cmd_agent.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_skill.go` +60 more
+- `net/http` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_setup.go` +52 more
+- `log/slog` ← `server/cmd/migrate/main.go`, `server/cmd/server/activity_listeners.go`, `server/cmd/server/listeners.go`, `server/cmd/server/main.go`, `server/cmd/server/notification_listeners.go` +50 more
+- `path/filepath` ← `server/cmd/migrate/main.go`, `server/cmd/multica/cmd_attachment.go`, `server/cmd/multica/cmd_daemon.go`, `server/internal/cli/client.go`, `server/internal/cli/config.go` +27 more
+- `packages/core/types/index.ts` ← `packages/core/auth/store.ts`, `packages/core/chat/mutations.ts`, `packages/core/chat/store.ts`, `packages/core/hooks/use-file-upload.ts`, `packages/core/inbox/mutations.ts` +20 more
 - `packages/views/common/actor-avatar.tsx` ← `packages/views/agents/components/agent-detail.tsx`, `packages/views/agents/components/agent-list-item.tsx`, `packages/views/agents/components/tabs/settings-tab.tsx`, `packages/views/editor/extensions/mention-suggestion.tsx`, `packages/views/inbox/components/inbox-list-item.tsx` +14 more
 - `packages/core/api/index.ts` ← `packages/core/chat/mutations.ts`, `packages/core/chat/queries.ts`, `packages/core/inbox/mutations.ts`, `packages/core/inbox/queries.ts`, `packages/core/issues/mutations.ts` +11 more
+- `os/exec` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_daemon_unix.go`, `server/internal/cli/update.go`, `server/internal/daemon/config.go` +11 more
 - `packages/views/navigation/index.ts` ← `packages/views/editor/extensions/mention-view.tsx`, `packages/views/editor/readonly-content.tsx`, `packages/views/inbox/components/inbox-page.tsx`, `packages/views/issues/components/board-card.tsx`, `packages/views/issues/components/issue-detail.tsx` +10 more
-- `os/exec` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/internal/cli/update.go`, `server/internal/daemon/config.go`, `server/internal/daemon/execenv/git.go` +7 more
-- `apps/web/features/landing/i18n/index.ts` ← `apps/web/features/landing/components/about-page-client.tsx`, `apps/web/features/landing/components/changelog-page-client.tsx`, `apps/web/features/landing/components/faq-section.tsx`, `apps/web/features/landing/components/features-section.tsx`, `apps/web/features/landing/components/features-section.tsx` +5 more
+- `net/http/httptest` ← `server/cmd/multica/cmd_issue_test.go`, `server/cmd/server/integration_test.go`, `server/internal/cli/client_test.go`, `server/internal/daemon/daemon_test.go`, `server/internal/daemon/gc_test.go` +8 more
 
 ---
 
 # Test Coverage
 
-> **18%** of routes and models are covered by tests
-> 49 test files found
+> **20%** of routes and models are covered by tests
+> 69 test files found
 
 ## Covered Routes
 
 - GET:token
 - GET:state
 - POST:/api/daemon/register
+- POST:/api/daemon/heartbeat
 - GET:/api/workspaces
 - POST:/api/workspaces
 - PUT:/api/workspaces
@@ -1449,8 +1505,14 @@
 - POST:/auth/verify-code
 - GET:/api/me
 - PATCH:/api/me
+- POST:/api/upload-file
+- GET:/
+- POST:/
 - GET:/members
+- PUT:/
+- PATCH:/
 - POST:/members
+- DELETE:/
 - POST:/comments
 - GET:/comments
 - GET:/timeline
@@ -1462,6 +1524,7 @@
 - GET:workspace_id
 - GET:priority
 - GET:assignee_id
+- GET:project_id
 - GET:owner
 - ALL:/ws
 - WS:issue:updated
@@ -1484,6 +1547,7 @@
 - skill
 - verification_code
 - issue_subscriber
+- attachment
 - project
 
 ---

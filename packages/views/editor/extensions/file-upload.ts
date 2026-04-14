@@ -1,6 +1,7 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { UploadResult } from "@multica/core/hooks/use-file-upload";
+import { createSafeId } from "@multica/core/utils";
 
 function findNodeEndByPredicate(editor: any, predicate: (node: any) => boolean): number | null {
   let found: number | null = null;
@@ -119,7 +120,7 @@ export async function uploadAndInsertFile(
     return insertedEnd;
   } else {
     // Non-image: insert skeleton fileCard → upload → finalize with real URL
-    const uploadId = crypto.randomUUID();
+    const uploadId = createSafeId();
     const cardAttrs = { filename: file.name, href: "", fileSize: file.size, uploading: true, uploadId };
     const insertContent = { type: "fileCard", attrs: cardAttrs };
     if (pos !== undefined) {

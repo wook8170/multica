@@ -221,8 +221,14 @@ export async function uploadAndInsertFiles(
   }));
 }
 
+export interface AmbiguousPastePayload {
+  files: FileList;
+  html: string;
+}
+
 export function createFileUploadExtension(
   onUploadFileRef: React.RefObject<((file: File) => Promise<UploadResult | null>) | undefined>,
+  onAmbiguousPasteRef?: React.RefObject<((payload: AmbiguousPastePayload) => void) | undefined>,
 ) {
   return Extension.create({
     name: "fileUpload",
@@ -244,6 +250,14 @@ export function createFileUploadExtension(
               const files = event.clipboardData?.files;
               if (!files?.length) return false;
               if (!onUploadFileRef.current) return false;
+              // If clipboard also has an HTML table (Excel, Google Sheets),
+              // ask the user whether to paste as image or table.
+              const html = event.clipboardData?.getData("text/html") ?? "";
+              if (html.includes("<table") && onAmbiguousPasteRef?.current) {
+                event.preventDefault();
+                onAmbiguousPasteRef.current({ files, html });
+                return true;
+              }
               event.preventDefault();
               handleFiles(files);
               return true;

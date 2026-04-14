@@ -10,9 +10,11 @@ import Link from "@tiptap/extension-link";
 import Typography from "@tiptap/extension-typography";
 import Image from "@tiptap/extension-image";
 import TableRow from "@tiptap/extension-table-row";
-import TableHeader from "@tiptap/extension-table-header";
-import TableCell from "@tiptap/extension-table-cell";
+import BaseTableHeader from "@tiptap/extension-table-header";
+import BaseTableCell from "@tiptap/extension-table-cell";
 import { Table } from "@tiptap/extension-table";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "@tiptap/markdown";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import type { AnyExtension } from "@tiptap/core";
@@ -23,9 +25,10 @@ import { createMentionSuggestion } from "./mention-suggestion";
 import { CodeBlockView } from "./code-block-view";
 import { createMarkdownPasteExtension } from "./markdown-paste";
 import { createSubmitExtension } from "./submit-shortcut";
-import { createFileUploadExtension } from "./file-upload";
+import { createFileUploadExtension, type AmbiguousPastePayload } from "./file-upload";
 import { FileCardExtension } from "./file-card";
 import { ImageView } from "./image-view";
+import { TableDeleteShortcutExtension } from "./table-delete-shortcut";
 
 const lowlight = createLowlight(common);
 
@@ -61,6 +64,58 @@ const ImageExtension = Image.extend({
   allowBase64: false,
 });
 
+const TableCell = BaseTableCell.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      backgroundColor: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style.backgroundColor || null,
+        renderHTML: (attrs: Record<string, unknown>) => {
+          const backgroundColor = attrs.backgroundColor as string | null;
+          const textColor = attrs.textColor as string | null;
+          const styles = [
+            backgroundColor ? `background-color: ${backgroundColor}` : null,
+            textColor ? `color: ${textColor}` : null,
+          ].filter(Boolean).join("; ");
+          return styles ? { style: styles } : {};
+        },
+      },
+      textColor: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style.color || null,
+        renderHTML: () => ({}),
+      },
+    };
+  },
+});
+
+const TableHeader = BaseTableHeader.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      backgroundColor: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style.backgroundColor || null,
+        renderHTML: (attrs: Record<string, unknown>) => {
+          const backgroundColor = attrs.backgroundColor as string | null;
+          const textColor = attrs.textColor as string | null;
+          const styles = [
+            backgroundColor ? `background-color: ${backgroundColor}` : null,
+            textColor ? `color: ${textColor}` : null,
+          ].filter(Boolean).join("; ");
+          return styles ? { style: styles } : {};
+        },
+      },
+      textColor: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style.color || null,
+        renderHTML: () => ({}),
+      },
+    };
+  },
+});
+
 export interface EditorExtensionsOptions {
   editable: boolean;
   placeholder?: string;
@@ -68,6 +123,9 @@ export interface EditorExtensionsOptions {
   onSubmitRef?: RefObject<(() => void) | undefined>;
   onUploadFileRef?: RefObject<
     ((file: File) => Promise<UploadResult | null>) | undefined
+  >;
+  onAmbiguousPasteRef?: RefObject<
+    ((payload: AmbiguousPastePayload) => void) | undefined
   >;
   // Collaboration — typed as any to avoid ydoc/HocuspocusProvider peer-dep type errors
   ydoc?: any;
@@ -97,10 +155,15 @@ export function createEditorExtensions(
     }).configure({ lowlight }),
     editable ? LinkEditable : LinkReadonly,
     ImageExtension,
-    Table.configure({ resizable: false }),
+    Table.configure({
+      resizable: false,
+      allowTableNodeSelection: true,
+    }),
     TableRow,
     TableHeader,
     TableCell,
+    TaskList,
+    TaskItem.configure({ nested: true }),
     Markdown,
     FileCardExtension,
     BaseMentionExtension.configure({
@@ -124,7 +187,8 @@ export function createEditorExtensions(
       Placeholder.configure({ placeholder: placeholderText }),
       createMarkdownPasteExtension(),
       createSubmitExtension(() => options.onSubmitRef?.current?.()),
-      createFileUploadExtension(options.onUploadFileRef!),
+      createFileUploadExtension(options.onUploadFileRef!, options.onAmbiguousPasteRef),
+      TableDeleteShortcutExtension,
     );
   }
 

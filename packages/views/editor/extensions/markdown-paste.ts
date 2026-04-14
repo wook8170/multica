@@ -50,6 +50,10 @@ export function createMarkdownPasteExtension() {
               // clipboard path to preserve exact node structure.
               if (html && html.includes("data-pm-slice")) return false;
 
+              // If HTML contains a table (Excel, Google Sheets), let ProseMirror
+              // parse the HTML so it becomes table nodes instead of plain text.
+              if (html && html.includes("<table")) return false;
+
               // Everything else (VS Code, text editors, .md files, terminals,
               // web pages): parse text/plain as Markdown.
               const json = editor.markdown.parse(text);

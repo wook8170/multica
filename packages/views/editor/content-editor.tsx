@@ -3,7 +3,7 @@ import {
   Heading1, Heading2, Heading3,
   List, ListOrdered, CheckSquare,
   Quote, Minus, Link as LinkIcon, Paperclip, Table as TableIcon,
-  RotateCcw
+  RotateCcw, Rows3, Columns3, Palette, Type, Trash2
 } from "lucide-react";
 import {
   forwardRef,
@@ -22,7 +22,37 @@ import { createEditorExtensions } from "./extensions";
 import { uploadAndInsertFile, uploadAndInsertFiles } from "./extensions/file-upload";
 import { preprocessMarkdown } from "./utils/preprocess";
 import { Button } from "@multica/ui/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@multica/ui/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@multica/ui/components/ui/context-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@multica/ui/components/ui/alert-dialog";
 import "./content-editor.css";
+import type { AmbiguousPastePayload } from "./extensions/file-upload";
 
 interface ContentEditorProps {
   defaultValue?: string;
@@ -53,6 +83,133 @@ interface ContentEditorRef {
   clearContent: () => void;
   focus: () => void;
   uploadFile: (file: File) => void;
+}
+
+interface AmbiguousPasteState {
+  open: boolean;
+  files: File[];
+  html: string;
+}
+
+type TableCellNode = {
+  type: "tableHeader" | "tableCell";
+  content: Array<{
+    type: "paragraph";
+    content?: Array<{ type: "text"; text: string }>;
+  }>;
+};
+
+type TableRowNode = {
+  type: "tableRow";
+  content: TableCellNode[];
+};
+
+type TableNode = {
+  type: "table";
+  content: TableRowNode[];
+};
+
+const TABLE_BG_COLORS = [
+  "#ffffff",
+  "#fef3c7",
+  "#dbeafe",
+  "#dcfce7",
+  "#fee2e2",
+  "#ede9fe",
+  "#fce7f3",
+  "#f3f4f6",
+];
+
+const TABLE_TEXT_COLORS = [
+  "#111827",
+  "#1d4ed8",
+  "#166534",
+  "#b91c1c",
+  "#6d28d9",
+  "#92400e",
+  "#0f766e",
+  "#6b7280",
+];
+
+const TABLE_BG_COLOR_MENU = [
+  { label: "Default", value: "#ffffff" },
+  { label: "Yellow", value: "#fef3c7" },
+  { label: "Blue", value: "#dbeafe" },
+  { label: "Green", value: "#dcfce7" },
+  { label: "Red", value: "#fee2e2" },
+  { label: "Violet", value: "#ede9fe" },
+  { label: "Pink", value: "#fce7f3" },
+  { label: "Gray", value: "#f3f4f6" },
+];
+
+const TABLE_TEXT_COLOR_MENU = [
+  { label: "Default", value: "#111827" },
+  { label: "Blue", value: "#1d4ed8" },
+  { label: "Green", value: "#166534" },
+  { label: "Red", value: "#b91c1c" },
+  { label: "Violet", value: "#6d28d9" },
+  { label: "Brown", value: "#92400e" },
+  { label: "Teal", value: "#0f766e" },
+  { label: "Gray", value: "#6b7280" },
+];
+
+function extractFirstTableHtml(html: string): string {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const table = doc.querySelector("table");
+    return table?.outerHTML ?? html;
+  } catch {
+    return html;
+  }
+}
+
+function buildTableNodeFromHtml(html: string): TableNode | null {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const table = doc.querySelector("table") as HTMLTableElement | null;
+    if (!table) return null;
+
+    const rows = Array.from(table.rows);
+    if (rows.length === 0) return null;
+
+    const maxCols = rows.reduce((acc, row) => Math.max(acc, row.cells.length), 0);
+    if (maxCols === 0) return null;
+
+    const hasHeaderRow = Array.from(rows[0]!.cells).every(
+      (cell) => cell.tagName.toLowerCase() === "th",
+    );
+
+    const rowNodes: TableRowNode[] = rows.map((row, rowIndex) => {
+      const isHeaderRow = hasHeaderRow && rowIndex === 0;
+      const cells = Array.from(row.cells);
+
+      const cellNodes: TableCellNode[] = Array.from({ length: maxCols }, (_, colIndex) => {
+        const cell = cells[colIndex] ?? null;
+        const normalizedText = (cell?.textContent ?? "")
+          .replace(/\u00a0/g, " ")
+          .replace(/\r?\n+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        return {
+          type: isHeaderRow ? "tableHeader" : "tableCell",
+          content: [
+            normalizedText
+              ? { type: "paragraph", content: [{ type: "text", text: normalizedText }] }
+              : { type: "paragraph" },
+          ],
+        };
+      });
+
+      return { type: "tableRow", content: cellNodes };
+    });
+
+    return { type: "table", content: rowNodes };
+  } catch {
+    return null;
+  }
 }
 
 const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
@@ -93,11 +250,24 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     const onBlurRef = useRef(onBlur);
     const onUploadFileRef = useRef(onUploadFile);
     const prevContentRef = useRef(defaultValue);
+    const onAmbiguousPasteRef = useRef<((payload: AmbiguousPastePayload) => void) | undefined>(undefined);
+    const [ambiguousPaste, setAmbiguousPaste] = useState<AmbiguousPasteState>({
+      open: false,
+      files: [],
+      html: "",
+    });
 
     onUpdateRef.current = onUpdate;
     onSubmitRef.current = onSubmit;
     onBlurRef.current = onBlur;
     onUploadFileRef.current = onUploadFile;
+    onAmbiguousPasteRef.current = (payload) => {
+      setAmbiguousPaste({
+        open: true,
+        files: Array.from(payload.files),
+        html: payload.html,
+      });
+    };
 
     const queryClient = useQueryClient();
 
@@ -112,6 +282,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         queryClient,
         onSubmitRef,
         onUploadFileRef,
+        onAmbiguousPasteRef,
         ydoc,
         provider,
         user,
@@ -150,7 +321,58 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
     }, [editor]);
 
+    const inTable = !!editor && (editor.isActive("table") || editor.isActive("tableCell") || editor.isActive("tableHeader"));
+    const canMutateTable = inTable && editable;
+    const canMergeCells = canMutateTable && editor.can().chain().focus().mergeCells().run();
+    const canSplitCell = canMutateTable && editor.can().chain().focus().splitCell().run();
+    const applyCellAttribute = useCallback((attribute: "backgroundColor" | "textColor", value: string | null) => {
+      if (!editor || !editor.isActive("table")) return;
+      editor.chain().focus().setCellAttribute(attribute, value).run();
+    }, [editor]);
+
+    const focusEditorAtMouse = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+      if (!editor) return;
+      const currentSelection = editor.state.selection as { constructor?: { name?: string } };
+      if (currentSelection?.constructor?.name === "CellSelection") return;
+      const inTableDom = (event.target as HTMLElement | null)?.closest("td, th");
+      if (!inTableDom) return;
+      const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
+      if (!pos) return;
+      editor.chain().focus().setTextSelection(pos.pos).run();
+    }, [editor]);
+
     const handleFileClick = () => fileInputRef.current?.click();
+    const closeAmbiguousPaste = () => {
+      setAmbiguousPaste({ open: false, files: [], html: "" });
+    };
+    const handlePasteAsImage = () => {
+      if (!editor || !onUploadFileRef.current || ambiguousPaste.files.length === 0) {
+        closeAmbiguousPaste();
+        return;
+      }
+      uploadAndInsertFiles(
+        editor,
+        ambiguousPaste.files,
+        onUploadFileRef.current,
+        editor.state.selection.to,
+      );
+      closeAmbiguousPaste();
+    };
+    const handlePasteAsTable = () => {
+      if (!editor || !ambiguousPaste.html) {
+        closeAmbiguousPaste();
+        return;
+      }
+      const tableNode = buildTableNodeFromHtml(ambiguousPaste.html);
+      if (tableNode) {
+        editor.chain().focus().insertContent(tableNode).run();
+      } else {
+        const tableHtml = extractFirstTableHtml(ambiguousPaste.html);
+        editor.chain().focus().insertContent(tableHtml).run();
+      }
+      closeAmbiguousPaste();
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (files?.length && editor && onUploadFileRef.current) {
@@ -403,6 +625,26 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
 
     return (
       <div className={cn("relative flex h-full flex-col overflow-hidden bg-transparent")}>
+        <AlertDialog open={ambiguousPaste.open} onOpenChange={(open) => { if (!open) closeAmbiguousPaste(); }}>
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Paste spreadsheet content as</AlertDialogTitle>
+              <AlertDialogDescription>
+                We detected both a table and an image in your clipboard. Choose how to paste it.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={closeAmbiguousPaste}>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="outline" onClick={handlePasteAsTable}>
+                Paste as table
+              </AlertDialogAction>
+              <AlertDialogAction onClick={handlePasteAsImage}>
+                Paste as image
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {showToolbar && editable && (
           <div className="sticky top-0 z-20 flex flex-wrap items-center gap-1 border-b bg-background px-4 py-2 overflow-x-auto scrollbar-hide">
             {/* Inline Formatting */}
@@ -442,7 +684,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
               <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Numbered List">
                 <ListOrdered className="size-3.5" />
               </ToolbarButton>
-              <ToolbarButton onClick={() => editor.chain().focus().toggleTaskList?.().run()} active={editor.isActive("taskList")} title="Task List">
+              <ToolbarButton onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")} title="Task List">
                 <CheckSquare className="size-3.5" />
               </ToolbarButton>
             </div>
@@ -468,6 +710,108 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
               <ToolbarButton onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insert Table">
                 <TableIcon className="size-3.5" />
               </ToolbarButton>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  <Rows3 className="size-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuGroup>
+                    <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Rows</div>
+                    <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().addRowBefore().run()}>
+                      Add row above
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().addRowAfter().run()}>
+                      Add row below
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().deleteRow().run()}>
+                    Delete row
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  <Columns3 className="size-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuGroup>
+                    <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Columns</div>
+                    <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().addColumnBefore().run()}>
+                      Add column left
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().addColumnAfter().run()}>
+                      Add column right
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().deleteColumn().run()}>
+                    Delete column
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  <Palette className="size-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuGroup>
+                    <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Cell background</div>
+                    <div className="grid grid-cols-4 gap-2 px-2 py-1.5">
+                      {TABLE_BG_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          disabled={!inTable}
+                          className="h-6 w-6 rounded border border-border disabled:opacity-40"
+                          style={{ backgroundColor: color }}
+                          onClick={() => applyCellAttribute("backgroundColor", color)}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("backgroundColor", null)}>
+                    Clear background
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  <Type className="size-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuGroup>
+                    <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Cell text color</div>
+                    <div className="grid grid-cols-4 gap-2 px-2 py-1.5">
+                      {TABLE_TEXT_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          disabled={!inTable}
+                          className="h-6 w-6 rounded border border-border disabled:opacity-40"
+                          style={{ backgroundColor: color }}
+                          onClick={() => applyCellAttribute("textColor", color)}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("textColor", null)}>
+                    Clear text color
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <ToolbarButton onClick={() => editor.chain().focus().deleteTable().run()} title="Delete Table" active={false} disabled={!inTable}>
+                <Trash2 className="size-3.5" />
+              </ToolbarButton>
             </div>
             
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple />
@@ -475,36 +819,127 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         )}
         {/* scrollContainerRef: used by RemoteCursor for absolute position calculation */}
         {/* pt-7: reserve space so the name badge (rendered above the caret) isn't clipped at the top */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative pt-7">
-          <EditorContent editor={editor} />
+        <ContextMenu>
+          <ContextMenuTrigger
+            onContextMenuCapture={focusEditorAtMouse}
+            className="block h-full"
+          >
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative pt-7">
+              <EditorContent editor={editor} />
 
-          {/* Remote user cursors (Presence layer, decoupled from Content) */}
-          {showRemoteCursors && Object.entries(remoteCursors).map(([clientID, { user: remoteUser, cursor }]) => {
-            if (!cursor) return null;
-            return (
-              <RemoteCursor
-                key={clientID}
-                editor={editor}
-                user={remoteUser}
-                anchor={cursor.anchor ?? cursor.head}
-                head={cursor.head}
-                scrollContainer={scrollContainerRef.current}
-              />
-            );
-          })}
-        </div>
+              {/* Remote user cursors (Presence layer, decoupled from Content) */}
+              {showRemoteCursors && Object.entries(remoteCursors).map(([clientID, { user: remoteUser, cursor }]) => {
+                if (!cursor) return null;
+                return (
+                  <RemoteCursor
+                    key={clientID}
+                    editor={editor}
+                    user={remoteUser}
+                    anchor={cursor.anchor ?? cursor.head}
+                    head={cursor.head}
+                    scrollContainer={scrollContainerRef.current}
+                  />
+                );
+              })}
+            </div>
+          </ContextMenuTrigger>
+
+          <ContextMenuContent className="w-56">
+            <ContextMenuGroup>
+              <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().addRowBefore().run()}>
+                Add row above
+              </ContextMenuItem>
+              <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().addRowAfter().run()}>
+                Add row below
+              </ContextMenuItem>
+              <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().deleteRow().run()}>
+                Delete row
+              </ContextMenuItem>
+            </ContextMenuGroup>
+
+            <ContextMenuSeparator />
+
+            <ContextMenuGroup>
+              <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().addColumnBefore().run()}>
+                Add column left
+              </ContextMenuItem>
+              <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().addColumnAfter().run()}>
+                Add column right
+              </ContextMenuItem>
+              <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().deleteColumn().run()}>
+                Delete column
+              </ContextMenuItem>
+            </ContextMenuGroup>
+
+            <ContextMenuSeparator />
+
+            <ContextMenuGroup>
+              <ContextMenuItem disabled={!canMergeCells} onClick={() => editor.chain().focus().mergeCells().run()}>
+                Merge cells
+              </ContextMenuItem>
+              <ContextMenuItem disabled={!canSplitCell} onClick={() => editor.chain().focus().splitCell().run()}>
+                Split cell
+              </ContextMenuItem>
+            </ContextMenuGroup>
+
+            <ContextMenuSeparator />
+
+            <ContextMenuSub>
+              <ContextMenuSubTrigger disabled={!canMutateTable}>Cell background</ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-48">
+                {TABLE_BG_COLOR_MENU.map((color) => (
+                  <ContextMenuItem key={color.value} disabled={!canMutateTable} onClick={() => applyCellAttribute("backgroundColor", color.value)}>
+                    <span className="mr-2 inline-block h-3 w-3 rounded-sm border border-border" style={{ backgroundColor: color.value }} />
+                    {color.label}
+                  </ContextMenuItem>
+                ))}
+                <ContextMenuSeparator />
+                <ContextMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("backgroundColor", null)}>
+                  Clear background
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+
+            <ContextMenuSub>
+              <ContextMenuSubTrigger disabled={!canMutateTable}>Cell text color</ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-48">
+                {TABLE_TEXT_COLOR_MENU.map((color) => (
+                  <ContextMenuItem key={color.value} disabled={!canMutateTable} onClick={() => applyCellAttribute("textColor", color.value)}>
+                    <span className="mr-2 inline-block h-3 w-3 rounded-full border border-border" style={{ backgroundColor: color.value }} />
+                    {color.label}
+                  </ContextMenuItem>
+                ))}
+                <ContextMenuSeparator />
+                <ContextMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textColor", null)}>
+                  Clear text color
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+
+            <ContextMenuSeparator />
+
+            <ContextMenuItem
+              variant="destructive"
+              disabled={!canMutateTable}
+              onClick={() => editor.chain().focus().deleteTable().run()}
+            >
+              Delete table
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </div>
     );
   },
 );
 
-const ToolbarButton = ({ children, onClick, active, title }: any) => (
+const ToolbarButton = ({ children, onClick, active, title, disabled }: any) => (
   <Button
     type="button"
     variant={active ? "secondary" : "ghost"}
     size="icon-sm"
     onClick={onClick}
     title={title}
+    disabled={disabled}
     className={cn(
       "h-7 w-7 transition-colors",
       active ? "text-brand bg-brand/5" : "text-muted-foreground"

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense, lazy, type ReactNode } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Library, Plus, Minus, Loader2, Clock, ArrowLeft, RotateCcw, X, Trash2 } from "lucide-react";
+import { Library, Plus, Minus, Loader2, Clock, ArrowLeft, RotateCcw, X, Trash2, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import {
   ResizablePanelGroup,
@@ -958,9 +958,16 @@ function splitIntoBlocks(content: string): string[] {
 /** True if a block is a standalone file attachment (fileCard div, CDN image, or CDN link). */
 const ATTACHMENT_BLOCK_RE =
   /^(?:<div\b[^>]*data-type=["']fileCard["']|!\[.*?\]\(https?:\/\/|\[[^\]]+\]\(https?:\/\/)/i;
+const TABLE_BLOCK_RE = /(?:^|\n)\|.+\|\s*(?:\n|\r\n)\|[\s:|-]+\|/m;
+const HTML_TABLE_BLOCK_RE = /^\s*<table\b/i;
 
 function isAttachmentBlock(block: string): boolean {
   return ATTACHMENT_BLOCK_RE.test(block.trim());
+}
+
+function isTableBlock(block: string): boolean {
+  const trimmed = block.trim();
+  return HTML_TABLE_BLOCK_RE.test(trimmed) || TABLE_BLOCK_RE.test(trimmed);
 }
 
 type BlockDiffSegment = {
@@ -1030,8 +1037,58 @@ function WikiDiffView({
   onClose,
   onRestore,
 }: any) {
+  const { isFullWidth, setIsFullWidth } = useWikiStore();
   const isFirstVersion = prevVersionNumber === null;
   const titleChanged = prevTitle !== versionTitle;
+  const contentViewportRef = useRef<HTMLDivElement | null>(null);
+  const [contentViewportWidth, setContentViewportWidth] = useState(0);
+
+  const baseWidthRem = 42; // max-w-2xl
+  const baseWidthPx = baseWidthRem * 16;
+
+  const maxWidthPercent = useMemo(() => {
+    if (contentViewportWidth <= 0) return 160;
+    const usableWidthPx = Math.max(baseWidthPx, contentViewportWidth);
+    return Math.max(100, Math.round((usableWidthPx / baseWidthPx) * 100));
+  }, [contentViewportWidth]);
+
+  const widthSteps = useMemo<number[]>(() => {
+    if (maxWidthPercent <= 100) return [100];
+    const raw = [
+      100,
+      Math.round(100 + (maxWidthPercent - 100) * (1 / 3)),
+      Math.round(100 + (maxWidthPercent - 100) * (2 / 3)),
+      maxWidthPercent,
+    ];
+    return raw.filter((v, idx) => idx === 0 || v > raw[idx - 1]!);
+  }, [maxWidthPercent]);
+
+  const defaultWidthIndex = 0;
+  const [widthIndex, setWidthIndex] = useState(defaultWidthIndex);
+  const widthPercent = widthSteps[widthIndex] ?? 100;
+  const pageWidthRem = (baseWidthRem * widthPercent) / 100;
+  const maxWidthIndex = Math.max(0, widthSteps.length - 1);
+  const isAtMinWidth = !isFullWidth && widthIndex === defaultWidthIndex;
+  const isAtMaxWidth = isFullWidth || widthIndex === maxWidthIndex;
+  const quickTargetIndex = isAtMinWidth ? maxWidthIndex : defaultWidthIndex;
+  const currentPercentLabel = isFullWidth ? maxWidthPercent : widthPercent;
+
+  useEffect(() => {
+    const el = contentViewportRef.current;
+    if (!el) return;
+
+    const updateWidth = () => setContentViewportWidth(el.clientWidth);
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(el);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setWidthIndex((idx) => Math.min(idx, widthSteps.length - 1));
+  }, [widthSteps.length]);
 
   const segments = useMemo<BlockDiffSegment[]>(() => {
     if (isFirstVersion) {
@@ -1042,6 +1099,39 @@ function WikiDiffView({
       splitIntoBlocks(versionContent || ""),
     );
   }, [isFirstVersion, prevContent, versionContent]);
+
+  const changeSummary = useMemo(() => {
+    const summary = {
+      addedChars: 0,
+      removedChars: 0,
+      unchangedChars: 0,
+      addedBlocks: 0,
+      removedBlocks: 0,
+      unchangedBlocks: 0,
+    };
+
+    for (const segment of segments) {
+      const chars = segment.blocks.reduce((total, block) => total + block.length, 0);
+      const blocks = segment.blocks.length;
+
+      if (segment.type === "added") {
+        summary.addedChars += chars;
+        summary.addedBlocks += blocks;
+        continue;
+      }
+
+      if (segment.type === "removed") {
+        summary.removedChars += chars;
+        summary.removedBlocks += blocks;
+        continue;
+      }
+
+      summary.unchangedChars += chars;
+      summary.unchangedBlocks += blocks;
+    }
+
+    return summary;
+  }, [segments]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
@@ -1079,6 +1169,67 @@ function WikiDiffView({
           )}
         </div>
         <div className="flex items-center gap-1">
+          <div className="mr-1 flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/30 p-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:bg-muted"
+              onClick={() => {
+                if (isFullWidth) {
+                  setIsFullWidth(false);
+                  setWidthIndex(maxWidthIndex);
+                  return;
+                }
+                setWidthIndex((idx) => Math.max(0, idx - 1));
+              }}
+              disabled={!isFullWidth && widthIndex === 0}
+              title="Narrower page"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 min-w-12 px-2 text-[11px] font-semibold text-foreground hover:bg-muted"
+              onClick={() => {
+                setIsFullWidth(false);
+                setWidthIndex(quickTargetIndex);
+              }}
+              title={isAtMinWidth ? "Set to max step" : "Set to 100%"}
+            >
+              {currentPercentLabel}%
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:bg-muted"
+              onClick={() => {
+                if (isFullWidth) return;
+                setWidthIndex((idx) => Math.min(widthSteps.length - 1, idx + 1));
+              }}
+              disabled={isFullWidth || widthIndex === widthSteps.length - 1}
+              title="Wider page"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-8 w-8", isAtMaxWidth ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted")}
+            onClick={() => {
+              if (isAtMaxWidth) {
+                setIsFullWidth(false);
+                setWidthIndex(defaultWidthIndex);
+                return;
+              }
+              setIsFullWidth(true);
+            }}
+            title={isAtMaxWidth ? "Shrink page width" : "Expand page width"}
+          >
+            {isAtMaxWidth ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -1100,9 +1251,26 @@ function WikiDiffView({
         </div>
       </div>
 
+      <div className="flex shrink-0 items-center gap-2 border-b px-4 py-1.5 text-[11px] text-muted-foreground">
+        <span className="rounded-md bg-sky-500/10 px-2 py-0.5 font-medium text-sky-700 dark:text-sky-300">
+          Added {changeSummary.addedChars.toLocaleString()} chars / {changeSummary.addedBlocks} blocks
+        </span>
+        <span className="rounded-md bg-destructive/10 px-2 py-0.5 font-medium text-destructive">
+          Removed {changeSummary.removedChars.toLocaleString()} chars / {changeSummary.removedBlocks} blocks
+        </span>
+        <span className="rounded-md bg-muted px-2 py-0.5 font-medium text-foreground/80">
+          Unchanged {changeSummary.unchangedChars.toLocaleString()} chars / {changeSummary.unchangedBlocks} blocks
+        </span>
+      </div>
+
       {/* Content — single view like read mode, changed blocks highlighted */}
-      <div className="flex-1 overflow-y-auto pt-8 pb-16">
-        <div className="mx-auto max-w-2xl px-6">
+      <div ref={contentViewportRef} className="flex-1 overflow-y-auto pt-8 pb-16">
+        <div
+          className="mx-auto w-full px-6 transition-all duration-300"
+          style={{
+            maxWidth: isFullWidth ? "100%" : `${pageWidthRem}rem`,
+          }}
+        >
           {/* Title */}
           <div className="mb-6">
             {titleChanged ? (
@@ -1110,7 +1278,7 @@ function WikiDiffView({
                 <h1 className="text-lg font-bold text-destructive/60 line-through opacity-70">
                   {prevTitle || "Untitled"}
                 </h1>
-                <h1 className="text-2xl font-bold text-foreground bg-green-500/10 px-2 py-1 rounded">
+                <h1 className="text-2xl font-bold text-foreground bg-sky-500/10 px-2 py-1 rounded">
                   {versionTitle}
                 </h1>
               </div>
@@ -1130,7 +1298,7 @@ function WikiDiffView({
 
               const diffClass = segment.type === "added" ? "diff-added" : "diff-removed";
               const indicator = segment.type === "added" ? (
-                <Plus className="absolute -left-5 top-1/2 z-10 -translate-y-1/2 size-3.5 text-green-500 pointer-events-none select-none" />
+                <Plus className="absolute -left-5 top-1/2 z-10 -translate-y-1/2 size-3.5 text-sky-600 pointer-events-none select-none" />
               ) : (
                 <Minus className="absolute -left-5 top-1/2 z-10 -translate-y-1/2 size-3.5 text-destructive pointer-events-none select-none" />
               );
@@ -1139,7 +1307,7 @@ function WikiDiffView({
               return segment.blocks.map((block, blockIdx) => {
                 const blockKey = `${idx}-${blockIdx}`;
 
-                if (isAttachmentBlock(block)) {
+                if (isAttachmentBlock(block) || isTableBlock(block)) {
                   return (
                     <div key={blockKey} className="relative">
                       {indicator}
@@ -1154,7 +1322,7 @@ function WikiDiffView({
                     className={cn(
                       "relative",
                       segment.type === "added"
-                        ? "bg-green-500/8"
+                        ? "bg-sky-500/8"
                         : "bg-destructive/8 opacity-75",
                     )}
                   >

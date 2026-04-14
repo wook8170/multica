@@ -54,6 +54,20 @@ const ImageExtension = Image.extend({
           attrs.uploading ? { "data-uploading": "" } : {},
         parseHTML: (el: HTMLElement) => el.hasAttribute("data-uploading"),
       },
+      width: {
+        default: null,
+        parseHTML: (el: HTMLElement) => {
+          const raw = el.getAttribute("data-width") || el.getAttribute("width") || "";
+          const parsed = Number.parseInt(raw, 10);
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        },
+        renderHTML: (attrs: Record<string, unknown>) => {
+          const width = attrs.width as number | null;
+          return width && Number.isFinite(width) && width > 0
+            ? { "data-width": String(Math.round(width)), width: String(Math.round(width)) }
+            : {};
+        },
+      },
     };
   },
   addNodeView() {
@@ -74,9 +88,11 @@ const TableCell = BaseTableCell.extend({
         renderHTML: (attrs: Record<string, unknown>) => {
           const backgroundColor = attrs.backgroundColor as string | null;
           const textColor = attrs.textColor as string | null;
+          const textAlign = attrs.textAlign as "left" | "center" | "right" | null;
           const styles = [
             backgroundColor ? `background-color: ${backgroundColor}` : null,
             textColor ? `color: ${textColor}` : null,
+            textAlign ? `text-align: ${textAlign}` : null,
           ].filter(Boolean).join("; ");
           return styles ? { style: styles } : {};
         },
@@ -84,6 +100,16 @@ const TableCell = BaseTableCell.extend({
       textColor: {
         default: null,
         parseHTML: (element: HTMLElement) => element.style.color || null,
+        renderHTML: () => ({}),
+      },
+      textAlign: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const value = (element.style.textAlign || "").toLowerCase();
+          if (value === "center") return "center";
+          if (value === "right" || value === "end") return "right";
+          return null;
+        },
         renderHTML: () => ({}),
       },
     };
@@ -100,9 +126,11 @@ const TableHeader = BaseTableHeader.extend({
         renderHTML: (attrs: Record<string, unknown>) => {
           const backgroundColor = attrs.backgroundColor as string | null;
           const textColor = attrs.textColor as string | null;
+          const textAlign = attrs.textAlign as "left" | "center" | "right" | null;
           const styles = [
             backgroundColor ? `background-color: ${backgroundColor}` : null,
             textColor ? `color: ${textColor}` : null,
+            textAlign ? `text-align: ${textAlign}` : null,
           ].filter(Boolean).join("; ");
           return styles ? { style: styles } : {};
         },
@@ -110,6 +138,16 @@ const TableHeader = BaseTableHeader.extend({
       textColor: {
         default: null,
         parseHTML: (element: HTMLElement) => element.style.color || null,
+        renderHTML: () => ({}),
+      },
+      textAlign: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const value = (element.style.textAlign || "").toLowerCase();
+          if (value === "center") return "center";
+          if (value === "right" || value === "end") return "right";
+          return null;
+        },
         renderHTML: () => ({}),
       },
     };
@@ -156,7 +194,10 @@ export function createEditorExtensions(
     editable ? LinkEditable : LinkReadonly,
     ImageExtension,
     Table.configure({
-      resizable: false,
+      resizable: editable,
+      handleWidth: 10,
+      cellMinWidth: 80,
+      lastColumnResizable: true,
       allowTableNodeSelection: true,
     }),
     TableRow,

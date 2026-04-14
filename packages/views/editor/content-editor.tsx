@@ -1,9 +1,10 @@
 import {
   Bold, Italic, Strikethrough,
   Heading1, Heading2, Heading3,
-  List, ListOrdered, CheckSquare,
+  List, ListOrdered, CheckSquare, Plus,
   Quote, Minus, Link as LinkIcon, Paperclip, Table as TableIcon,
-  RotateCcw, Rows3, Columns3, Palette, Type, Trash2
+  RotateCcw, Rows3, Columns3, Palette, Type, Trash2,
+  AlignLeft, AlignCenter, AlignRight,
 } from "lucide-react";
 import {
   forwardRef,
@@ -21,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createEditorExtensions } from "./extensions";
 import { uploadAndInsertFile, uploadAndInsertFiles } from "./extensions/file-upload";
 import { preprocessMarkdown } from "./utils/preprocess";
+import { buildStyledTableNodeFromHtml } from "./utils/table-from-html";
 import { Button } from "@multica/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -91,23 +93,15 @@ interface AmbiguousPasteState {
   html: string;
 }
 
-type TableCellNode = {
-  type: "tableHeader" | "tableCell";
-  content: Array<{
-    type: "paragraph";
-    content?: Array<{ type: "text"; text: string }>;
-  }>;
-};
-
-type TableRowNode = {
-  type: "tableRow";
-  content: TableCellNode[];
-};
-
-type TableNode = {
-  type: "table";
-  content: TableRowNode[];
-};
+interface TableEdgeControlsState {
+  visible: boolean;
+  rightVisible: boolean;
+  bottomVisible: boolean;
+  rightX: number;
+  rightY: number;
+  bottomX: number;
+  bottomY: number;
+}
 
 const TABLE_BG_COLORS = [
   "#ffffff",
@@ -164,52 +158,38 @@ function extractFirstTableHtml(html: string): string {
   }
 }
 
-function buildTableNodeFromHtml(html: string): TableNode | null {
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const table = doc.querySelector("table") as HTMLTableElement | null;
-    if (!table) return null;
+function looksLikeHtmlContent(value: string): boolean {
+  const trimmed = value.trim();
+  return /^<\/?[a-z][^>]*>/i.test(trimmed);
+}
 
-    const rows = Array.from(table.rows);
-    if (rows.length === 0) return null;
+function editorNeedsHtmlPersistence(editor: any): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
+  let needsHtml = false;
+  editor.state.doc.descendants((node: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (needsHtml) return false;
+    if (node.type?.name !== "tableCell" && node.type?.name !== "tableHeader") return undefined;
+    const attrs = node.attrs || {};
+    const hasStyle = !!attrs.backgroundColor || !!attrs.textColor || !!attrs.textAlign;
+    const hasMerge = (attrs.colspan ?? 1) > 1 || (attrs.rowspan ?? 1) > 1;
+    if (hasStyle || hasMerge) {
+      needsHtml = true;
+      return false;
+    }
+    return undefined;
+  });
+  return needsHtml;
+}
 
-    const maxCols = rows.reduce((acc, row) => Math.max(acc, row.cells.length), 0);
-    if (maxCols === 0) return null;
-
-    const hasHeaderRow = Array.from(rows[0]!.cells).every(
-      (cell) => cell.tagName.toLowerCase() === "th",
-    );
-
-    const rowNodes: TableRowNode[] = rows.map((row, rowIndex) => {
-      const isHeaderRow = hasHeaderRow && rowIndex === 0;
-      const cells = Array.from(row.cells);
-
-      const cellNodes: TableCellNode[] = Array.from({ length: maxCols }, (_, colIndex) => {
-        const cell = cells[colIndex] ?? null;
-        const normalizedText = (cell?.textContent ?? "")
-          .replace(/\u00a0/g, " ")
-          .replace(/\r?\n+/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        return {
-          type: isHeaderRow ? "tableHeader" : "tableCell",
-          content: [
-            normalizedText
-              ? { type: "paragraph", content: [{ type: "text", text: normalizedText }] }
-              : { type: "paragraph" },
-          ],
-        };
-      });
-
-      return { type: "tableRow", content: cellNodes };
-    });
-
-    return { type: "table", content: rowNodes };
-  } catch {
-    return null;
+function setEditorContent(editor: any, value: string) { // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (!value) {
+    editor.commands.clearContent();
+    return;
   }
+  if (looksLikeHtmlContent(value)) {
+    editor.commands.setContent(value);
+    return;
+  }
+  editor.commands.setContent(preprocessMarkdown(value), { contentType: "markdown" });
 }
 
 const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
@@ -256,6 +236,19 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       files: [],
       html: "",
     });
+    const [tableEdgeControls, setTableEdgeControls] = useState<TableEdgeControlsState>({
+      visible: false,
+      rightVisible: false,
+      bottomVisible: false,
+      rightX: 0,
+      rightY: 0,
+      bottomX: 0,
+      bottomY: 0,
+    });
+    const tableActionTargetsRef = useRef<{
+      rowCell: HTMLTableCellElement | null;
+      colCell: HTMLTableCellElement | null;
+    }>({ rowCell: null, colCell: null });
 
     onUpdateRef.current = onUpdate;
     onSubmitRef.current = onSubmit;
@@ -274,8 +267,8 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     const editor = useEditor({
       immediatelyRender: false,
       editable,
-      content: ydoc ? undefined : (defaultValue ? preprocessMarkdown(defaultValue) : ""),
-      contentType: defaultValue && !ydoc ? "markdown" : undefined,
+      content: ydoc ? undefined : (defaultValue ? (looksLikeHtmlContent(defaultValue) ? defaultValue : preprocessMarkdown(defaultValue)) : ""),
+      contentType: defaultValue && !ydoc && !looksLikeHtmlContent(defaultValue) ? "markdown" : undefined,
       extensions: createEditorExtensions({
         editable,
         placeholder: placeholderText,
@@ -292,10 +285,10 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         if (!onUpdateRef.current) return;
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
-          // Strip &nbsp; / \u00a0 that ProseMirror inserts to keep empty paragraphs
-          // non-empty — they must not be persisted to the database.
-          const md = ed.getMarkdown().replace(/&nbsp;/g, " ").replace(/\u00a0/g, " ");
-          onUpdateRef.current?.(md);
+          const nextContent = editorNeedsHtmlPersistence(ed)
+            ? ed.getHTML()
+            : ed.getMarkdown().replace(/&nbsp;/g, " ").replace(/\u00a0/g, " ");
+          onUpdateRef.current?.(nextContent);
         }, debounceMs);
       },
       onBlur: () => {
@@ -325,10 +318,13 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     const canMutateTable = inTable && editable;
     const canMergeCells = canMutateTable && editor.can().chain().focus().mergeCells().run();
     const canSplitCell = canMutateTable && editor.can().chain().focus().splitCell().run();
-    const applyCellAttribute = useCallback((attribute: "backgroundColor" | "textColor", value: string | null) => {
+    const applyCellAttribute = useCallback((attribute: "backgroundColor" | "textColor" | "textAlign", value: string | null) => {
       if (!editor || !editor.isActive("table")) return;
       editor.chain().focus().setCellAttribute(attribute, value).run();
     }, [editor]);
+    const currentCellTextAlign = (editor?.getAttributes("tableCell").textAlign
+      ?? editor?.getAttributes("tableHeader").textAlign
+      ?? "left") as "left" | "center" | "right";
 
     const focusEditorAtMouse = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
       if (!editor) return;
@@ -340,6 +336,148 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       if (!pos) return;
       editor.chain().focus().setTextSelection(pos.pos).run();
     }, [editor]);
+
+    const hideTableEdgeControls = useCallback(() => {
+      setTableEdgeControls((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      tableActionTargetsRef.current = { rowCell: null, colCell: null };
+    }, []);
+
+    const syncTableEdgeControls = useCallback((table: HTMLTableElement | null, pointerX: number, pointerY: number) => {
+      const scrollContainer = scrollContainerRef.current;
+      if (!table || !scrollContainer || !table.isConnected) {
+        hideTableEdgeControls();
+        return;
+      }
+
+      const cells = Array.from(table.querySelectorAll("td, th")) as HTMLTableCellElement[];
+      if (cells.length === 0) {
+        hideTableEdgeControls();
+        return;
+      }
+
+      let rightCell = cells[0] ?? null;
+      let bottomCell = cells[0] ?? null;
+      let maxRight = Number.NEGATIVE_INFINITY;
+      let maxBottom = Number.NEGATIVE_INFINITY;
+
+      for (const item of cells) {
+        const r = item.getBoundingClientRect();
+        if (r.right > maxRight) {
+          maxRight = r.right;
+          rightCell = item;
+        }
+        if (r.bottom > maxBottom) {
+          maxBottom = r.bottom;
+          bottomCell = item;
+        }
+      }
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      const left = tableRect.left - containerRect.left + scrollContainer.scrollLeft;
+      const top = tableRect.top - containerRect.top + scrollContainer.scrollTop;
+      const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+      const xWithinTable = clamp(pointerX - tableRect.left, 8, Math.max(8, tableRect.width - 8));
+      const yWithinTable = clamp(pointerY - tableRect.top, 8, Math.max(8, tableRect.height - 8));
+
+      const borderThreshold = 10;
+      const nearRightBorder = Math.abs(pointerX - tableRect.right) <= borderThreshold;
+      const nearBottomBorder = Math.abs(pointerY - tableRect.bottom) <= borderThreshold;
+      const pointerInsideVertical = pointerY >= tableRect.top && pointerY <= tableRect.bottom;
+      const pointerInsideHorizontal = pointerX >= tableRect.left && pointerX <= tableRect.right;
+      const showRight = nearRightBorder && pointerInsideVertical;
+      const showBottom = nearBottomBorder && pointerInsideHorizontal;
+
+      if (!showRight && !showBottom) {
+        hideTableEdgeControls();
+        return;
+      }
+
+      const nextControls: TableEdgeControlsState = {
+        visible: true,
+        rightVisible: showRight,
+        bottomVisible: showBottom,
+        rightX: left + tableRect.width,
+        rightY: top + yWithinTable,
+        bottomX: left + xWithinTable,
+        bottomY: top + tableRect.height,
+      };
+
+      tableActionTargetsRef.current = { rowCell: bottomCell, colCell: rightCell };
+      setTableEdgeControls(nextControls);
+    }, [hideTableEdgeControls]);
+
+    const handleEditorMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+      if (!editable || !editor) {
+        hideTableEdgeControls();
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-table-edge-controls='true']")) return;
+      const cell = target?.closest("td, th") as HTMLTableCellElement | null;
+      if (!cell) {
+        hideTableEdgeControls();
+        return;
+      }
+      const table = cell.closest("table") as HTMLTableElement | null;
+      if (!table) {
+        hideTableEdgeControls();
+        return;
+      }
+      syncTableEdgeControls(table, event.clientX, event.clientY);
+    }, [editable, editor, hideTableEdgeControls, syncTableEdgeControls]);
+
+    const handleEditorMouseLeave = useCallback(() => {
+      hideTableEdgeControls();
+    }, [hideTableEdgeControls]);
+
+    const runTableEdgeAction = useCallback((action: "add-row" | "delete-row" | "add-col" | "delete-col") => {
+      if (!editor) return;
+      const targetCell = action === "add-row" || action === "delete-row"
+        ? tableActionTargetsRef.current.rowCell
+        : tableActionTargetsRef.current.colCell;
+      if (!targetCell) return;
+
+      const rect = targetCell.getBoundingClientRect();
+      const pos = editor.view.posAtCoords({
+        left: rect.left + Math.max(6, Math.min(rect.width - 6, rect.width * 0.5)),
+        top: rect.top + Math.max(6, Math.min(rect.height - 6, rect.height * 0.5)),
+      });
+      if (!pos) return;
+
+      editor.chain().focus().setTextSelection(pos.pos).run();
+
+      let ran = false;
+      if (action === "add-row") ran = editor.chain().focus().addRowAfter().run();
+      if (action === "delete-row") ran = editor.chain().focus().deleteRow().run();
+      if (action === "add-col") ran = editor.chain().focus().addColumnAfter().run();
+      if (action === "delete-col") ran = editor.chain().focus().deleteColumn().run();
+      if (!ran) return;
+
+      if (action === "delete-row" || action === "delete-col") {
+        hideTableEdgeControls();
+        return;
+      }
+
+      const table = targetCell.closest("table") as HTMLTableElement | null;
+      requestAnimationFrame(() => {
+        if (!table) return;
+        const tableRect = table.getBoundingClientRect();
+        const scrollContainer = scrollContainerRef.current;
+        const containerRect = scrollContainer?.getBoundingClientRect();
+        const pointerX = action === "add-col"
+          ? tableRect.right - 1
+          : (scrollContainer && containerRect
+            ? containerRect.left + tableEdgeControls.bottomX - scrollContainer.scrollLeft
+            : tableRect.left + (tableRect.width / 2));
+        const pointerY = action === "add-row"
+          ? tableRect.bottom - 1
+          : (scrollContainer && containerRect
+            ? containerRect.top + tableEdgeControls.rightY - scrollContainer.scrollTop
+            : tableRect.top + (tableRect.height / 2));
+        syncTableEdgeControls(table, pointerX, pointerY);
+      });
+    }, [editor, hideTableEdgeControls, syncTableEdgeControls, tableEdgeControls.bottomX, tableEdgeControls.rightY]);
 
     const handleFileClick = () => fileInputRef.current?.click();
     const closeAmbiguousPaste = () => {
@@ -363,7 +501,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         closeAmbiguousPaste();
         return;
       }
-      const tableNode = buildTableNodeFromHtml(ambiguousPaste.html);
+      const tableNode = buildStyledTableNodeFromHtml(ambiguousPaste.html);
       if (tableNode) {
         editor.chain().focus().insertContent(tableNode).run();
       } else {
@@ -563,7 +701,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         // paragraph into the fragment (length > 0 but still visually empty).
         const isEmpty = fragment.length === 0 || editor.isEmpty;
         if ((isEmpty || forceDefaultRef.current) && defaultValue) {
-          editor.commands.setContent(preprocessMarkdown(defaultValue), { contentType: "markdown" });
+          setEditorContent(editor, defaultValue);
         }
       };
 
@@ -595,9 +733,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       if (!editor || editable) return;
       if (defaultValue === prevContentRef.current) return;
       prevContentRef.current = defaultValue;
-      const processed = defaultValue ? preprocessMarkdown(defaultValue) : "";
-      if (processed) editor.commands.setContent(processed, { contentType: "markdown" });
-      else editor.commands.clearContent();
+      setEditorContent(editor, defaultValue);
     }, [editor, editable, defaultValue]);
 
     useImperativeHandle(ref, () => ({
@@ -727,6 +863,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().deleteRow().run()}>
+                    <TableActionIcon type="delete-row" className="mr-2 text-destructive" />
                     Delete row
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -748,6 +885,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().deleteColumn().run()}>
+                    <TableActionIcon type="delete-col" className="mr-2 text-destructive" />
                     Delete column
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -809,6 +947,29 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  {currentCellTextAlign === "center" ? <AlignCenter className="size-3.5" /> : currentCellTextAlign === "right" ? <AlignRight className="size-3.5" /> : <AlignLeft className="size-3.5" />}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuGroup>
+                    <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Cell text align</div>
+                    <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("textAlign", "left")}>
+                      <AlignLeft className="mr-2 size-4" />
+                      Left
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("textAlign", "center")}>
+                      <AlignCenter className="mr-2 size-4" />
+                      Center
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("textAlign", "right")}>
+                      <AlignRight className="mr-2 size-4" />
+                      Right
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <ToolbarButton onClick={() => editor.chain().focus().deleteTable().run()} title="Delete Table" active={false} disabled={!inTable}>
                 <Trash2 className="size-3.5" />
               </ToolbarButton>
@@ -824,7 +985,12 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
             onContextMenuCapture={focusEditorAtMouse}
             className="block h-full"
           >
-            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative pt-7">
+            <div
+              ref={scrollContainerRef}
+              className="flex-1 overflow-y-auto relative pt-7"
+              onMouseMove={handleEditorMouseMove}
+              onMouseLeave={handleEditorMouseLeave}
+            >
               <EditorContent editor={editor} />
 
               {/* Remote user cursors (Presence layer, decoupled from Content) */}
@@ -841,18 +1007,83 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                   />
                 );
               })}
+
+              {editable && tableEdgeControls.visible && (
+                <>
+                  {tableEdgeControls.rightVisible && (
+                    <div
+                      data-table-edge-controls="true"
+                      className="absolute z-30 flex flex-col gap-0.5 rounded-lg border border-border/90 bg-background/92 p-0.5 shadow-[0_4px_14px_rgba(0,0,0,0.08)] backdrop-blur"
+                      style={{
+                        left: `${tableEdgeControls.rightX}px`,
+                        top: `${tableEdgeControls.rightY}px`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-md text-sky-700 hover:bg-sky-500/14"
+                        title="Add column"
+                        onClick={() => runTableEdgeAction("add-col")}
+                      >
+                        <Plus className="size-3" />
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-md text-destructive hover:bg-destructive/12"
+                        title="Delete column"
+                        onClick={() => runTableEdgeAction("delete-col")}
+                      >
+                        <Minus className="size-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {tableEdgeControls.bottomVisible && (
+                    <div
+                      data-table-edge-controls="true"
+                      className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-border/90 bg-background/92 p-0.5 shadow-[0_4px_14px_rgba(0,0,0,0.08)] backdrop-blur"
+                      style={{
+                        left: `${tableEdgeControls.bottomX}px`,
+                        top: `${tableEdgeControls.bottomY}px`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-md text-sky-700 hover:bg-sky-500/14"
+                        title="Add row"
+                        onClick={() => runTableEdgeAction("add-row")}
+                      >
+                        <Plus className="size-3" />
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-md text-destructive hover:bg-destructive/12"
+                        title="Delete row"
+                        onClick={() => runTableEdgeAction("delete-row")}
+                      >
+                        <Minus className="size-3" />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </ContextMenuTrigger>
 
           <ContextMenuContent className="w-56">
             <ContextMenuGroup>
               <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().addRowBefore().run()}>
+                <TableActionIcon type="add-row-above" className="mr-2" />
                 Add row above
               </ContextMenuItem>
               <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().addRowAfter().run()}>
+                <TableActionIcon type="add-row-below" className="mr-2" />
                 Add row below
               </ContextMenuItem>
               <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().deleteRow().run()}>
+                <TableActionIcon type="delete-row" className="mr-2 text-destructive" />
                 Delete row
               </ContextMenuItem>
             </ContextMenuGroup>
@@ -861,12 +1092,15 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
 
             <ContextMenuGroup>
               <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().addColumnBefore().run()}>
+                <TableActionIcon type="add-col-left" className="mr-2" />
                 Add column left
               </ContextMenuItem>
               <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().addColumnAfter().run()}>
+                <TableActionIcon type="add-col-right" className="mr-2" />
                 Add column right
               </ContextMenuItem>
               <ContextMenuItem disabled={!canMutateTable} onClick={() => editor.chain().focus().deleteColumn().run()}>
+                <TableActionIcon type="delete-col" className="mr-2 text-destructive" />
                 Delete column
               </ContextMenuItem>
             </ContextMenuGroup>
@@ -875,9 +1109,11 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
 
             <ContextMenuGroup>
               <ContextMenuItem disabled={!canMergeCells} onClick={() => editor.chain().focus().mergeCells().run()}>
+                <TableActionIcon type="merge" className="mr-2" />
                 Merge cells
               </ContextMenuItem>
               <ContextMenuItem disabled={!canSplitCell} onClick={() => editor.chain().focus().splitCell().run()}>
+                <TableActionIcon type="split" className="mr-2" />
                 Split cell
               </ContextMenuItem>
             </ContextMenuGroup>
@@ -885,33 +1121,62 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
             <ContextMenuSeparator />
 
             <ContextMenuSub>
-              <ContextMenuSubTrigger disabled={!canMutateTable}>Cell background</ContextMenuSubTrigger>
+              <ContextMenuSubTrigger disabled={!canMutateTable}>
+                <Palette className="mr-2 size-4" />
+                Cell background
+              </ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-48">
                 {TABLE_BG_COLOR_MENU.map((color) => (
                   <ContextMenuItem key={color.value} disabled={!canMutateTable} onClick={() => applyCellAttribute("backgroundColor", color.value)}>
-                    <span className="mr-2 inline-block h-3 w-3 rounded-sm border border-border" style={{ backgroundColor: color.value }} />
+                    <span className="mr-2 inline-block h-4 w-4 rounded-sm border border-border" style={{ backgroundColor: color.value }} />
                     {color.label}
                   </ContextMenuItem>
                 ))}
                 <ContextMenuSeparator />
                 <ContextMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("backgroundColor", null)}>
+                  <RotateCcw className="mr-2 size-4 text-muted-foreground" />
                   Clear background
                 </ContextMenuItem>
               </ContextMenuSubContent>
             </ContextMenuSub>
 
             <ContextMenuSub>
-              <ContextMenuSubTrigger disabled={!canMutateTable}>Cell text color</ContextMenuSubTrigger>
+              <ContextMenuSubTrigger disabled={!canMutateTable}>
+                <Type className="mr-2 size-4" />
+                Cell text color
+              </ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-48">
                 {TABLE_TEXT_COLOR_MENU.map((color) => (
                   <ContextMenuItem key={color.value} disabled={!canMutateTable} onClick={() => applyCellAttribute("textColor", color.value)}>
-                    <span className="mr-2 inline-block h-3 w-3 rounded-full border border-border" style={{ backgroundColor: color.value }} />
+                    <span className="mr-2 inline-block h-4 w-4 rounded-full border border-border" style={{ backgroundColor: color.value }} />
                     {color.label}
                   </ContextMenuItem>
                 ))}
                 <ContextMenuSeparator />
                 <ContextMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textColor", null)}>
+                  <RotateCcw className="mr-2 size-4 text-muted-foreground" />
                   Clear text color
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+
+            <ContextMenuSub>
+              <ContextMenuSubTrigger disabled={!canMutateTable}>
+                <AlignLeft className="mr-2 size-4" />
+                Cell text align
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-44">
+                <ContextMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textAlign", "left")}>
+                  <AlignLeft className="mr-2 size-4" />
+                  Left
+                </ContextMenuItem>
+                <ContextMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textAlign", "center")}>
+                  <AlignCenter className="mr-2 size-4" />
+                  Center
+                </ContextMenuItem>
+                <ContextMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textAlign", "right")}>
+                  <AlignRight className="mr-2 size-4" />
+                  Right
                 </ContextMenuItem>
               </ContextMenuSubContent>
             </ContextMenuSub>
@@ -923,6 +1188,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
               disabled={!canMutateTable}
               onClick={() => editor.chain().focus().deleteTable().run()}
             >
+              <Trash2 className="mr-2 size-4" />
               Delete table
             </ContextMenuItem>
           </ContextMenuContent>
@@ -931,6 +1197,81 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     );
   },
 );
+
+type TableActionIconType =
+  | "add-row-above"
+  | "add-row-below"
+  | "add-col-left"
+  | "add-col-right"
+  | "delete-row"
+  | "delete-col"
+  | "merge"
+  | "split";
+
+const TableActionIcon = ({ type, className }: { type: TableActionIconType; className?: string }) => {
+  const stroke = "currentColor";
+  const highlightStrong = "color-mix(in srgb, #38bdf8 36%, transparent)";
+  const highlightSoft = "color-mix(in srgb, #38bdf8 24%, transparent)";
+  const deleteHighlight = "color-mix(in srgb, var(--destructive) 26%, transparent)";
+
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      className={cn("h-4 w-4 shrink-0 text-muted-foreground", className)}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect x="1.5" y="1.5" width="13" height="13" rx="2" stroke={stroke} strokeWidth="1.2" />
+
+      {(type === "add-row-above" || type === "add-row-below") && (
+        <>
+          <path d="M2 6h12M2 10h12" stroke={stroke} strokeWidth="1.1" />
+          {type === "add-row-above"
+            ? <rect x="2.2" y="2.2" width="11.6" height="2.8" rx="0.8" fill={highlightStrong} />
+            : <rect x="2.2" y="11" width="11.6" height="2.8" rx="0.8" fill={highlightStrong} />}
+        </>
+      )}
+
+      {(type === "add-col-left" || type === "add-col-right") && (
+        <>
+          <path d="M6 2v12M10 2v12" stroke={stroke} strokeWidth="1.1" />
+          {type === "add-col-left"
+            ? <rect x="2.2" y="2.2" width="2.8" height="11.6" rx="0.8" fill={highlightStrong} />
+            : <rect x="11" y="2.2" width="2.8" height="11.6" rx="0.8" fill={highlightStrong} />}
+        </>
+      )}
+
+      {type === "merge" && (
+        <>
+          <path d="M8 2v12M2 8h12" stroke={stroke} strokeWidth="1.1" />
+          <rect x="2.2" y="6.3" width="11.6" height="3.4" rx="1" fill={highlightStrong} />
+        </>
+      )}
+
+      {type === "split" && (
+        <>
+          <path d="M2 8h12M8 2v12" stroke={stroke} strokeWidth="1.1" />
+          <rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1" fill={highlightSoft} />
+        </>
+      )}
+
+      {type === "delete-row" && (
+        <>
+          <path d="M2 6h12M2 10h12" stroke={stroke} strokeWidth="1.1" />
+          <rect x="2.2" y="6.3" width="11.6" height="3.4" rx="1" fill={deleteHighlight} />
+        </>
+      )}
+
+      {type === "delete-col" && (
+        <>
+          <path d="M6 2v12M10 2v12" stroke={stroke} strokeWidth="1.1" />
+          <rect x="6.3" y="2.2" width="3.4" height="11.6" rx="1" fill={deleteHighlight} />
+        </>
+      )}
+    </svg>
+  );
+};
 
 const ToolbarButton = ({ children, onClick, active, title, disabled }: any) => (
   <Button

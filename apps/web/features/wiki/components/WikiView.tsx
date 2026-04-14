@@ -1264,7 +1264,7 @@ function WikiDiffView({
       </div>
 
       {/* Content — single view like read mode, changed blocks highlighted */}
-      <div ref={contentViewportRef} className="flex-1 overflow-y-auto pt-8 pb-16">
+      <div ref={contentViewportRef} className="flex-1 overflow-y-auto pt-2 pb-16">
         <div
           className="mx-auto w-full px-6 transition-all duration-300"
           style={{
@@ -1272,7 +1272,7 @@ function WikiDiffView({
           }}
         >
           {/* Title */}
-          <div className="mb-6">
+          <div className="mb-4">
             {titleChanged ? (
               <div className="space-y-1.5">
                 <h1 className="text-lg font-bold text-destructive/60 line-through opacity-70">

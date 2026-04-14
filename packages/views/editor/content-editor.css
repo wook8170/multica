@@ -236,13 +236,30 @@
   overflow-x: auto;
   margin: 1rem 0;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 0;
+}
+
+/* Readonly tables: keep corners crisp in diff/history view */
+.rich-text-editor.readonly .tableWrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, var(--foreground) 14%);
+  border-radius: 0;
+  background: var(--background);
+  width: fit-content;
+  max-width: 100%;
 }
 
 .rich-text-editor table {
   min-width: 100%;
   border-collapse: collapse;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 86%, var(--foreground) 14%);
+}
+
+.rich-text-editor.readonly table {
+  border: 0;
+  min-width: 0;
+  width: max-content;
 }
 
 .rich-text-editor .tableWrapper,
@@ -255,12 +272,16 @@
   display: none;
 }
 
+.rich-text-editor:not(.readonly) colgroup {
+  display: table-column-group;
+}
+
 .rich-text-editor thead {
   background: color-mix(in srgb, var(--muted) 50%, transparent);
 }
 
 .rich-text-editor tbody tr {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid color-mix(in srgb, var(--border) 88%, var(--foreground) 12%);
 }
 
 .rich-text-editor tr:hover td {
@@ -275,9 +296,42 @@
   font-size: 0.875rem;
 }
 
+.rich-text-editor:not(.readonly) th,
+.rich-text-editor:not(.readonly) td {
+  position: relative;
+}
+
+.rich-text-editor:not(.readonly) .column-resize-handle {
+  position: absolute;
+  top: -1px;
+  right: -3px;
+  bottom: -1px;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 6;
+  background: transparent;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.rich-text-editor:not(.readonly) .column-resize-handle::before {
+  content: none;
+}
+
+.rich-text-editor:not(.readonly) table:hover .column-resize-handle,
+.rich-text-editor:not(.readonly) .column-resize-handle:hover {
+  pointer-events: auto;
+}
+
+.rich-text-editor:not(.readonly).resize-cursor,
+.rich-text-editor:not(.readonly) .resize-cursor,
+.rich-text-editor:not(.readonly) table.resize-cursor {
+  cursor: col-resize;
+}
+
 .rich-text-editor th:not(:last-child),
 .rich-text-editor td:not(:last-child) {
-  border-right: 1px solid var(--border);
+  border-right: 1px solid color-mix(in srgb, var(--border) 88%, var(--foreground) 12%);
 }
 
 .rich-text-editor .selectedCell {
@@ -424,8 +478,8 @@
 }
 
 .rich-text-editor.diff-added .attachment-card-shell {
-  border-color: color-mix(in srgb, #22c55e 35%, transparent);
-  background: color-mix(in srgb, #22c55e 12%, var(--muted));
+  border-color: color-mix(in srgb, #38bdf8 35%, transparent);
+  background: color-mix(in srgb, #38bdf8 12%, var(--muted));
 }
 
 .rich-text-editor.diff-added .attachment-card-shell p,
@@ -434,12 +488,21 @@
 .rich-text-editor.diff-added .markdown-file-preview-content *,
 .rich-text-editor.diff-added .text-file-preview-content,
 .rich-text-editor.diff-added .text-file-preview-content * {
-  color: color-mix(in srgb, #16a34a 80%, var(--foreground));
+  color: color-mix(in srgb, #0284c7 80%, var(--foreground));
 }
 
 .rich-text-editor.diff-added .image-node {
-  background: color-mix(in srgb, #22c55e 8%, transparent);
+  background: color-mix(in srgb, #38bdf8 8%, transparent);
   padding-top: 0.625rem;
+}
+
+.rich-text-editor.diff-added .tableWrapper {
+  border-color: color-mix(in srgb, #38bdf8 35%, transparent);
+  background: color-mix(in srgb, #38bdf8 10%, var(--background));
+}
+
+.rich-text-editor.diff-added thead {
+  background: color-mix(in srgb, #38bdf8 14%, var(--muted));
 }
 
 .rich-text-editor.diff-removed .attachment-card-shell {
@@ -463,13 +526,23 @@
   opacity: 0.75;
 }
 
+.rich-text-editor.diff-removed .tableWrapper {
+  border-color: color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 10%, var(--background));
+  opacity: 0.75;
+}
+
+.rich-text-editor.diff-removed thead {
+  background: color-mix(in srgb, var(--destructive) 12%, var(--muted));
+}
+
 /* Attachment card hover in diff view */
 .rich-text-editor.diff-added .attachment-card-header:hover {
-  background: color-mix(in srgb, #22c55e 20%, var(--muted));
+  background: color-mix(in srgb, #38bdf8 20%, var(--muted));
 }
 
 .rich-text-editor.diff-added .attachment-action-button:hover {
-  background-color: color-mix(in srgb, #22c55e 15%, var(--muted));
+  background-color: color-mix(in srgb, #38bdf8 15%, var(--muted));
 }
 
 .rich-text-editor.diff-removed .attachment-card-header:hover {
@@ -482,8 +555,8 @@
 
 /* Code blocks in diff view */
 .rich-text-editor.diff-added pre {
-  background: color-mix(in srgb, #22c55e 12%, var(--muted));
-  border-color: color-mix(in srgb, #22c55e 35%, transparent);
+  background: color-mix(in srgb, #38bdf8 12%, var(--muted));
+  border-color: color-mix(in srgb, #38bdf8 35%, transparent);
 }
 
 .rich-text-editor.diff-removed pre {
@@ -494,12 +567,12 @@
 
 /* PDF preview and attachment preview in diff view */
 .rich-text-editor.diff-added .attachment-preview {
-  background: color-mix(in srgb, #22c55e 8%, var(--background));
-  border-color: color-mix(in srgb, #22c55e 35%, transparent);
+  background: color-mix(in srgb, #38bdf8 8%, var(--background));
+  border-color: color-mix(in srgb, #38bdf8 35%, transparent);
 }
 
 .rich-text-editor.diff-added .pdf-file-preview {
-  background: color-mix(in srgb, #22c55e 10%, var(--muted));
+  background: color-mix(in srgb, #38bdf8 10%, var(--muted));
 }
 
 .rich-text-editor.diff-removed .attachment-preview {
@@ -705,6 +778,125 @@
   width: 100%;
   height: auto;
   border-radius: var(--radius);
+}
+
+.rich-text-editor .image-resize-edge {
+  position: absolute;
+  z-index: 2;
+  border: none;
+  background: transparent;
+  opacity: 1;
+  cursor: ew-resize;
+  outline: none;
+  pointer-events: none;
+}
+
+.rich-text-editor .image-figure.image-selected .image-resize-edge,
+.rich-text-editor .image-resize-edge.image-resize-active {
+  pointer-events: auto;
+}
+
+.rich-text-editor .image-resize-edge--left {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0.8rem;
+  transform: translateX(-50%);
+}
+
+.rich-text-editor .image-resize-edge--right {
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 0.8rem;
+  transform: translateX(-50%);
+}
+
+.rich-text-editor .image-resize-edge--top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0.8rem;
+  transform: translateY(-50%);
+  cursor: ns-resize;
+}
+
+.rich-text-editor .image-resize-edge--bottom {
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 0.8rem;
+  transform: translateY(-50%);
+  cursor: ns-resize;
+}
+
+.rich-text-editor .image-resize-edge::after {
+  content: "";
+  position: absolute;
+  opacity: 0;
+  width: 1.05rem;
+  height: 0.8rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand) 45%, var(--border));
+  background: color-mix(in srgb, var(--background) 92%, var(--brand) 8%);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--foreground) 12%, transparent);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 0.8rem 0.55rem;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+}
+
+.rich-text-editor .image-resize-edge--left::after,
+.rich-text-editor .image-resize-edge--right::after {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e293b' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h18'/%3E%3Cpath d='m7 8-4 4 4 4'/%3E%3Cpath d='m17 8 4 4-4 4'/%3E%3C/svg%3E");
+}
+
+.rich-text-editor .image-resize-edge--top::after,
+.rich-text-editor .image-resize-edge--bottom::after {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.8rem;
+  height: 1.05rem;
+  background-size: 0.55rem 0.8rem;
+}
+
+.rich-text-editor .image-resize-edge--top::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e293b' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v18'/%3E%3Cpath d='m8 7 4-4 4 4'/%3E%3Cpath d='m8 17 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+.rich-text-editor .image-resize-edge--bottom::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e293b' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v18'/%3E%3Cpath d='m8 7 4-4 4 4'/%3E%3Cpath d='m8 17 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+.rich-text-editor .image-figure.image-selected .image-resize-edge:hover::after,
+.rich-text-editor .image-resize-edge.image-resize-active::after {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.03);
+}
+
+.dark .rich-text-editor .image-resize-edge::after {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
+  background: color-mix(in srgb, var(--background) 76%, var(--brand) 24%);
+}
+
+.dark .rich-text-editor .image-resize-edge--left::after,
+.dark .rich-text-editor .image-resize-edge--right::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h18'/%3E%3Cpath d='m7 8-4 4 4 4'/%3E%3Cpath d='m17 8 4 4-4 4'/%3E%3C/svg%3E");
+}
+
+.dark .rich-text-editor .image-resize-edge--top::after,
+.dark .rich-text-editor .image-resize-edge--bottom::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v18'/%3E%3Cpath d='m8 7 4-4 4 4'/%3E%3Cpath d='m8 17 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+.rich-text-editor .image-figure.image-selected .image-resize-edge:hover,
+.rich-text-editor .image-resize-edge.image-resize-active {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
 }
 
 .rich-text-editor .image-uploading {

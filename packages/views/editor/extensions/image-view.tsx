@@ -59,8 +59,10 @@ function ImageView({ node, editor, selected, deleteNode }: NodeViewProps) {
   const alt = (node.attrs.alt as string) || "";
   const title = node.attrs.title as string | undefined;
   const uploading = node.attrs.uploading as boolean;
+  const width = node.attrs.width as number | null;
 
   const [lightbox, setLightbox] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const isEditable = editor.isEditable;
 
   const handleView = () => setLightbox(true);
@@ -79,6 +81,47 @@ function ImageView({ node, editor, selected, deleteNode }: NodeViewProps) {
     } catch {
       toast.error("Failed to copy link");
     }
+  };
+
+  const handleResizeStart = (side: "left" | "right" | "top" | "bottom", event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!isEditable || uploading) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const figure = (event.currentTarget.closest("figure") as HTMLElement | null);
+    if (!figure) return;
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startWidth = width && Number.isFinite(width) && width > 0 ? width : figure.getBoundingClientRect().width;
+    const minWidth = 120;
+    const maxWidth = figure.parentElement?.getBoundingClientRect().width ?? window.innerWidth;
+
+    setDragging(true);
+
+    const onMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      const adjustedDelta =
+        side === "right"
+          ? deltaX
+          : side === "left"
+            ? -deltaX
+            : side === "bottom"
+              ? deltaY
+              : -deltaY;
+      const next = Math.max(minWidth, Math.min(maxWidth, Math.round(startWidth + adjustedDelta)));
+      editor.commands.updateAttributes("image", { width: next });
+    };
+
+    const onUp = () => {
+      setDragging(false);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   };
 
   return (
@@ -105,8 +148,37 @@ function ImageView({ node, editor, selected, deleteNode }: NodeViewProps) {
           alt={alt}
           title={title || undefined}
           className={cn("image-content", uploading && "image-uploading")}
+          style={width && Number.isFinite(width) && width > 0 ? { width: `${width}px` } : undefined}
           draggable={false}
         />
+        {isEditable && !uploading && (
+          <>
+            <button
+              type="button"
+              className={cn("image-resize-edge image-resize-edge--left", dragging && "image-resize-active")}
+              onMouseDown={(event) => handleResizeStart("left", event)}
+              title="Drag to resize image"
+            />
+            <button
+              type="button"
+              className={cn("image-resize-edge image-resize-edge--top", dragging && "image-resize-active")}
+              onMouseDown={(event) => handleResizeStart("top", event)}
+              title="Drag to resize image"
+            />
+            <button
+              type="button"
+              className={cn("image-resize-edge image-resize-edge--right", dragging && "image-resize-active")}
+              onMouseDown={(event) => handleResizeStart("right", event)}
+              title="Drag to resize image"
+            />
+            <button
+              type="button"
+              className={cn("image-resize-edge image-resize-edge--bottom", dragging && "image-resize-active")}
+              onMouseDown={(event) => handleResizeStart("bottom", event)}
+              title="Drag to resize image"
+            />
+          </>
+        )}
         {!uploading && (
           <div
             className="image-toolbar"

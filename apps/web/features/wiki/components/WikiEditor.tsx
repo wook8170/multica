@@ -1,8 +1,8 @@
 import {
   Save, PanelRight, Trash2, Loader2, Check, AlertCircle, ChevronRight,
-  Maximize2, Minimize2, FileText, Plus, Wifi, WifiOff
+  Maximize2, Minimize2, FileText, Plus, Minus, Wifi, WifiOff
 } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { Button } from "@multica/ui/components/ui/button";
 import { Badge } from "@multica/ui/components/ui/badge";
 import { ContentEditor, TitleEditor } from "@multica/views/editor";
@@ -63,6 +63,51 @@ export function WikiEditor({
   const { isHistoryOpen, setIsHistoryOpen, isFullWidth, setIsFullWidth } = useWikiStore();
   const authUser = useAuthStore((s) => s.user);
   const editorRef = useRef<any>(null);
+  const contentViewportRef = useRef<HTMLDivElement | null>(null);
+  const [contentViewportWidth, setContentViewportWidth] = useState(0);
+
+  const baseWidthRem = 48; // max-w-3xl
+  const baseWidthPx = baseWidthRem * 16;
+  const maxWidthPercent = useMemo(() => {
+    if (contentViewportWidth <= 0) return 160;
+    const usableWidthPx = Math.max(baseWidthPx, contentViewportWidth);
+    return Math.max(100, Math.round((usableWidthPx / baseWidthPx) * 100));
+  }, [contentViewportWidth]);
+
+  const widthSteps = useMemo<number[]>(() => {
+    if (maxWidthPercent <= 100) return [100];
+    const raw = [
+      100,
+      Math.round(100 + (maxWidthPercent - 100) * (1 / 3)),
+      Math.round(100 + (maxWidthPercent - 100) * (2 / 3)),
+      maxWidthPercent,
+    ];
+    return raw.filter((v, idx) => idx === 0 || v > raw[idx - 1]!);
+  }, [maxWidthPercent]);
+
+  const defaultWidthIndex = 0;
+  const [widthIndex, setWidthIndex] = useState(defaultWidthIndex);
+  const widthPercent = widthSteps[widthIndex] ?? 100;
+  const pageWidthRem = (baseWidthRem * widthPercent) / 100;
+  const maxWidthIndex = Math.max(0, widthSteps.length - 1);
+  const isAtMinWidth = !isFullWidth && widthIndex === defaultWidthIndex;
+  const isAtMaxWidth = isFullWidth || widthIndex === maxWidthIndex;
+  const quickTargetIndex = isAtMinWidth ? maxWidthIndex : defaultWidthIndex;
+  const currentPercentLabel = isFullWidth ? maxWidthPercent : widthPercent;
+
+  useEffect(() => {
+    const el = contentViewportRef.current;
+    if (!el) return;
+    const updateWidth = () => setContentViewportWidth(el.clientWidth);
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setWidthIndex((idx) => Math.min(idx, widthSteps.length - 1));
+  }, [widthSteps.length]);
 
   const handleSave = () => {
     const binaryState = editorRef.current?.getBinaryState();
@@ -124,14 +169,66 @@ export function WikiEditor({
             </Badge>
           )}
 
+          <div className="mr-1 flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/30 p-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:bg-muted"
+              onClick={() => {
+                if (isFullWidth) {
+                  setIsFullWidth(false);
+                  setWidthIndex(maxWidthIndex);
+                  return;
+                }
+                setWidthIndex((idx) => Math.max(0, idx - 1));
+              }}
+              disabled={!isFullWidth && widthIndex === 0}
+              title="Narrower page"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 min-w-12 px-2 text-[11px] font-semibold text-foreground hover:bg-muted"
+              onClick={() => {
+                setIsFullWidth(false);
+                setWidthIndex(quickTargetIndex);
+              }}
+              title={isAtMinWidth ? "Set to max step" : "Set to 100%"}
+            >
+              {currentPercentLabel}%
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:bg-muted"
+              onClick={() => {
+                if (isFullWidth) return;
+                setWidthIndex((idx) => Math.min(widthSteps.length - 1, idx + 1));
+              }}
+              disabled={isFullWidth || widthIndex === widthSteps.length - 1}
+              title="Wider page"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
           {/* Full-width toggle */}
           <Button
             variant="ghost"
             size="icon"
-            className={cn("h-8 w-8", isFullWidth ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted")}
-            onClick={() => setIsFullWidth(!isFullWidth)}
+            className={cn("h-8 w-8", isAtMaxWidth ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted")}
+            onClick={() => {
+              if (isAtMaxWidth) {
+                setIsFullWidth(false);
+                setWidthIndex(defaultWidthIndex);
+                return;
+              }
+              setIsFullWidth(true);
+            }}
           >
-            {isFullWidth ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {isAtMaxWidth ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
 
           <div className="w-[1px] h-4 bg-border/40" />
@@ -186,13 +283,13 @@ export function WikiEditor({
         </div>
       </div>
 
-      {/* Editor area — pt-20 gives room for remote cursor name badges at the top */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden pt-20 pb-32 scrollbar-hide">
-        <div className={cn(
-          "mx-auto px-6 md:px-12 transition-all duration-300",
-          isFullWidth ? "max-w-full" : "max-w-3xl"
-        )}>
-          <div className="mb-8">
+      {/* Editor area — pt-8 gives enough room for remote cursor name badges while moving content up */}
+      <div ref={contentViewportRef} className="flex-1 overflow-y-auto overflow-x-hidden pt-8 pb-32 scrollbar-hide">
+        <div
+          className="mx-auto w-full px-6 md:px-8 transition-all duration-300"
+          style={{ maxWidth: isFullWidth ? "100%" : `${pageWidthRem}rem` }}
+        >
+          <div className="mb-4">
             <TitleEditor
               key={`title-${id}`}
               defaultValue={title}

@@ -25,6 +25,7 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Slice } from "@tiptap/pm/model";
+import { buildStyledTableNodeFromHtml } from "../utils/table-from-html";
 
 export function createMarkdownPasteExtension() {
   return Extension.create({
@@ -50,9 +51,16 @@ export function createMarkdownPasteExtension() {
               // clipboard path to preserve exact node structure.
               if (html && html.includes("data-pm-slice")) return false;
 
-              // If HTML contains a table (Excel, Google Sheets), let ProseMirror
-              // parse the HTML so it becomes table nodes instead of plain text.
-              if (html && html.includes("<table")) return false;
+              // If HTML contains a table (Excel, Google Sheets), build a styled
+              // table node directly so we can preserve cell-level colors.
+              if (html && html.includes("<table")) {
+                const tableNode = buildStyledTableNodeFromHtml(html);
+                if (tableNode) {
+                  editor.chain().focus().insertContent(tableNode).run();
+                  return true;
+                }
+                return false;
+              }
 
               // Everything else (VS Code, text editors, .md files, terminals,
               // web pages): parse text/plain as Markdown.

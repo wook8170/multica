@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Wikis subsystem handles **8 routes** and touches: auth, db, payment.
+The Wikis subsystem handles **11 routes** and touches: auth, db, payment.
 
 ## Routes
 
@@ -13,6 +13,12 @@ The Wikis subsystem handles **8 routes** and touches: auth, db, payment.
 - `POST` `/api/wikis` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `PUT` `/api/wikis` [auth, db, payment, upload]
+  `server/cmd/server/router.go`
+- `GET` `/api/wikis/draft` [auth, db, payment, upload]
+  `server/cmd/server/router.go`
+- `PUT` `/api/wikis/draft` [auth, db, payment, upload]
+  `server/cmd/server/router.go`
+- `DELETE` `/api/wikis/draft` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `PATCH` `/api/wikis/move` [auth, db, payment, upload]
   `server/cmd/server/router.go`

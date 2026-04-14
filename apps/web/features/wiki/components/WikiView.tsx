@@ -102,6 +102,14 @@ function buildTree(items: any[]): WikiNode[] {
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+interface WikiDraft {
+  title: string;
+  content: string;
+  binary_state?: string;
+  base_version: number;
+  updated_at: string;
+}
+
 // Conflict modal state
 interface ConflictState {
   open: boolean;
@@ -171,6 +179,16 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Last title+content successfully saved to the server (avoids unnecessary re-saves)
   const lastSavedContentRef = useRef<{ title: string; content: string } | null>(null);
+  // Last title+content persisted as draft (avoids unnecessary draft upserts)
+  const lastDraftContentRef = useRef<{ title: string; content: string } | null>(null);
+  // Tracks which draft snapshot (updated_at) already prompted for each wiki id.
+  const draftPromptedRef = useRef<Map<string, string>>(new Map());
+
+  const [draftPrompt, setDraftPrompt] = useState<{ open: boolean; draft: WikiDraft | null; hasConflict: boolean }>({
+    open: false,
+    draft: null,
+    hasConflict: false,
+  });
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -279,6 +297,7 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     if (!selectedId || selectedId === "new") {
       currentVersionRef.current = 1;
       lastSavedContentRef.current = null;
+      lastDraftContentRef.current = null;
       return;
     }
     const wiki = (rawWikis as any[]).find((w: any) => w.id === selectedId); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -286,6 +305,7 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
       currentVersionRef.current = wiki.version ?? 1;
       if (!lastSavedContentRef.current) {
         lastSavedContentRef.current = { title: wiki.title, content: wiki.content ?? "" };
+        lastDraftContentRef.current = { title: wiki.title, content: wiki.content ?? "" };
         // Populate editor state when arriving via persisted selectedId (not handleSelect).
         // Functional updates preserve any in-progress edits the user already made.
         setCurrentTitle((prev) => prev || wiki.title);
@@ -314,6 +334,39 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     const idx = sorted.findIndex((v: any) => v.id === selectedVersion.id);
     return idx >= 0 && idx + 1 < sorted.length ? sorted[idx + 1] : null;
   }, [selectedVersion, historyQuery.data]);
+
+  useEffect(() => {
+    if (!selectedId || selectedId === "new" || !mounted) {
+      setDraftPrompt({ open: false, draft: null, hasConflict: false });
+      return;
+    }
+
+    const wiki = (rawWikis as any[]).find((w: any) => w.id === selectedId); // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!wiki) return;
+
+    let cancelled = false;
+    void api.getWikiDraft(selectedId)
+      .then((draft) => {
+        if (cancelled || !draft) return;
+
+        const alreadyPromptedAt = draftPromptedRef.current.get(selectedId);
+        if (alreadyPromptedAt === draft.updated_at) return;
+
+        draftPromptedRef.current.set(selectedId, draft.updated_at);
+        setDraftPrompt({
+          open: true,
+          draft,
+          hasConflict: draft.base_version !== (wiki.version ?? 1),
+        });
+      })
+      .catch(() => {
+        // ignore missing/failed draft lookup for initial load UX
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId, mounted, rawWikis]);
 
   // Save mutation — sends base_version for optimistic locking; shows conflict dialog on 409
   const saveMutation = useMutation({
@@ -348,14 +401,17 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
         currentVersionRef.current = result.version;
       }
       lastSavedContentRef.current = { title: variables.title, content: variables.content };
+      lastDraftContentRef.current = { title: variables.title, content: variables.content };
       setSaveStatus("saved");
       // Return to idle after 3 seconds
       clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaveStatus("idle"), 3000);
       queryClient.invalidateQueries({ queryKey: ["wikis"] });
       queryClient.invalidateQueries({ queryKey: ["wiki-history", selectedId] });
+      queryClient.invalidateQueries({ queryKey: ["wiki-draft", selectedId] });
       if (result && "id" in result) setSelectedId((result as any).id);
       setParentSelection(null);
+      setDraftPrompt({ open: false, draft: null, hasConflict: false });
     },
     onError: (err: any, variables) => { // eslint-disable-line @typescript-eslint/no-explicit-any
       if (err?.status === 409) {
@@ -383,22 +439,44 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     onError: () => toast.error("Failed to delete.")
   });
 
+  const saveDraftMutation = useMutation({
+    mutationFn: (data: {
+      id: string;
+      title: string;
+      content: string;
+      binary_state?: string | null;
+      base_version: number;
+    }) => api.saveWikiDraft(data.id, {
+      title: data.title,
+      content: data.content,
+      binary_state: data.binary_state,
+      base_version: data.base_version,
+    }),
+    onSuccess: (_data, variables) => {
+      lastDraftContentRef.current = { title: variables.title, content: variables.content };
+    },
+    onError: () => {
+      toast.error("Failed to auto-save draft.");
+    },
+  });
+
   // Autosave: fires 10 seconds after the last title or content change.
   useEffect(() => {
     if (!selectedId || !mounted) return;
-    const last = lastSavedContentRef.current;
+    const last = lastDraftContentRef.current;
     if (last && last.title === currentTitle && last.content === currentContent) return;
 
     clearTimeout(autosaveTimerRef.current);
     autosaveTimerRef.current = setTimeout(() => {
-      if (saveMutation.isPending) return;
+      if (saveMutation.isPending || saveDraftMutation.isPending) return;
       const binaryState = editorRef.current?.getBinaryState() ?? null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const currentParentId = (rawWikis as any[]).find((w: any) => w.id === selectedId)?.parent_id ?? null;
-      saveMutation.mutate(
-        { id: selectedId, title: currentTitle, content: currentContent, binary_state: binaryState, parent_id: currentParentId },
-        { onSuccess: () => toast.success("Auto-saved.") },
-      );
+      saveDraftMutation.mutate({
+        id: selectedId,
+        title: currentTitle,
+        content: currentContent,
+        binary_state: binaryState,
+        base_version: currentVersionRef.current,
+      });
     }, 10_000);
 
     return () => clearTimeout(autosaveTimerRef.current);
@@ -407,6 +485,8 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
   const handleSelect = (node: WikiNode) => {
     clearTimeout(autosaveTimerRef.current);
     lastSavedContentRef.current = null;
+    lastDraftContentRef.current = { title: node.title, content: node.content || "" };
+    setDraftPrompt({ open: false, draft: null, hasConflict: false });
     setSelectedId(node.id);
     setViewingVersionId(null);
     setParentSelection(null);
@@ -443,6 +523,8 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
         setCurrentTitle("Untitled");
         setCurrentContent("");
         lastSavedContentRef.current = { title: "Untitled", content: "" };
+        lastDraftContentRef.current = { title: "Untitled", content: "" };
+        setDraftPrompt({ open: false, draft: null, hasConflict: false });
         setSaveStatus("idle");
         setRestoreKey(0);
       }
@@ -575,6 +657,34 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     setRestoreConfirm({ open: true, version });
   }, []);
 
+  const handleDraftRestore = useCallback(() => {
+    const draft = draftPrompt.draft;
+    if (!draft) return;
+    setCurrentTitle(draft.title);
+    setCurrentContent(draft.content);
+    lastDraftContentRef.current = { title: draft.title, content: draft.content };
+    setDraftPrompt({ open: false, draft: null, hasConflict: false });
+    toast.info("Recovered your auto-saved draft.");
+  }, [draftPrompt]);
+
+  const handleDraftDiscard = useCallback(() => {
+    const id = selectedId;
+    if (!id || id === "new") {
+      setDraftPrompt({ open: false, draft: null, hasConflict: false });
+      return;
+    }
+
+    setDraftPrompt({ open: false, draft: null, hasConflict: false });
+    void api.deleteWikiDraft(id)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["wiki-draft", id] });
+        toast.info("Discarded auto-saved draft.");
+      })
+      .catch(() => {
+        toast.error("Failed to discard draft.");
+      });
+  }, [selectedId, queryClient]);
+
   // Conflict modal handlers
   const handleConflictForce = useCallback(() => {
     // Force save: overwrite with local content without base_version
@@ -683,7 +793,7 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
           provider={provider}
           user={collabUser}
           collabConnected={collabConnected}
-          showRemoteCursors={!conflict.open && !restoreConfirm.open && !deleteConfirm && !createConfirm.open}
+          showRemoteCursors={!conflict.open && !restoreConfirm.open && !deleteConfirm && !createConfirm.open && !draftPrompt.open}
         />
       </Suspense>
     );
@@ -737,6 +847,30 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
           </div>
         </div>
       )}
+
+      {/* Draft recovery confirmation */}
+      <AlertDialog open={draftPrompt.open} onOpenChange={(open) => setDraftPrompt((s) => ({ ...s, open }))}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {draftPrompt.hasConflict ? "Auto-saved draft found (version changed)" : "Recover auto-saved draft?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {draftPrompt.hasConflict
+                ? "The document has newer saved changes. For safety, drafts are not merged automatically. You can restore your draft or keep the latest saved version."
+                : "We found an auto-saved draft from your previous session. Restore it to continue where you left off, or discard it."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDraftDiscard}>
+              Discard
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDraftRestore}>
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Restore version confirmation */}
       <AlertDialog open={restoreConfirm.open} onOpenChange={(open) => setRestoreConfirm((s) => ({ ...s, open }))}>

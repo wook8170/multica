@@ -189,7 +189,7 @@ export function WikiPropertySidebar({
 
   const { data: rawHistory, isLoading } = useQuery({
     queryKey: ["wiki-history", wikiId],
-    queryFn: () => api.getWikiHistory(wikiId),
+    queryFn: () => api.getWikiHistory(wikiId!),
     enabled: !!wikiId && isHistoryOpen,
   });
   const history: any[] = Array.isArray(rawHistory) ? rawHistory : [];

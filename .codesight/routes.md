@@ -14,8 +14,11 @@
 - **`/{id}/files`** GET | GET/:id | PUT/:id | DELETE/:id → File
 - **`/api/chat/sessions`** GET | POST | DELETE/:id → Session
 - **`/api/wikis`** GET | POST | PUT/:id | DELETE/:id → Wiki
+- **`/api/wikis/draft`** GET | PUT/:id | DELETE/:id → Draft
+- **`/{id}/draft`** GET | PUT/:id | DELETE/:id → Draft
 - **`/`** GET | POST | PUT/:id | DELETE/:id
 - **`/files`** GET | GET/:id | PUT/:id | DELETE/:id → File
+- **`/draft`** GET | PUT/:id | DELETE/:id → Draft
 
 ## Other Routes
 

@@ -302,3 +302,13 @@
 - workspace_id: uuid (required, fk)
 - wiki_id: uuid (required, fk)
 - name: text (required)
+
+### wiki_drafts
+- id: uuid (pk)
+- workspace_id: uuid (required, fk)
+- wiki_id: uuid (required, fk)
+- user_id: uuid (required, fk)
+- title: text (required)
+- content: text (required)
+- binary_state: bytes
+- base_version: integer (required)

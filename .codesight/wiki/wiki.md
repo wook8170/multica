@@ -13,6 +13,7 @@ The Wiki subsystem handles **1 routes** and touches: auth, db, payment.
 
 - **wiki_versions** (6 fields) → [database.md](./database.md)
 - **wiki_tags** (4 fields) → [database.md](./database.md)
+- **wiki_drafts** (8 fields) → [database.md](./database.md)
 
 ## Source Files
 

@@ -8,7 +8,7 @@
 
 ## Scale
 
-284 API routes · 35 database models · 164 UI components · 137 library files · 15 middleware layers · 72 environment variables
+293 API routes · 36 database models · 164 UI components · 137 library files · 15 middleware layers · 72 environment variables
 
 ## Subsystems
 
@@ -40,6 +40,7 @@
 - **[Daemon](./daemon.md)** — 15 routes — touches: auth, db, payment, upload
 - **[Daily](./daily.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Deregister](./deregister.md)** — 1 routes — touches: auth, db, payment, upload
+- **[Draft](./draft.md)** — 6 routes — touches: auth, db, payment, upload
 - **[Files](./files.md)** — 6 routes — touches: auth, db, payment, upload
 - **[Heartbeat](./heartbeat.md)** — 1 routes — touches: auth, db, payment, upload
 - **[History](./history.md)** — 4 routes — touches: auth, db, payment, upload
@@ -79,14 +80,14 @@
 - **[Usage](./usage.md)** — 5 routes — touches: auth, db, payment, upload
 - **[Use-realtime-sync](./use-realtime-sync.md)** — 17 routes
 - **[Wiki](./wiki.md)** — 1 routes — touches: auth, db, payment
-- **[Wikis](./wikis.md)** — 8 routes — touches: auth, db, payment, upload
+- **[Wikis](./wikis.md)** — 11 routes — touches: auth, db, payment, upload
 - **[Workspace-id](./workspace-id.md)** — 1 routes — touches: auth, db
 - **[Workspaces](./workspaces.md)** — 8 routes — touches: auth, db, payment, upload
 - **[Ws](./ws.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Infra](./infra.md)** — 11 routes — touches: auth, db, payment, upload, cache
 - **[Api](./api.md)** — 8 routes — touches: auth, db, payment, upload
 
-**Database:** unknown, 35 models — see [database.md](./database.md)
+**Database:** unknown, 36 models — see [database.md](./database.md)
 
 **UI:** 164 components (react) — see [ui.md](./ui.md)
 

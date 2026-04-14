@@ -38,6 +38,7 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Daemon](./daemon.md)
 - [Daily](./daily.md)
 - [Deregister](./deregister.md)
+- [Draft](./draft.md)
 - [Files](./files.md)
 - [Heartbeat](./heartbeat.md)
 - [History](./history.md)
@@ -88,8 +89,8 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 
 ## Quick Stats
 
-- Routes: **284**
-- Models: **35**
+- Routes: **293**
+- Models: **36**
 - Components: **164**
 - Env vars: **38** required, **34** with defaults
 
@@ -118,4 +119,4 @@ These exist in your codebase but are **not** reflected in wiki articles:
 When in doubt, search the source. The wiki is a starting point, not a complete inventory.
 
 ---
-_Last compiled: 2026-04-14 · 78 articles · [codesight](https://github.com/Houseofmvps/codesight)_
+_Last compiled: 2026-04-14 · 79 articles · [codesight](https://github.com/Houseofmvps/codesight)_

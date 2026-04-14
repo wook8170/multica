@@ -312,6 +312,9 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 				r.Post("/", h.CreateWiki)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Put("/", h.UpdateWiki)
+					r.Get("/draft", h.GetWikiDraft)
+					r.Put("/draft", h.SaveWikiDraft)
+					r.Delete("/draft", h.DeleteWikiDraft)
 					r.Patch("/move", h.MoveWiki)
 					r.Delete("/", h.DeleteWiki)
 					r.Get("/history", h.GetWikiHistory)

@@ -771,6 +771,47 @@ export class ApiClient {
     });
   }
 
+  async saveWikiDraft(
+    id: string,
+    data: {
+      title: string;
+      content: string;
+      binary_state?: string | null;
+      base_version: number;
+    },
+  ): Promise<void> {
+    await this.fetch(`/api/wikis/${id}/draft`, {
+      method: "PUT",
+      headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWikiDraft(id: string): Promise<{
+    title: string;
+    content: string;
+    binary_state?: string;
+    base_version: number;
+    updated_at: string;
+  } | null> {
+    try {
+      return await this.fetch(`/api/wikis/${id}/draft`, {
+        method: "GET",
+        headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
+      });
+    } catch (err) {
+      if ((err as { status?: number })?.status === 404) return null;
+      throw err;
+    }
+  }
+
+  async deleteWikiDraft(id: string): Promise<void> {
+    await this.fetch(`/api/wikis/${id}/draft`, {
+      method: "DELETE",
+      headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
+    });
+  }
+
 
   async moveWiki(id: string, data: { parent_id: string | null; sort_order: number }): Promise<void> {
     await this.fetch(`/api/wikis/${id}/move`, {

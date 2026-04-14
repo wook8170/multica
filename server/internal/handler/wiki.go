@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -45,6 +46,21 @@ type CreateWikiRequest struct {
 	ParentID *string `json:"parent_id"`
 	Title    string  `json:"title"`
 	Content  string  `json:"content"`
+}
+
+type SaveWikiDraftRequest struct {
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	BinaryState string `json:"binary_state"`
+	BaseVersion int    `json:"base_version"`
+}
+
+type WikiDraftResponse struct {
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	BinaryState string `json:"binary_state,omitempty"`
+	BaseVersion int    `json:"base_version"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 func (h *Handler) ListWikis(w http.ResponseWriter, r *http.Request) {
@@ -273,7 +289,131 @@ func (h *Handler) UpdateWiki(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 6. Return new version to client for use as base_version on next save
+	_, _ = h.DB.Exec(ctx,
+		"DELETE FROM wiki_drafts WHERE wiki_id = $1 AND workspace_id = $2 AND user_id = $3",
+		parseUUID(id), parseUUID(wsID), parseUUID(userID),
+	)
+
+	// 7. Return new version to client for use as base_version on next save
 	writeJSON(w, http.StatusOK, map[string]any{"version": newWikiVersion})
+}
+
+func (h *Handler) SaveWikiDraft(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	ctx := r.Context()
+	wsID := resolveWorkspaceID(r)
+	userID, _ := requireUserID(w, r)
+
+	var exists bool
+	if err := h.DB.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM wikis WHERE id = $1 AND workspace_id = $2)",
+		parseUUID(id), parseUUID(wsID),
+	).Scan(&exists); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save wiki draft")
+		return
+	}
+	if !exists {
+		writeError(w, http.StatusNotFound, "wiki not found")
+		return
+	}
+
+	var req SaveWikiDraftRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+
+	var binaryData []byte
+	if req.BinaryState != "" {
+		decoded, err := base64.StdEncoding.DecodeString(req.BinaryState)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid binary_state")
+			return
+		}
+		binaryData = decoded
+	}
+
+	_, err := h.DB.Exec(ctx,
+		`INSERT INTO wiki_drafts (workspace_id, wiki_id, user_id, title, content, binary_state, base_version, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		 ON CONFLICT (workspace_id, wiki_id, user_id)
+		 DO UPDATE SET
+		   title = EXCLUDED.title,
+		   content = EXCLUDED.content,
+		   binary_state = EXCLUDED.binary_state,
+		   base_version = EXCLUDED.base_version,
+		   updated_at = NOW()`,
+		parseUUID(wsID), parseUUID(id), parseUUID(userID), req.Title, req.Content, binaryData, req.BaseVersion,
+	)
+	if err != nil {
+		slog.Error("SaveWikiDraft failed", "error", err, "wiki_id", id, "workspace_id", wsID, "user_id", userID)
+		writeError(w, http.StatusInternalServerError, "failed to save wiki draft")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) GetWikiDraft(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	ctx := r.Context()
+	wsID := resolveWorkspaceID(r)
+	userID, _ := requireUserID(w, r)
+
+	var (
+		title, content string
+		binaryData     []byte
+		baseVersion    int
+		updatedAt      time.Time
+	)
+
+	err := h.DB.QueryRow(ctx,
+		`SELECT title, content, binary_state, base_version, updated_at
+		   FROM wiki_drafts
+		  WHERE wiki_id = $1 AND workspace_id = $2 AND user_id = $3`,
+		parseUUID(id), parseUUID(wsID), parseUUID(userID),
+	).Scan(&title, &content, &binaryData, &baseVersion, &updatedAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			writeError(w, http.StatusNotFound, "draft not found")
+			return
+		}
+		slog.Error("GetWikiDraft failed", "error", err, "wiki_id", id, "workspace_id", wsID, "user_id", userID)
+		writeError(w, http.StatusInternalServerError, "failed to get wiki draft")
+		return
+	}
+
+	b64State := ""
+	if binaryData != nil {
+		b64State = base64.StdEncoding.EncodeToString(binaryData)
+	}
+
+	writeJSON(w, http.StatusOK, WikiDraftResponse{
+		Title:       title,
+		Content:     content,
+		BinaryState: b64State,
+		BaseVersion: baseVersion,
+		UpdatedAt:   updatedAt.Format(time.RFC3339),
+	})
+}
+
+func (h *Handler) DeleteWikiDraft(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	ctx := r.Context()
+	wsID := resolveWorkspaceID(r)
+	userID, _ := requireUserID(w, r)
+
+	_, err := h.DB.Exec(ctx,
+		"DELETE FROM wiki_drafts WHERE wiki_id = $1 AND workspace_id = $2 AND user_id = $3",
+		parseUUID(id), parseUUID(wsID), parseUUID(userID),
+	)
+	if err != nil {
+		slog.Error("DeleteWikiDraft failed", "error", err, "wiki_id", id, "workspace_id", wsID, "user_id", userID)
+		writeError(w, http.StatusInternalServerError, "failed to delete wiki draft")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // searchWikiHTMLTagRe strips HTML tags when extracting a content snippet.

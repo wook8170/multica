@@ -3,9 +3,9 @@
 > **Stack:** next-app, chi | none | react | typescript
 > **Monorepo:** @multica/collaboration, @multica/desktop, @multica/docs, @multica/web, @multica/core, @multica/eslint-config, @multica/tsconfig, @multica/ui, @multica/views, server
 
-> 267 routes (17 inferred) + 17 ws | 35 models | 164 components | 137 lib files | 72 env vars | 15 middleware | 18% test coverage
-> **Token savings:** this file is ~21,300 tokens. Without it, AI exploration would cost ~267,100 tokens. **Saves ~245,800 tokens per conversation.**
-> **Last scanned:** 2026-04-14 08:01 — re-run after significant changes
+> 276 routes (17 inferred) + 17 ws | 36 models | 164 components | 137 lib files | 72 env vars | 15 middleware | 18% test coverage
+> **Token savings:** this file is ~21,400 tokens. Without it, AI exploration would cost ~272,200 tokens. **Saves ~250,700 tokens per conversation.**
+> **Last scanned:** 2026-04-14 08:44 — re-run after significant changes
 
 ---
 
@@ -25,8 +25,11 @@
 - **`/{id}/files`** GET | GET/:id | PUT/:id | DELETE/:id → File
 - **`/api/chat/sessions`** GET | POST | DELETE/:id → Session
 - **`/api/wikis`** GET | POST | PUT/:id | DELETE/:id → Wiki
+- **`/api/wikis/draft`** GET | PUT/:id | DELETE/:id → Draft
+- **`/{id}/draft`** GET | PUT/:id | DELETE/:id → Draft
 - **`/`** GET | POST | PUT/:id | DELETE/:id
 - **`/files`** GET | GET/:id | PUT/:id | DELETE/:id → File
+- **`/draft`** GET | PUT/:id | DELETE/:id → Draft
 
 ## Other Routes
 
@@ -575,6 +578,16 @@
 - wiki_id: uuid (required, fk)
 - name: text (required)
 
+### wiki_drafts
+- id: uuid (pk)
+- workspace_id: uuid (required, fk)
+- wiki_id: uuid (required, fk)
+- user_id: uuid (required, fk)
+- title: text (required)
+- content: text (required)
+- binary_state: bytes
+- base_version: integer (required)
+
 ---
 
 # Components
@@ -1049,9 +1062,10 @@
   - class WikiResponse
   - class WikiVersionResponse
   - class CreateWikiRequest
+  - class SaveWikiDraftRequest
+  - class WikiDraftResponse
   - class SearchWikiResult
-  - class SearchWikisResponse
-  - class CollaborationWebhookRequest
+  - _...2 more_
 - `server/internal/handler/wiki_history_policy.go` — class WikiHistoryCompactResult
 - `server/internal/handler/wiki_snapshot.go` — function NewWikiSnapshotScheduler: (db dbExecutor) *WikiSnapshotScheduler, class WikiSnapshotScheduler
 - `server/internal/handler/workspace.go`

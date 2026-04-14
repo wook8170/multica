@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "wikis.md",
-                "mode": "preview",
-                "source": true
+                "file": "overview.md",
+                "mode": "source",
+                "source": false
               },
               "icon": "lucide-file",
-              "title": "wikis"
+              "title": "overview"
             }
           }
         ]
@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "index",
+                "query": "",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -74,8 +74,7 @@
               "title": "북마크"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -186,31 +185,33 @@
   },
   "active": "47f76fdedf46a1fa",
   "lastOpenFiles": [
-    "index.md",
+    "upload-file.md",
+    "uploads.md",
     "wiki.md",
-    "database.md",
-    "usage.md",
     "wikis.md",
     "workspace-id.md",
     "workspaces.md",
+    "ws.md",
     "X-Agent-ID.md",
+    "x-agent-id.md",
     "X-Task-ID.md",
+    "x-task-id.md",
     "X-User-ID.md",
+    "x-user-id.md",
+    "무제.base",
+    "active-task.md",
+    "무제.canvas",
+    "draft.md",
+    "hub.md",
+    "csp_test.md",
+    "cookie.md",
+    "cli-token.md",
+    "child-progress.md",
+    "index.md",
+    "database.md",
+    "usage.md",
     "comment.md",
     "batch-update.md",
-    "log.md",
-    "ui.md",
-    "runtime.md",
-    "search.md",
-    "overview.md",
-    "api.md",
-    "archive.md",
-    "subscribers.md",
-    "archive-completed.md",
-    "assignee-frequency.md",
-    "archive-all-read.md",
-    "archive-all.md",
-    "agents.md",
-    "agent.md"
+    "log.md"
   ]
 }

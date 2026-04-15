@@ -7,7 +7,7 @@ const (
 	EventIssueUpdated = "issue:updated"
 	EventIssueDeleted = "issue:deleted"
 
-	// Comment events
+	// Comment events (issue)
 	EventCommentCreated       = "comment:created"
 	EventCommentUpdated       = "comment:updated"
 	EventCommentDeleted       = "comment:deleted"
@@ -15,6 +15,11 @@ const (
 	EventReactionRemoved        = "reaction:removed"
 	EventIssueReactionAdded     = "issue_reaction:added"
 	EventIssueReactionRemoved   = "issue_reaction:removed"
+
+	// Wiki comment events
+	EventWikiCommentCreated = "wiki_comment:created"
+	EventWikiCommentUpdated = "wiki_comment:updated"
+	EventWikiCommentDeleted = "wiki_comment:deleted"
 
 	// Agent events
 	EventAgentStatus   = "agent:status"

@@ -139,9 +139,13 @@
 - `PATCH` `/api/wikis/move` params() [auth, db, payment, upload]
 - `GET` `/api/wikis/history` params() [auth, db, payment, upload]
 - `POST` `/api/wikis/history/compact` params() [auth, db, payment, upload]
+- `GET` `/api/wikis/comments` params() [auth, db, payment, upload]
+- `POST` `/api/wikis/comments` params() [auth, db, payment, upload]
 - `PATCH` `/{id}/move` params(id) [auth, db, payment, upload]
 - `GET` `/{id}/history` params(id) [auth, db, payment, upload]
 - `POST` `/{id}/history/compact` params(id) [auth, db, payment, upload]
+- `PUT` `/api/wiki_comments/{commentId}` params(commentId) [auth, db, payment, upload]
+- `DELETE` `/api/wiki_comments/{commentId}` params(commentId) [auth, db, payment, upload]
 - `GET` `/health` params() [auth, db, payment, upload] ✓
 - `GET` `/ws` params() [auth, db, payment, upload] ✓
 - `GET` `/uploads/*` params() [auth, db, payment, upload]
@@ -246,7 +250,7 @@
 - `GET` `open_only` params() [auth, db, queue, upload]
 - `GET` `days` params() [auth, db, cache]
 - `GET` `owner` params() [auth, db, cache] ✓
-- `GET` `X-Webhook-Secret` params() [auth, db, payment]
+- `GET` `X-Webhook-Secret` params() [auth, db, payment, upload]
 - `GET` `X-User-Email` params() [auth]
 - `GET` `Content-Security-Policy` params()
 - `GET` `Origin` params() [auth, db]

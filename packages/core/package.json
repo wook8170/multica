@@ -58,7 +58,10 @@
     "./logger": "./logger.ts",
     "./utils": "./utils.ts",
     "./constants/*": "./constants/*.ts",
-    "./platform": "./platform/index.ts"
+    "./platform": "./platform/index.ts",
+    "./wiki": "./wiki/index.ts",
+    "./wiki/queries": "./wiki/queries.ts",
+    "./wiki/mutations": "./wiki/mutations.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "catalog:",

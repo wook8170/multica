@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { ApiClient } from "../api/client";
 import type { Attachment } from "../types";
 import { MAX_FILE_SIZE } from "../constants/upload";
@@ -14,6 +14,8 @@ export interface UploadResult {
 export interface UploadContext {
   issueId?: string;
   commentId?: string;
+  wikiId?: string;
+  uploadSessionId?: string;
 }
 
 export function useFileUpload(
@@ -21,6 +23,20 @@ export function useFileUpload(
   onError?: (error: Error) => void,
 ) {
   const [uploading, setUploading] = useState(false);
+  const inFlightRef = useRef<Map<string, Promise<UploadResult | null>>>(new Map());
+
+  const getFileKey = useCallback((file: File, ctx?: UploadContext) => {
+    return [
+      file.name,
+      file.size,
+      file.lastModified,
+      file.type,
+      ctx?.issueId ?? "",
+      ctx?.commentId ?? "",
+      ctx?.wikiId ?? "",
+      ctx?.uploadSessionId ?? "",
+    ].join("::");
+  }, []);
 
   const upload = useCallback(
     async (file: File, ctx?: UploadContext): Promise<UploadResult | null> => {
@@ -28,18 +44,33 @@ export function useFileUpload(
         throw new Error("File exceeds 100 MB limit");
       }
 
+      const fileKey = getFileKey(file, ctx);
+      const existing = inFlightRef.current.get(fileKey);
+      if (existing) {
+        return existing;
+      }
+
       setUploading(true);
-      try {
+      const request = (async () => {
         const att: Attachment = await api.uploadFile(file, {
           issueId: ctx?.issueId,
           commentId: ctx?.commentId,
+          wikiId: ctx?.wikiId,
+          uploadSessionId: ctx?.uploadSessionId,
         });
         return { id: att.id, filename: att.filename, link: att.url };
+      })();
+
+      inFlightRef.current.set(fileKey, request);
+
+      try {
+        return await request;
       } finally {
-        setUploading(false);
+        inFlightRef.current.delete(fileKey);
+        setUploading(inFlightRef.current.size > 0);
       }
     },
-    [api],
+    [api, getFileKey],
   );
 
   const uploadWithToast = useCallback(

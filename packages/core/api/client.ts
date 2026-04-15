@@ -650,11 +650,16 @@ export class ApiClient {
   }
 
   // File Upload & Attachments
-  async uploadFile(file: File, opts?: { issueId?: string; commentId?: string }): Promise<Attachment> {
+  async uploadFile(
+    file: File,
+    opts?: { issueId?: string; commentId?: string; wikiId?: string; uploadSessionId?: string },
+  ): Promise<Attachment> {
     const formData = new FormData();
     formData.append("file", file);
     if (opts?.issueId) formData.append("issue_id", opts.issueId);
     if (opts?.commentId) formData.append("comment_id", opts.commentId);
+    if (opts?.wikiId) formData.append("wiki_id", opts.wikiId);
+    if (opts?.uploadSessionId) formData.append("upload_session_id", opts.uploadSessionId);
 
     const rid = createRequestId();
     const start = Date.now();
@@ -783,7 +788,12 @@ export class ApiClient {
     });
   }
 
-  async createWiki(data: { parent_id?: string; title: string; content: string }): Promise<any> {
+  async createWiki(data: {
+    parent_id?: string;
+    title: string;
+    content: string;
+    upload_session_id?: string;
+  }): Promise<any> {
     return this.fetch(`/api/wikis`, {
       method: "POST",
       headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
@@ -816,11 +826,15 @@ export class ApiClient {
       binary_state?: string | null;
       base_version: number;
     },
+    options?: {
+      keepalive?: boolean;
+    },
   ): Promise<void> {
     await this.fetch(`/api/wikis/${id}/draft`, {
       method: "PUT",
       headers: this.workspaceId ? { "X-Workspace-ID": this.workspaceId } : {},
       body: JSON.stringify(data),
+      keepalive: options?.keepalive,
     });
   }
 
@@ -868,5 +882,37 @@ export class ApiClient {
 
   async compactWikiHistory(id: string): Promise<{ deleted_versions: number; cleared_binary_state: number }> {
     return this.fetch(`/api/wikis/${id}/history/compact`, { method: "POST" });
+  }
+
+  // --- Wiki Comments ---
+  async listWikiComments(wikiId: string): Promise<import("../types").WikiComment[]> {
+    return this.fetch(`/api/wikis/${wikiId}/comments`);
+  }
+
+  async createWikiComment(
+    wikiId: string,
+    content: string,
+    attachmentIds?: string[],
+    parentId?: string,
+  ): Promise<import("../types").WikiComment> {
+    return this.fetch(`/api/wikis/${wikiId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({
+        content,
+        ...(attachmentIds?.length ? { attachment_ids: attachmentIds } : {}),
+        ...(parentId ? { parent_id: parentId } : {}),
+      }),
+    });
+  }
+
+  async updateWikiComment(commentId: string, content: string): Promise<import("../types").WikiComment> {
+    return this.fetch(`/api/wiki_comments/${commentId}`, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async deleteWikiComment(commentId: string): Promise<void> {
+    await this.fetch(`/api/wiki_comments/${commentId}`, { method: "DELETE" });
   }
 }

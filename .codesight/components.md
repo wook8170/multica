@@ -53,6 +53,9 @@
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **LocaleProvider** [client] — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
+- **KeepDiscardDialog** — props: open, onOpenChange, title, description, onKeep, onDiscard, discardVariant — `apps/web/features/wiki/components/KeepDiscardDialog.tsx`
+- **WikiCommentCard** [client] — props: wikiId, comment, allReplies, currentUserId, onReply, onEdit, onDelete — `apps/web/features/wiki/components/WikiCommentCard.tsx`
+- **WikiCommentInput** [client] — props: wikiId, onSubmit — `apps/web/features/wiki/components/WikiCommentInput.tsx`
 - **WikiEditor** — props: id, title, content, restoreKey, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile — `apps/web/features/wiki/components/WikiEditor.tsx`
 - **WikiPropertySidebar** [client] — props: wikiId, currentContent, createdBy, updatedBy, createdAt, updatedAt, childPages, onNavigateTo, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
 - **WikiSidebar** [client] — props: nodes, isLoading, onCreateNew, onSelect, selectedId, collaboratingId, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
@@ -80,17 +83,18 @@
 - **ChatSessionHistory** [client] — `packages/views/chat/components/chat-session-history.tsx`
 - **ChatWindow** [client] — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** [client] — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
+- **CommentInput** [client] — props: entityId, entityType, placeholder, onSubmit, className — `packages/views/common/comment-input.tsx`
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
 - **AttachmentFileIcon** [client] — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
-- **MarkButton** [client] — props: editor, mark, icon, label, shortcut — `packages/views/editor/bubble-menu.tsx`
-- **BLOB_IMAGE_RE** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **MarkButton** [client] — props: editor, mark, icon, label, shortcut, runCommand — `packages/views/editor/bubble-menu.tsx`
+- **TABLE_BG_COLORS** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **AttachmentCard** [client] — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** [client] — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** [client] — props: node — `packages/views/editor/extensions/mention-view.tsx`
-- **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`
+- **FileDropOverlay** — props: className — `packages/views/editor/file-drop-overlay.tsx`
 - **LinkPreviewCard** [client] — props: href, onMouseDown — `packages/views/editor/link-preview.tsx`
 - **MermaidViewer** [client] — props: content — `packages/views/editor/mermaid-viewer.tsx`
 - **ReadonlyContent** [client] — props: content, className — `packages/views/editor/readonly-content.tsx`

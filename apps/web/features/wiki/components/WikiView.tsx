@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback, Suspense, lazy, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, Suspense, lazy, type ReactNode } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
 import { Library, Plus, Minus, Loader2, Clock, ArrowLeft, RotateCcw, X, Trash2, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
@@ -39,9 +39,46 @@ import { HocuspocusProvider } from "@hocuspocus/provider";
 
 import { WikiSidebar } from "./WikiSidebar";
 import { WikiPropertySidebar } from "./WikiPropertySidebar";
+import { WikiCommentCard } from "./WikiCommentCard";
+import { CommentInput } from "@multica/views/common/comment-input";
+import { useWikiComments } from "../hooks/use-wiki-comments";
 
 // Dynamic import to avoid SSR hydration mismatch from collaboration state
 const WikiEditor = lazy(() => import("./WikiEditor").then(m => ({ default: m.WikiEditor })));
+
+// ---------------------------------------------------------------------------
+// WikiCommentsSection
+// ---------------------------------------------------------------------------
+
+function WikiCommentsSection({ wikiId, currentUserId }: { wikiId: string; currentUserId?: string }) {
+  const { topLevelComments, repliesByParent, isLoading, submitComment, submitReply, editComment, deleteComment } = useWikiComments(wikiId);
+  return (
+    <div className="space-y-4">
+      <h2 className="text-base font-semibold">Comments</h2>
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      ) : topLevelComments.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {topLevelComments.map((comment) => (
+            <WikiCommentCard
+              key={comment.id}
+              comment={comment}
+              wikiId={wikiId}
+              allReplies={repliesByParent}
+              currentUserId={currentUserId}
+              onReply={submitReply}
+              onEdit={editComment}
+              onDelete={deleteComment}
+            />
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-4">
+        <CommentInput entityId={wikiId} entityType="wiki" onSubmit={submitComment} />
+      </div>
+    </div>
+  );
+}
 
 interface WikiNode {
   id: string;
@@ -116,6 +153,21 @@ interface ConflictState {
   serverVersion: number;
 }
 
+interface DiscardedDraftSnapshot {
+  hash: string;
+  at: number;
+}
+
+function hashDraftSnapshot(title: string, content: string): string {
+  const input = `${title}\n${content}`;
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
 export function WikiView({ initialSelectedId }: { initialSelectedId?: string | null } = {}) {
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
@@ -175,12 +227,16 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
   // Conflict modal
   const [conflict, setConflict] = useState<ConflictState>({ open: false, serverVersion: 0 });
 
-  // Autosave: triggers 10 seconds after the last change
-  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Last title+content successfully saved to the server (avoids unnecessary re-saves)
   const lastSavedContentRef = useRef<{ title: string; content: string } | null>(null);
   // Last title+content persisted as draft (avoids unnecessary draft upserts)
   const lastDraftContentRef = useRef<{ title: string; content: string } | null>(null);
+  const discardedDraftSnapshotsRef = useRef<Map<string, DiscardedDraftSnapshot>>(new Map());
+  const draftDiscardChannelRef = useRef<BroadcastChannel | null>(null);
+  const persistedWikiContentRef = useRef<Map<string, { title: string; content: string }>>(new Map());
+  const selectedIdRef = useRef<string | null>(null);
+  const currentTitleRef = useRef("");
+  const currentContentRef = useRef("");
   // Tracks which draft snapshot (updated_at) already prompted for each wiki id.
   const draftPromptedRef = useRef<Map<string, string>>(new Map());
 
@@ -289,6 +345,17 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
   });
 
   const wikiTree = useMemo(() => buildTree(rawWikis), [rawWikis]);
+
+  useEffect(() => {
+    const map = new Map<string, { title: string; content: string }>();
+    (rawWikis as any[]).forEach((wiki: any) => {
+      map.set(wiki.id, {
+        title: wiki.title,
+        content: wiki.content ?? "",
+      });
+    });
+    persistedWikiContentRef.current = map;
+  }, [rawWikis]);
 
   // Sync optimistic lock version when the selected wiki or wiki list changes.
   // Also initialises currentTitle/currentContent on first load so that a page-reload
@@ -439,51 +506,118 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     onError: () => toast.error("Failed to delete.")
   });
 
-  const saveDraftMutation = useMutation({
-    mutationFn: (data: {
-      id: string;
-      title: string;
-      content: string;
-      binary_state?: string | null;
-      base_version: number;
-    }) => api.saveWikiDraft(data.id, {
-      title: data.title,
-      content: data.content,
-      binary_state: data.binary_state,
-      base_version: data.base_version,
-    }),
-    onSuccess: (_data, variables) => {
-      lastDraftContentRef.current = { title: variables.title, content: variables.content };
-    },
-    onError: () => {
-      toast.error("Failed to auto-save draft.");
-    },
-  });
+  useLayoutEffect(() => {
+    selectedIdRef.current = selectedId;
+    currentTitleRef.current = currentTitle;
+    currentContentRef.current = currentContent;
+  }, [selectedId, currentTitle, currentContent]);
 
-  // Autosave: fires 10 seconds after the last title or content change.
-  useEffect(() => {
-    if (!selectedId || !mounted) return;
-    const last = lastDraftContentRef.current;
-    if (last && last.title === currentTitle && last.content === currentContent) return;
+  const rememberDiscardedDraftHash = useCallback((wikiId: string, hash: string) => {
+    const snapshots = discardedDraftSnapshotsRef.current;
+    snapshots.set(wikiId, { hash, at: Date.now() });
+    if (snapshots.size > 100) {
+      const oldest = [...snapshots.entries()].sort((a, b) => a[1].at - b[1].at).slice(0, snapshots.size - 100);
+      oldest.forEach(([id]) => snapshots.delete(id));
+    }
+  }, []);
 
-    clearTimeout(autosaveTimerRef.current);
-    autosaveTimerRef.current = setTimeout(() => {
-      if (saveMutation.isPending || saveDraftMutation.isPending) return;
-      const binaryState = editorRef.current?.getBinaryState() ?? null;
-      saveDraftMutation.mutate({
-        id: selectedId,
-        title: currentTitle,
-        content: currentContent,
-        binary_state: binaryState,
-        base_version: currentVersionRef.current,
+  const rememberDiscardedDraft = useCallback((wikiId: string, title: string, content: string, broadcast: boolean) => {
+    const hash = hashDraftSnapshot(title, content);
+    rememberDiscardedDraftHash(wikiId, hash);
+    if (broadcast && user?.id && draftDiscardChannelRef.current) {
+      draftDiscardChannelRef.current.postMessage({
+        type: "wiki-draft-discarded",
+        userId: user.id,
+        wikiId,
+        hash,
       });
-    }, 10_000);
+    }
+  }, [rememberDiscardedDraftHash, user?.id]);
 
-    return () => clearTimeout(autosaveTimerRef.current);
-  }, [currentTitle, currentContent]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel("multica:wiki:draft-discard");
+    draftDiscardChannelRef.current = channel;
+    channel.onmessage = (event: MessageEvent<unknown>) => {
+      const data = event.data as {
+        type?: string;
+        userId?: string;
+        wikiId?: string;
+        hash?: string;
+      };
+      if (data?.type !== "wiki-draft-discarded") return;
+      if (!user?.id || data.userId !== user.id) return;
+      if (!data.wikiId || !data.hash) return;
+      rememberDiscardedDraftHash(data.wikiId, data.hash);
+    };
+    return () => {
+      draftDiscardChannelRef.current = null;
+      channel.close();
+    };
+  }, [rememberDiscardedDraftHash, user?.id]);
+
+  const persistDraftSnapshot = useCallback(async (opts?: { keepalive?: boolean }) => {
+    const id = selectedIdRef.current;
+    if (!id || id === "new") return;
+
+    const title = currentTitleRef.current;
+    const content = currentContentRef.current;
+    const binaryState = editorRef.current?.getBinaryState() ?? null;
+
+    await api.saveWikiDraft(id, {
+      title,
+      content,
+      binary_state: binaryState,
+      base_version: currentVersionRef.current,
+    }, {
+      keepalive: opts?.keepalive,
+    });
+
+    discardedDraftSnapshotsRef.current.delete(id);
+    lastDraftContentRef.current = { title, content };
+  }, []);
+
+  const flushDraftOnLeave = useCallback((opts?: { keepalive?: boolean; silent?: boolean }) => {
+    const id = selectedIdRef.current;
+    if (!id || id === "new") return;
+
+    const title = currentTitleRef.current;
+    const content = currentContentRef.current;
+    const currentHash = hashDraftSnapshot(title, content);
+    const discardedSnapshot = discardedDraftSnapshotsRef.current.get(id);
+    if (discardedSnapshot?.hash === currentHash) return;
+    if (discardedSnapshot) {
+      discardedDraftSnapshotsRef.current.delete(id);
+    }
+
+    const persisted = persistedWikiContentRef.current.get(id);
+    if (persisted && persisted.title === title && persisted.content === content) return;
+
+    const last = lastDraftContentRef.current;
+    if (last && last.title === title && last.content === content) return;
+
+    void persistDraftSnapshot({ keepalive: opts?.keepalive }).catch(() => {
+      if (!opts?.silent) {
+        toast.error("Failed to auto-save draft.");
+      }
+    });
+  }, [persistDraftSnapshot]);
+
+  // Save draft when leaving this page (route/menu change and browser unload).
+  useEffect(() => {
+    const onPageHide = () => {
+      flushDraftOnLeave({ keepalive: true, silent: true });
+    };
+
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      flushDraftOnLeave({ keepalive: true, silent: true });
+    };
+  }, [flushDraftOnLeave]);
 
   const handleSelect = (node: WikiNode) => {
-    clearTimeout(autosaveTimerRef.current);
+    flushDraftOnLeave();
     lastSavedContentRef.current = null;
     lastDraftContentRef.current = { title: node.title, content: node.content || "" };
     setDraftPrompt({ open: false, draft: null, hasConflict: false });
@@ -516,7 +650,6 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
           next.add(variables.parentId);
           setExpandedNodes(next);
         }
-        clearTimeout(autosaveTimerRef.current);
         setSelectedId(newId);
         setViewingVersionId(null);
         setParentSelection(null);
@@ -533,6 +666,7 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
   });
 
   const doCreateNew = (parentId: string | null = null) => {
+    flushDraftOnLeave();
     createNewMutation.mutate({ parentId });
   };
 
@@ -584,7 +718,6 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
 
   const handleSave = useCallback((binaryState?: string | null) => {
     if (!currentTitle.trim()) { toast.error("Set a title first."); return; }
-    clearTimeout(autosaveTimerRef.current); // Reset autosave timer on manual save
     // For existing docs, always read parent_id from the server data (not parentSelection,
     // which is only set for new documents and is null for existing ones).
     const parentId = selectedId && selectedId !== "new"
@@ -662,10 +795,14 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
     if (!draft) return;
     setCurrentTitle(draft.title);
     setCurrentContent(draft.content);
+    setRestoreKey((k) => k + 1);
+    if (selectedId && selectedId !== "new") {
+      discardedDraftSnapshotsRef.current.delete(selectedId);
+    }
     lastDraftContentRef.current = { title: draft.title, content: draft.content };
     setDraftPrompt({ open: false, draft: null, hasConflict: false });
     toast.info("Recovered your auto-saved draft.");
-  }, [draftPrompt]);
+  }, [draftPrompt, selectedId]);
 
   const handleDraftDiscard = useCallback(() => {
     const id = selectedId;
@@ -674,16 +811,23 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
       return;
     }
 
+    rememberDiscardedDraft(id, currentTitleRef.current, currentContentRef.current, true);
+
     setDraftPrompt({ open: false, draft: null, hasConflict: false });
     void api.deleteWikiDraft(id)
       .then(() => {
+        lastDraftContentRef.current = {
+          title: currentTitleRef.current,
+          content: currentContentRef.current,
+        };
         queryClient.invalidateQueries({ queryKey: ["wiki-draft", id] });
         toast.info("Discarded auto-saved draft.");
       })
       .catch(() => {
+        discardedDraftSnapshotsRef.current.delete(id);
         toast.error("Failed to discard draft.");
       });
-  }, [selectedId, queryClient]);
+  }, [selectedId, rememberDiscardedDraft, queryClient]);
 
   // Conflict modal handlers
   const handleConflictForce = useCallback(() => {
@@ -770,19 +914,10 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
           title={currentTitle}
           content={currentContent}
           ancestors={selectedId ? getAncestors(rawWikis as any[], selectedId) : []}
-          childPages={
-            selectedId
-              ? (rawWikis as any[])
-                  .filter((w: any) => w.parent_id === selectedId)
-                  .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                  .map((w: any) => ({ id: w.id, title: w.title }))
-              : []
-          }
           onNavigateTo={(id) => {
             const wiki = (rawWikis as any[]).find((w: any) => w.id === id);
             if (wiki) handleSelect(wiki);
           }}
-          onCreateChild={selectedId ? () => handleCreateNew(selectedId) : undefined}
           onUpdateTitle={setCurrentTitle}
           onUpdateContent={setCurrentContent}
           onSave={handleSave}
@@ -794,6 +929,11 @@ export function WikiView({ initialSelectedId }: { initialSelectedId?: string | n
           user={collabUser}
           collabConnected={collabConnected}
           showRemoteCursors={!conflict.open && !restoreConfirm.open && !deleteConfirm && !createConfirm.open && !draftPrompt.open}
+          commentsSlot={
+            selectedId && selectedId !== "new"
+              ? <WikiCommentsSection wikiId={selectedId} currentUserId={user?.id} />
+              : undefined
+          }
         />
       </Suspense>
     );

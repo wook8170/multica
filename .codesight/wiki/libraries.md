@@ -2,12 +2,13 @@
 
 > **Navigation aid.** Library inventory extracted via AST. Read the source files listed here before modifying exported functions.
 
-**142 library files** across 6 modules
+**148 library files** across 6 modules
 
-## Server (89 files)
+## Server (92 files)
 
 - `server/pkg/db/generated/models.go` — ActivityLog, Agent, AgentRuntime, AgentSkill, AgentTaskQueue, Attachment, …
 - `server/pkg/db/generated/agent.sql.go` — ArchiveAgentParams, CompleteAgentTaskParams, CreateAgentParams, CreateAgentTaskParams, FailAgentTaskParams, FailStaleTasksParams, …
+- `server/pkg/db/generated/attachment.sql.go` — CreateAttachmentParams, DeleteAttachmentParams, DeleteExpiredWikiTempAttachmentsRow, GetAttachmentParams, LinkAttachmentsToCommentParams, LinkAttachmentsToIssueParams, …
 - `server/pkg/db/generated/issue.sql.go` — ChildIssueProgressRow, CountCreatedIssueAssigneesParams, CountCreatedIssueAssigneesRow, CountIssuesParams, CreateIssueParams, GetIssueByNumberParams, …
 - `server/internal/daemon/execenv/execenv.go` — Prepare, Reuse, WriteGCMeta, ReadGCMeta, RepoContextForEnv, PrepareParams, …
 - `server/pkg/db/generated/inbox.sql.go` — ArchiveAllInboxParams, ArchiveAllReadInboxParams, ArchiveCompletedInboxParams, ArchiveInboxByIssueParams, CountUnreadInboxParams, CreateInboxItemParams, …
@@ -22,7 +23,7 @@
 - `server/internal/handler/skill.go` — SkillResponse, SkillFileResponse, SkillWithFilesResponse, CreateSkillRequest, CreateSkillFileRequest, UpdateSkillRequest, …
 - `server/internal/handler/wiki.go` — WikiResponse, WikiVersionResponse, CreateWikiRequest, SaveWikiDraftRequest, WikiDraftResponse, SearchWikiResult, …
 - `server/internal/util/pgx.go` — ParseUUID, UUIDToString, TextToPtr, PtrToText, StrToText, TimestampToString, …
-- `server/pkg/db/generated/attachment.sql.go` — CreateAttachmentParams, DeleteAttachmentParams, GetAttachmentParams, LinkAttachmentsToCommentParams, LinkAttachmentsToIssueParams, ListAttachmentsByCommentParams, …
+- `server/pkg/db/generated/wiki.sql.go` — CreateWikiParams, CreateWikiTagParams, CreateWikiVersionParams, DeleteWikiParams, GetWikiParams, ListWikiTagsParams, …
 - `server/internal/handler/workspace.go` — WorkspaceResponse, MemberResponse, CreateWorkspaceRequest, UpdateWorkspaceRequest, MemberWithUserResponse, CreateMemberRequest, …
 - `server/internal/middleware/workspace.go` — MemberFromContext, WorkspaceIDFromContext, SetMemberContext, RequireWorkspaceMember, RequireWorkspaceRole, RequireWorkspaceMemberFromURL, …
 - `server/internal/realtime/hub.go` — SetAllowedOrigins, NewHub, HandleWebSocket, Client, Hub, MembershipChecker, …
@@ -30,10 +31,9 @@
 - `server/pkg/db/generated/skill.sql.go` — AddAgentSkillParams, CreateSkillParams, GetSkillInWorkspaceParams, ListAgentSkillsByWorkspaceRow, RemoveAgentSkillParams, UpdateSkillParams, …
 - `server/internal/cli/update.go` — FetchLatestRelease, IsBrewInstall, GetBrewPrefix, UpdateViaBrew, UpdateViaDownload, GitHubRelease
 - `server/internal/daemon/repocache/cache.go` — New, RepoInfo, CachedRepo, Cache, WorktreeParams, WorktreeResult
-- `server/internal/handler/agent.go` — AgentResponse, RepoData, AgentTaskResponse, TaskAgentData, CreateAgentRequest, UpdateAgentRequest
-- _…and 64 more files_
+- _…and 67 more files_
 
-## Core (37 files)
+## Core (39 files)
 
 - `packages/core/issues/mutations.ts` — useLoadMoreDoneIssues, useCreateIssue, useUpdateIssue, useDeleteIssue, useBatchUpdateIssues, useBatchDeleteIssues, …
 - `packages/core/issues/stores/view-store.ts` — createIssueViewStore, registerViewStoreForWorkspaceSync, viewStoreSlice, viewStorePersistOptions, initFilterWorkspaceSync, CardProperties, …
@@ -56,11 +56,11 @@
 - `packages/core/projects/mutations.ts` — useCreateProject, useUpdateProject, useDeleteProject
 - `packages/core/projects/queries.ts` — projectListOptions, projectDetailOptions, projectKeys
 - `packages/core/runtimes/queries.ts` — runtimeListOptions, latestCliVersionOptions, runtimeKeys
+- `packages/core/wiki/mutations.ts` — useCreateWikiComment, useUpdateWikiComment, useDeleteWikiComment
 - `packages/core/workspace/mutations.ts` — useCreateWorkspace, useLeaveWorkspace, useDeleteWorkspace
 - `packages/core/auth/index.ts` — registerAuthStore, useAuthStore
 - `packages/core/chat/index.ts` — registerChatStore, useChatStore
-- `packages/core/chat/mutations.ts` — useCreateChatSession, useArchiveChatSession
-- _…and 12 more files_
+- _…and 14 more files_
 
 ## Desktop (6 files)
 
@@ -80,15 +80,16 @@
 - `packages/ui/lib/utils.ts` — cn
 - `packages/ui/markdown/mentions.ts` — preprocessMentionShortcodes
 
+## Web (3 files)
+
+- `apps/web/features/auth/auth-cookie.ts` — setLoggedInCookie, clearLoggedInCookie
+- `apps/web/proxy.ts` — proxy, config
+- `apps/web/features/wiki/hooks/use-wiki-comments.ts` — useWikiComments
+
 ## E2e (2 files)
 
 - `e2e/helpers.ts` — loginAsDefault, createTestApi, openWorkspaceMenu
 - `e2e/fixtures.ts` — TestApiClient
-
-## Web (2 files)
-
-- `apps/web/features/auth/auth-cookie.ts` — setLoggedInCookie, clearLoggedInCookie
-- `apps/web/proxy.ts` — proxy, config
 
 ---
 _Back to [overview.md](./overview.md)_

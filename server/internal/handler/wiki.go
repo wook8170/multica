@@ -43,9 +43,10 @@ type WikiVersionResponse struct {
 }
 
 type CreateWikiRequest struct {
-	ParentID *string `json:"parent_id"`
-	Title    string  `json:"title"`
-	Content  string  `json:"content"`
+	ParentID        *string `json:"parent_id"`
+	Title           string  `json:"title"`
+	Content         string  `json:"content"`
+	UploadSessionID *string `json:"upload_session_id,omitempty"`
 }
 
 type SaveWikiDraftRequest struct {
@@ -144,6 +145,10 @@ func (h *Handler) CreateWiki(w http.ResponseWriter, r *http.Request) {
 		slog.Error("CreateWiki failed", "error", err, "workspace_id", wsID)
 		writeError(w, http.StatusInternalServerError, "failed to create wiki")
 		return
+	}
+
+	if req.UploadSessionID != nil && *req.UploadSessionID != "" {
+		h.linkWikiAttachmentsBySession(ctx, id, parseUUID(wsID), parseUUID(userID), *req.UploadSessionID)
 	}
 
 	writeJSON(w, http.StatusCreated, WikiResponse{
@@ -656,6 +661,7 @@ func (h *Handler) DeleteWiki(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	ctx := r.Context()
 	wsID := resolveWorkspaceID(r)
+	attachmentURLs, _ := h.Queries.ListAttachmentURLsByWikiID(ctx, parseUUID(id))
 
 	_, err := h.DB.Exec(ctx, "DELETE FROM wikis WHERE id = $1 AND workspace_id = $2", parseUUID(id), parseUUID(wsID))
 	if err != nil {
@@ -663,6 +669,7 @@ func (h *Handler) DeleteWiki(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to delete wiki")
 		return
 	}
+	h.deleteS3Objects(ctx, attachmentURLs)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -696,32 +703,10 @@ func (h *Handler) CollaborationWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	wikiID := req.DocumentName[5:] // strip "wiki-" prefix
 
-	ctx := r.Context()
 	slog.Info("Collaboration update received", "wiki_id", wikiID, "user_id", req.UserID)
 
-	// Only sync and snapshot when content is non-empty.
-	// The collab server transformer currently cannot extract markdown from the Yjs
-	// document, so it sends an empty content field. Skipping the UPDATE here prevents
-	// overwriting real wiki content with an empty string on every keystroke.
-	// Content persistence is handled by the client-side autosave (10s debounce) instead.
-	if req.Content != "" {
-		// 1. Sync wikis.content in real-time (version unchanged — optimistic lock only applies on explicit saves)
-		_, err := h.DB.Exec(ctx,
-			"UPDATE wikis SET content = $2, updated_at = NOW() WHERE id = $1",
-			parseUUID(wikiID), req.Content,
-		)
-		if err != nil {
-			slog.Error("CollaborationWebhook update failed", "error", err, "wiki_id", wikiID)
-			writeError(w, http.StatusInternalServerError, "failed to update wiki via webhook")
-			return
-		}
-
-		// 2. Schedule a 30s debounced snapshot — once the collaboration session quiets down,
-		// write a version into wiki_versions so history is created even without explicit saves
-		if h.WikiSnapshots != nil {
-			h.WikiSnapshots.Schedule(wikiID, req.Content, req.UserID)
-		}
-	}
-
+	// Do not persist webhook content to wikis/wiki_versions.
+	// Canonical persistence is intentionally limited to explicit save and draft-on-leave,
+	// so discard can reliably drop unsaved edits.
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -12,22 +12,24 @@ import (
 )
 
 const createAttachment = `-- name: CreateAttachment :one
-INSERT INTO attachment (id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes)
-VALUES ($1, $2, $9, $10, $3, $4, $5, $6, $7, $8)
-RETURNING id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at
+INSERT INTO attachment (id, workspace_id, issue_id, comment_id, wiki_id, upload_session_id, uploader_type, uploader_id, filename, url, content_type, size_bytes)
+VALUES ($1, $2, $9, $10, $11, $12, $3, $4, $5, $6, $7, $8)
+RETURNING id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at, wiki_id, upload_session_id
 `
 
 type CreateAttachmentParams struct {
-	ID           pgtype.UUID `json:"id"`
-	WorkspaceID  pgtype.UUID `json:"workspace_id"`
-	UploaderType string      `json:"uploader_type"`
-	UploaderID   pgtype.UUID `json:"uploader_id"`
-	Filename     string      `json:"filename"`
-	Url          string      `json:"url"`
-	ContentType  string      `json:"content_type"`
-	SizeBytes    int64       `json:"size_bytes"`
-	IssueID      pgtype.UUID `json:"issue_id"`
-	CommentID    pgtype.UUID `json:"comment_id"`
+	ID              pgtype.UUID `json:"id"`
+	WorkspaceID     pgtype.UUID `json:"workspace_id"`
+	UploaderType    string      `json:"uploader_type"`
+	UploaderID      pgtype.UUID `json:"uploader_id"`
+	Filename        string      `json:"filename"`
+	Url             string      `json:"url"`
+	ContentType     string      `json:"content_type"`
+	SizeBytes       int64       `json:"size_bytes"`
+	IssueID         pgtype.UUID `json:"issue_id"`
+	CommentID       pgtype.UUID `json:"comment_id"`
+	WikiID          pgtype.UUID `json:"wiki_id"`
+	UploadSessionID pgtype.UUID `json:"upload_session_id"`
 }
 
 func (q *Queries) CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (Attachment, error) {
@@ -42,6 +44,8 @@ func (q *Queries) CreateAttachment(ctx context.Context, arg CreateAttachmentPara
 		arg.SizeBytes,
 		arg.IssueID,
 		arg.CommentID,
+		arg.WikiID,
+		arg.UploadSessionID,
 	)
 	var i Attachment
 	err := row.Scan(
@@ -56,6 +60,8 @@ func (q *Queries) CreateAttachment(ctx context.Context, arg CreateAttachmentPara
 		&i.ContentType,
 		&i.SizeBytes,
 		&i.CreatedAt,
+		&i.WikiID,
+		&i.UploadSessionID,
 	)
 	return i, err
 }
@@ -74,8 +80,68 @@ func (q *Queries) DeleteAttachment(ctx context.Context, arg DeleteAttachmentPara
 	return err
 }
 
+const deleteExpiredWikiTempAttachments = `-- name: DeleteExpiredWikiTempAttachments :many
+DELETE FROM attachment
+WHERE wiki_id IS NULL
+  AND issue_id IS NULL
+  AND comment_id IS NULL
+  AND upload_session_id IS NOT NULL
+  AND created_at < NOW() - $1::interval
+RETURNING id, workspace_id, issue_id, comment_id, wiki_id, upload_session_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at
+`
+
+type DeleteExpiredWikiTempAttachmentsRow struct {
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	IssueID         pgtype.UUID        `json:"issue_id"`
+	CommentID       pgtype.UUID        `json:"comment_id"`
+	WikiID          pgtype.UUID        `json:"wiki_id"`
+	UploadSessionID pgtype.UUID        `json:"upload_session_id"`
+	UploaderType    string             `json:"uploader_type"`
+	UploaderID      pgtype.UUID        `json:"uploader_id"`
+	Filename        string             `json:"filename"`
+	Url             string             `json:"url"`
+	ContentType     string             `json:"content_type"`
+	SizeBytes       int64              `json:"size_bytes"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) DeleteExpiredWikiTempAttachments(ctx context.Context, ttl pgtype.Interval) ([]DeleteExpiredWikiTempAttachmentsRow, error) {
+	rows, err := q.db.Query(ctx, deleteExpiredWikiTempAttachments, ttl)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DeleteExpiredWikiTempAttachmentsRow{}
+	for rows.Next() {
+		var i DeleteExpiredWikiTempAttachmentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.IssueID,
+			&i.CommentID,
+			&i.WikiID,
+			&i.UploadSessionID,
+			&i.UploaderType,
+			&i.UploaderID,
+			&i.Filename,
+			&i.Url,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAttachment = `-- name: GetAttachment :one
-SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at FROM attachment
+SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at, wiki_id, upload_session_id FROM attachment
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -99,6 +165,8 @@ func (q *Queries) GetAttachment(ctx context.Context, arg GetAttachmentParams) (A
 		&i.ContentType,
 		&i.SizeBytes,
 		&i.CreatedAt,
+		&i.WikiID,
+		&i.UploadSessionID,
 	)
 	return i, err
 }
@@ -138,6 +206,54 @@ type LinkAttachmentsToIssueParams struct {
 
 func (q *Queries) LinkAttachmentsToIssue(ctx context.Context, arg LinkAttachmentsToIssueParams) error {
 	_, err := q.db.Exec(ctx, linkAttachmentsToIssue, arg.IssueID, arg.WorkspaceID, arg.Column3)
+	return err
+}
+
+const linkAttachmentsToWikiBySession = `-- name: LinkAttachmentsToWikiBySession :exec
+UPDATE attachment
+SET wiki_id = $1,
+    upload_session_id = NULL
+WHERE workspace_id = $2
+  AND uploader_id = $3
+  AND upload_session_id = $4
+  AND wiki_id IS NULL
+  AND issue_id IS NULL
+  AND comment_id IS NULL
+`
+
+type LinkAttachmentsToWikiBySessionParams struct {
+	WikiID          pgtype.UUID `json:"wiki_id"`
+	WorkspaceID     pgtype.UUID `json:"workspace_id"`
+	UploaderID      pgtype.UUID `json:"uploader_id"`
+	UploadSessionID pgtype.UUID `json:"upload_session_id"`
+}
+
+func (q *Queries) LinkAttachmentsToWikiBySession(ctx context.Context, arg LinkAttachmentsToWikiBySessionParams) error {
+	_, err := q.db.Exec(ctx, linkAttachmentsToWikiBySession,
+		arg.WikiID,
+		arg.WorkspaceID,
+		arg.UploaderID,
+		arg.UploadSessionID,
+	)
+	return err
+}
+
+const linkAttachmentsToWikiComment = `-- name: LinkAttachmentsToWikiComment :exec
+UPDATE attachment
+SET comment_id = $1
+WHERE wiki_id = $2
+  AND comment_id IS NULL
+  AND id = ANY($3::uuid[])
+`
+
+type LinkAttachmentsToWikiCommentParams struct {
+	CommentID pgtype.UUID   `json:"comment_id"`
+	WikiID    pgtype.UUID   `json:"wiki_id"`
+	Column3   []pgtype.UUID `json:"column_3"`
+}
+
+func (q *Queries) LinkAttachmentsToWikiComment(ctx context.Context, arg LinkAttachmentsToWikiCommentParams) error {
+	_, err := q.db.Exec(ctx, linkAttachmentsToWikiComment, arg.CommentID, arg.WikiID, arg.Column3)
 	return err
 }
 
@@ -192,8 +308,58 @@ func (q *Queries) ListAttachmentURLsByIssueOrComments(ctx context.Context, issue
 	return items, nil
 }
 
+const listAttachmentURLsByWikiCommentID = `-- name: ListAttachmentURLsByWikiCommentID :many
+SELECT url FROM attachment
+WHERE comment_id = $1 AND wiki_id IS NOT NULL
+`
+
+func (q *Queries) ListAttachmentURLsByWikiCommentID(ctx context.Context, commentID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listAttachmentURLsByWikiCommentID, commentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		items = append(items, url)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAttachmentURLsByWikiID = `-- name: ListAttachmentURLsByWikiID :many
+SELECT url FROM attachment
+WHERE wiki_id = $1
+`
+
+func (q *Queries) ListAttachmentURLsByWikiID(ctx context.Context, wikiID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listAttachmentURLsByWikiID, wikiID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		items = append(items, url)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAttachmentsByComment = `-- name: ListAttachmentsByComment :many
-SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at FROM attachment
+SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at, wiki_id, upload_session_id FROM attachment
 WHERE comment_id = $1 AND workspace_id = $2
 ORDER BY created_at ASC
 `
@@ -224,6 +390,8 @@ func (q *Queries) ListAttachmentsByComment(ctx context.Context, arg ListAttachme
 			&i.ContentType,
 			&i.SizeBytes,
 			&i.CreatedAt,
+			&i.WikiID,
+			&i.UploadSessionID,
 		); err != nil {
 			return nil, err
 		}
@@ -236,7 +404,7 @@ func (q *Queries) ListAttachmentsByComment(ctx context.Context, arg ListAttachme
 }
 
 const listAttachmentsByCommentIDs = `-- name: ListAttachmentsByCommentIDs :many
-SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at FROM attachment
+SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at, wiki_id, upload_session_id FROM attachment
 WHERE comment_id = ANY($1::uuid[]) AND workspace_id = $2
 ORDER BY created_at ASC
 `
@@ -267,6 +435,8 @@ func (q *Queries) ListAttachmentsByCommentIDs(ctx context.Context, arg ListAttac
 			&i.ContentType,
 			&i.SizeBytes,
 			&i.CreatedAt,
+			&i.WikiID,
+			&i.UploadSessionID,
 		); err != nil {
 			return nil, err
 		}
@@ -279,7 +449,7 @@ func (q *Queries) ListAttachmentsByCommentIDs(ctx context.Context, arg ListAttac
 }
 
 const listAttachmentsByIssue = `-- name: ListAttachmentsByIssue :many
-SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at FROM attachment
+SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at, wiki_id, upload_session_id FROM attachment
 WHERE issue_id = $1 AND workspace_id = $2
 ORDER BY created_at ASC
 `
@@ -310,6 +480,98 @@ func (q *Queries) ListAttachmentsByIssue(ctx context.Context, arg ListAttachment
 			&i.ContentType,
 			&i.SizeBytes,
 			&i.CreatedAt,
+			&i.WikiID,
+			&i.UploadSessionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAttachmentsByWiki = `-- name: ListAttachmentsByWiki :many
+SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at, wiki_id, upload_session_id FROM attachment
+WHERE wiki_id = $1 AND workspace_id = $2
+ORDER BY created_at ASC
+`
+
+type ListAttachmentsByWikiParams struct {
+	WikiID      pgtype.UUID `json:"wiki_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+func (q *Queries) ListAttachmentsByWiki(ctx context.Context, arg ListAttachmentsByWikiParams) ([]Attachment, error) {
+	rows, err := q.db.Query(ctx, listAttachmentsByWiki, arg.WikiID, arg.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Attachment{}
+	for rows.Next() {
+		var i Attachment
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.IssueID,
+			&i.CommentID,
+			&i.UploaderType,
+			&i.UploaderID,
+			&i.Filename,
+			&i.Url,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.WikiID,
+			&i.UploadSessionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAttachmentsByWikiCommentIDs = `-- name: ListAttachmentsByWikiCommentIDs :many
+SELECT id, workspace_id, issue_id, comment_id, uploader_type, uploader_id, filename, url, content_type, size_bytes, created_at, wiki_id, upload_session_id FROM attachment
+WHERE comment_id = ANY($1::uuid[]) AND wiki_id IS NOT NULL AND workspace_id = $2
+ORDER BY created_at ASC
+`
+
+type ListAttachmentsByWikiCommentIDsParams struct {
+	Column1     []pgtype.UUID `json:"column_1"`
+	WorkspaceID pgtype.UUID   `json:"workspace_id"`
+}
+
+func (q *Queries) ListAttachmentsByWikiCommentIDs(ctx context.Context, arg ListAttachmentsByWikiCommentIDsParams) ([]Attachment, error) {
+	rows, err := q.db.Query(ctx, listAttachmentsByWikiCommentIDs, arg.Column1, arg.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Attachment{}
+	for rows.Next() {
+		var i Attachment
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.IssueID,
+			&i.CommentID,
+			&i.UploaderType,
+			&i.UploaderID,
+			&i.Filename,
+			&i.Url,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.WikiID,
+			&i.UploadSessionID,
 		); err != nil {
 			return nil, err
 		}

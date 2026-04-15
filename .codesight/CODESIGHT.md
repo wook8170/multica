@@ -3,9 +3,9 @@
 > **Stack:** next-app, chi | none | react | typescript
 > **Monorepo:** @multica/collaboration, @multica/desktop, @multica/docs, @multica/web, @multica/core, @multica/eslint-config, @multica/tsconfig, @multica/ui, @multica/views, server
 
-> 288 routes (17 inferred) + 17 ws | 36 models | 174 components | 142 lib files | 83 env vars | 17 middleware | 20% test coverage
-> **Token savings:** this file is ~22,500 tokens. Without it, AI exploration would cost ~284,900 tokens. **Saves ~262,400 tokens per conversation.**
-> **Last scanned:** 2026-04-14 09:17 — re-run after significant changes
+> 292 routes (17 inferred) + 17 ws | 37 models | 178 components | 148 lib files | 83 env vars | 18 middleware | 19% test coverage
+> **Token savings:** this file is ~23,100 tokens. Without it, AI exploration would cost ~290,500 tokens. **Saves ~267,400 tokens per conversation.**
+> **Last scanned:** 2026-04-15 05:51 — re-run after significant changes
 
 ---
 
@@ -150,9 +150,13 @@
 - `PATCH` `/api/wikis/move` params() [auth, db, payment, upload]
 - `GET` `/api/wikis/history` params() [auth, db, payment, upload]
 - `POST` `/api/wikis/history/compact` params() [auth, db, payment, upload]
+- `GET` `/api/wikis/comments` params() [auth, db, payment, upload]
+- `POST` `/api/wikis/comments` params() [auth, db, payment, upload]
 - `PATCH` `/{id}/move` params(id) [auth, db, payment, upload]
 - `GET` `/{id}/history` params(id) [auth, db, payment, upload]
 - `POST` `/{id}/history/compact` params(id) [auth, db, payment, upload]
+- `PUT` `/api/wiki_comments/{commentId}` params(commentId) [auth, db, payment, upload]
+- `DELETE` `/api/wiki_comments/{commentId}` params(commentId) [auth, db, payment, upload]
 - `GET` `/health` params() [auth, db, payment, upload] ✓
 - `GET` `/ws` params() [auth, db, payment, upload] ✓
 - `GET` `/uploads/*` params() [auth, db, payment, upload]
@@ -257,7 +261,7 @@
 - `GET` `open_only` params() [auth, db, queue, upload]
 - `GET` `days` params() [auth, db, cache]
 - `GET` `owner` params() [auth, db, cache] ✓
-- `GET` `X-Webhook-Secret` params() [auth, db, payment]
+- `GET` `X-Webhook-Secret` params() [auth, db, payment, upload]
 - `GET` `X-User-Email` params() [auth]
 - `GET` `Content-Security-Policy` params()
 - `GET` `Origin` params() [auth, db]
@@ -600,6 +604,14 @@
 - binary_state: bytes
 - base_version: integer (required)
 
+### wiki_comment
+- id: uuid (pk)
+- wiki_id: uuid (required, fk)
+- workspace_id: uuid (required, fk)
+- author_type: text (required)
+- author_id: uuid (required, fk)
+- content: text (required)
+
 ---
 
 # Components
@@ -657,6 +669,9 @@
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **LocaleProvider** [client] — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
+- **KeepDiscardDialog** — props: open, onOpenChange, title, description, onKeep, onDiscard, discardVariant — `apps/web/features/wiki/components/KeepDiscardDialog.tsx`
+- **WikiCommentCard** [client] — props: wikiId, comment, allReplies, currentUserId, onReply, onEdit, onDelete — `apps/web/features/wiki/components/WikiCommentCard.tsx`
+- **WikiCommentInput** [client] — props: wikiId, onSubmit — `apps/web/features/wiki/components/WikiCommentInput.tsx`
 - **WikiEditor** — props: id, title, content, restoreKey, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile — `apps/web/features/wiki/components/WikiEditor.tsx`
 - **WikiPropertySidebar** [client] — props: wikiId, currentContent, createdBy, updatedBy, createdAt, updatedAt, childPages, onNavigateTo, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
 - **WikiSidebar** [client] — props: nodes, isLoading, onCreateNew, onSelect, selectedId, collaboratingId, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
@@ -684,17 +699,18 @@
 - **ChatSessionHistory** [client] — `packages/views/chat/components/chat-session-history.tsx`
 - **ChatWindow** [client] — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** [client] — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
+- **CommentInput** [client] — props: entityId, entityType, placeholder, onSubmit, className — `packages/views/common/comment-input.tsx`
 - **Markdown** [client] — `packages/views/common/markdown.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
 - **AttachmentFileIcon** [client] — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
-- **MarkButton** [client] — props: editor, mark, icon, label, shortcut — `packages/views/editor/bubble-menu.tsx`
-- **BLOB_IMAGE_RE** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **MarkButton** [client] — props: editor, mark, icon, label, shortcut, runCommand — `packages/views/editor/bubble-menu.tsx`
+- **TABLE_BG_COLORS** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **CodeBlockView** [client] — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **AttachmentCard** [client] — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** [client] — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** [client] — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** [client] — props: node — `packages/views/editor/extensions/mention-view.tsx`
-- **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`
+- **FileDropOverlay** — props: className — `packages/views/editor/file-drop-overlay.tsx`
 - **LinkPreviewCard** [client] — props: href, onMouseDown — `packages/views/editor/link-preview.tsx`
 - **MermaidViewer** [client] — props: content — `packages/views/editor/mermaid-viewer.tsx`
 - **ReadonlyContent** [client] — props: content, className — `packages/views/editor/readonly-content.tsx`
@@ -793,6 +809,7 @@
   - interface Tab
   - const useTabStore
 - `apps/web/features/auth/auth-cookie.ts` — function setLoggedInCookie: () => void, function clearLoggedInCookie: () => void
+- `apps/web/features/wiki/hooks/use-wiki-comments.ts` — function useWikiComments: (wikiId) => void
 - `apps/web/proxy.ts` — function proxy: (_request) => void, const config
 - `e2e/fixtures.ts` — class TestApiClient
 - `e2e/helpers.ts`
@@ -916,6 +933,11 @@
   - function generateUUID: () => string
   - function createSafeId: () => string
   - function createRequestId: (length) => string
+- `packages/core/wiki/mutations.ts`
+  - function useCreateWikiComment: (wikiId) => void
+  - function useUpdateWikiComment: (wikiId) => void
+  - function useDeleteWikiComment: (wikiId) => void
+- `packages/core/wiki/queries.ts` — function wikiCommentListOptions: (wikiId) => void, const wikiCommentKeys
 - `packages/core/workspace/hooks.ts` — function useActorName: () => void
 - `packages/core/workspace/index.ts` — function registerWorkspaceStore: (store) => void, const useWorkspaceStore: WorkspaceStoreInstance
 - `packages/core/workspace/mutations.ts`
@@ -1101,6 +1123,7 @@
   - class WikiDraftResponse
   - class SearchWikiResult
   - _...2 more_
+- `server/internal/handler/wiki_comment.go` — class WikiCommentResponse, class CreateWikiCommentRequest
 - `server/internal/handler/wiki_history_policy.go` — class WikiHistoryCompactResult
 - `server/internal/handler/wiki_snapshot.go` — function NewWikiSnapshotScheduler: (db dbExecutor) *WikiSnapshotScheduler, class WikiSnapshotScheduler
 - `server/internal/handler/workspace.go`
@@ -1191,11 +1214,11 @@
 - `server/pkg/db/generated/attachment.sql.go`
   - class CreateAttachmentParams
   - class DeleteAttachmentParams
+  - class DeleteExpiredWikiTempAttachmentsRow
   - class GetAttachmentParams
   - class LinkAttachmentsToCommentParams
   - class LinkAttachmentsToIssueParams
-  - class ListAttachmentsByCommentParams
-  - _...2 more_
+  - _...7 more_
 - `server/pkg/db/generated/chat.sql.go`
   - class CreateChatMessageParams
   - class CreateChatSessionParams
@@ -1246,7 +1269,7 @@
   - class AgentSkill
   - class AgentTaskQueue
   - class Attachment
-  - _...25 more_
+  - _...30 more_
 - `server/pkg/db/generated/personal_access_token.sql.go` — class CreatePersonalAccessTokenParams, class RevokePersonalAccessTokenParams
 - `server/pkg/db/generated/pinned_item.sql.go`
   - class CreatePinnedItemParams
@@ -1297,6 +1320,19 @@
   - class UpsertTaskUsageParams
 - `server/pkg/db/generated/user.sql.go` — class CreateUserParams, class UpdateUserParams
 - `server/pkg/db/generated/verification_code.sql.go` — class CreateVerificationCodeParams
+- `server/pkg/db/generated/wiki.sql.go`
+  - class CreateWikiParams
+  - class CreateWikiTagParams
+  - class CreateWikiVersionParams
+  - class DeleteWikiParams
+  - class GetWikiParams
+  - class ListWikiTagsParams
+  - _...2 more_
+- `server/pkg/db/generated/wiki_comment.sql.go`
+  - class CreateWikiCommentParams
+  - class GetWikiCommentInWorkspaceParams
+  - class ListWikiCommentsParams
+  - class UpdateWikiCommentParams
 - `server/pkg/db/generated/workspace.sql.go` — class CreateWorkspaceParams, class UpdateWorkspaceParams
 - `server/pkg/protocol/messages.go`
   - class Message
@@ -1423,6 +1459,7 @@
 - daemon_auth — `server/internal/middleware/daemon_auth.go`
 
 ## custom
+- 01_analysis_and_strategy — `docs/recovery-logs/01_analysis_and_strategy.md`
 - csp — `server/internal/middleware/csp.go`
 - csp_test — `server/internal/middleware/csp_test.go`
 - workspace — `server/internal/middleware/workspace.go`
@@ -1439,36 +1476,36 @@
 
 ## Most Imported Files (change these carefully)
 
-- `encoding/json` — imported by **65** files
-- `net/http` — imported by **57** files
-- `log/slog` — imported by **55** files
+- `encoding/json` — imported by **66** files
+- `net/http` — imported by **58** files
+- `log/slog` — imported by **56** files
 - `path/filepath` — imported by **32** files
-- `packages/core/types/index.ts` — imported by **25** files
+- `packages/core/types/index.ts` — imported by **29** files
 - `packages/views/common/actor-avatar.tsx` — imported by **19** files
-- `packages/core/api/index.ts` — imported by **16** files
+- `packages/core/api/index.ts` — imported by **18** files
 - `os/exec` — imported by **16** files
 - `packages/views/navigation/index.ts` — imported by **15** files
 - `net/http/httptest` — imported by **13** files
 - `apps/web/features/landing/i18n/index.ts` — imported by **10** files
+- `packages/core/platform/storage.ts` — imported by **10** files
 - `packages/core/types/storage.ts` — imported by **10** files
-- `packages/core/platform/storage.ts` — imported by **9** files
-- `packages/views/editor/index.ts` — imported by **9** files
+- `packages/views/editor/index.ts` — imported by **10** files
+- `packages/core/platform/workspace-storage.ts` — imported by **9** files
 - `apps/web/features/landing/components/shared.tsx` — imported by **8** files
 - `packages/core/api/client.ts` — imported by **8** files
-- `packages/core/platform/workspace-storage.ts` — imported by **8** files
 - `packages/views/issues/components/status-icon.tsx` — imported by **8** files
 - `packages/views/issues/components/index.ts` — imported by **8** files
 - `packages/views/runtimes/utils.ts` — imported by **8** files
 
 ## Import Map (who imports what)
 
-- `encoding/json` ← `server/cmd/multica/cmd_agent.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_skill.go` +60 more
-- `net/http` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_setup.go` +52 more
-- `log/slog` ← `server/cmd/migrate/main.go`, `server/cmd/server/activity_listeners.go`, `server/cmd/server/listeners.go`, `server/cmd/server/main.go`, `server/cmd/server/notification_listeners.go` +50 more
+- `encoding/json` ← `server/cmd/multica/cmd_agent.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_skill.go` +61 more
+- `net/http` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_issue_test.go`, `server/cmd/multica/cmd_repo.go`, `server/cmd/multica/cmd_setup.go` +53 more
+- `log/slog` ← `server/cmd/migrate/main.go`, `server/cmd/server/activity_listeners.go`, `server/cmd/server/listeners.go`, `server/cmd/server/main.go`, `server/cmd/server/notification_listeners.go` +51 more
 - `path/filepath` ← `server/cmd/migrate/main.go`, `server/cmd/multica/cmd_attachment.go`, `server/cmd/multica/cmd_daemon.go`, `server/internal/cli/client.go`, `server/internal/cli/config.go` +27 more
-- `packages/core/types/index.ts` ← `packages/core/auth/store.ts`, `packages/core/chat/mutations.ts`, `packages/core/chat/store.ts`, `packages/core/hooks/use-file-upload.ts`, `packages/core/inbox/mutations.ts` +20 more
+- `packages/core/types/index.ts` ← `packages/core/api/client.ts`, `packages/core/api/client.ts`, `packages/core/api/client.ts`, `packages/core/auth/store.ts`, `packages/core/chat/mutations.ts` +24 more
 - `packages/views/common/actor-avatar.tsx` ← `packages/views/agents/components/agent-detail.tsx`, `packages/views/agents/components/agent-list-item.tsx`, `packages/views/agents/components/tabs/settings-tab.tsx`, `packages/views/editor/extensions/mention-suggestion.tsx`, `packages/views/inbox/components/inbox-list-item.tsx` +14 more
-- `packages/core/api/index.ts` ← `packages/core/chat/mutations.ts`, `packages/core/chat/queries.ts`, `packages/core/inbox/mutations.ts`, `packages/core/inbox/queries.ts`, `packages/core/issues/mutations.ts` +11 more
+- `packages/core/api/index.ts` ← `packages/core/chat/mutations.ts`, `packages/core/chat/queries.ts`, `packages/core/inbox/mutations.ts`, `packages/core/inbox/queries.ts`, `packages/core/issues/mutations.ts` +13 more
 - `os/exec` ← `server/cmd/multica/cmd_auth.go`, `server/cmd/multica/cmd_daemon.go`, `server/cmd/multica/cmd_daemon_unix.go`, `server/internal/cli/update.go`, `server/internal/daemon/config.go` +11 more
 - `packages/views/navigation/index.ts` ← `packages/views/editor/extensions/mention-view.tsx`, `packages/views/editor/readonly-content.tsx`, `packages/views/inbox/components/inbox-page.tsx`, `packages/views/issues/components/board-card.tsx`, `packages/views/issues/components/issue-detail.tsx` +10 more
 - `net/http/httptest` ← `server/cmd/multica/cmd_issue_test.go`, `server/cmd/server/integration_test.go`, `server/internal/cli/client_test.go`, `server/internal/daemon/daemon_test.go`, `server/internal/daemon/gc_test.go` +8 more
@@ -1477,7 +1514,7 @@
 
 # Test Coverage
 
-> **20%** of routes and models are covered by tests
+> **19%** of routes and models are covered by tests
 > 69 test files found
 
 ## Covered Routes

@@ -13,6 +13,7 @@
 - daemon_auth — `server/internal/middleware/daemon_auth.go`
 
 ## custom
+- 01_analysis_and_strategy — `docs/recovery-logs/01_analysis_and_strategy.md`
 - csp — `server/internal/middleware/csp.go`
 - csp_test — `server/internal/middleware/csp_test.go`
 - workspace — `server/internal/middleware/workspace.go`

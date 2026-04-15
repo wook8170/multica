@@ -312,3 +312,11 @@
 - content: text (required)
 - binary_state: bytes
 - base_version: integer (required)
+
+### wiki_comment
+- id: uuid (pk)
+- wiki_id: uuid (required, fk)
+- workspace_id: uuid (required, fk)
+- author_type: text (required)
+- author_id: uuid (required, fk)
+- content: text (required)

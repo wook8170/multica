@@ -5,6 +5,7 @@ import type { Comment, Reaction } from "./comment";
 import type { TimelineEntry } from "./activity";
 import type { Workspace, MemberWithUser } from "./workspace";
 import type { Project } from "./project";
+import type { WikiComment } from "./wiki-comment";
 
 // WebSocket event types (matching Go server protocol/events.go)
 export type WSEventType =
@@ -52,7 +53,10 @@ export type WSEventType =
   | "project:updated"
   | "project:deleted"
   | "pin:created"
-  | "pin:deleted";
+  | "pin:deleted"
+  | "wiki_comment:created"
+  | "wiki_comment:updated"
+  | "wiki_comment:deleted";
 
 export interface WSMessage<T = unknown> {
   type: WSEventType;
@@ -249,4 +253,17 @@ export interface ProjectUpdatedPayload {
 
 export interface ProjectDeletedPayload {
   project_id: string;
+}
+
+export interface WikiCommentCreatedPayload {
+  comment: WikiComment;
+}
+
+export interface WikiCommentUpdatedPayload {
+  comment: WikiComment;
+}
+
+export interface WikiCommentDeletedPayload {
+  comment_id: string;
+  wiki_id: string;
 }

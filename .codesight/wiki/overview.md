@@ -8,7 +8,7 @@
 
 ## Scale
 
-305 API routes · 36 database models · 174 UI components · 142 library files · 17 middleware layers · 83 environment variables
+309 API routes · 37 database models · 178 UI components · 148 library files · 18 middleware layers · 83 environment variables
 
 ## Subsystems
 
@@ -85,29 +85,30 @@
 - **[Uploads](./uploads.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Usage](./usage.md)** — 5 routes — touches: auth, db, payment, upload
 - **[Use-realtime-sync](./use-realtime-sync.md)** — 17 routes
-- **[Wiki](./wiki.md)** — 1 routes — touches: auth, db, payment
-- **[Wikis](./wikis.md)** — 11 routes — touches: auth, db, payment, upload
+- **[Wiki](./wiki.md)** — 1 routes — touches: auth, db, payment, upload
+- **[Wiki-comments](./wiki-comments.md)** — 2 routes — touches: auth, db, payment, upload
+- **[Wikis](./wikis.md)** — 13 routes — touches: auth, db, payment, upload
 - **[Workspace-id](./workspace-id.md)** — 1 routes — touches: auth, db
 - **[Workspaces](./workspaces.md)** — 8 routes — touches: auth, db, payment, upload
 - **[Ws](./ws.md)** — 1 routes — touches: auth, db, payment, upload
 - **[Infra](./infra.md)** — 11 routes — touches: auth, db, payment, upload, cache
 - **[Api](./api.md)** — 8 routes — touches: auth, db, payment, upload
 
-**Database:** unknown, 36 models — see [database.md](./database.md)
+**Database:** unknown, 37 models — see [database.md](./database.md)
 
-**UI:** 174 components (react) — see [ui.md](./ui.md)
+**UI:** 178 components (react) — see [ui.md](./ui.md)
 
-**Libraries:** 142 files — see [libraries.md](./libraries.md)
+**Libraries:** 148 files — see [libraries.md](./libraries.md)
 
 ## High-Impact Files
 
 Changes to these files have the widest blast radius across the codebase:
 
-- `encoding/json` — imported by **65** files
-- `net/http` — imported by **57** files
-- `log/slog` — imported by **55** files
+- `encoding/json` — imported by **66** files
+- `net/http` — imported by **58** files
+- `log/slog` — imported by **56** files
 - `path/filepath` — imported by **32** files
-- `packages/core/types/index.ts` — imported by **25** files
+- `packages/core/types/index.ts` — imported by **29** files
 - `packages/views/common/actor-avatar.tsx` — imported by **19** files
 
 ## Required Environment Variables
@@ -127,4 +128,4 @@ Changes to these files have the widest blast radius across the codebase:
 - _...35 more_
 
 ---
-_Back to [index.md](./index.md) · Generated 2026-04-14_
+_Back to [index.md](./index.md) · Generated 2026-04-15_

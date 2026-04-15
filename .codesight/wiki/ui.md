@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Component inventory and prop signatures extracted via AST. Read the source files before adding props or modifying component logic.
 
-**174 components** (react)
+**178 components** (react)
 
 ## Client Components
 
@@ -29,6 +29,8 @@
 - **MulticaLanding** — `apps/web/features/landing/components/multica-landing.tsx`
 - **OpenSourceSection** — `apps/web/features/landing/components/open-source-section.tsx`
 - **LocaleProvider** — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
+- **WikiCommentCard** — props: wikiId, comment, allReplies, currentUserId, onReply, onEdit, onDelete — `apps/web/features/wiki/components/WikiCommentCard.tsx`
+- **WikiCommentInput** — props: wikiId, onSubmit — `apps/web/features/wiki/components/WikiCommentInput.tsx`
 - **WikiPropertySidebar** — props: wikiId, currentContent, createdBy, updatedBy, createdAt, updatedAt, childPages, onNavigateTo, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
 - **WikiSidebar** — props: nodes, isLoading, onCreateNew, onSelect, selectedId, collaboratingId, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
 - **WikiView** — props: initialSelectedId — `apps/web/features/wiki/components/WikiView.tsx`
@@ -55,9 +57,10 @@
 - **ChatSessionHistory** — `packages/views/chat/components/chat-session-history.tsx`
 - **ChatWindow** — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
+- **CommentInput** — props: entityId, entityType, placeholder, onSubmit, className — `packages/views/common/comment-input.tsx`
 - **Markdown** — `packages/views/common/markdown.tsx`
 - **AttachmentFileIcon** — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
-- **MarkButton** — props: editor, mark, icon, label, shortcut — `packages/views/editor/bubble-menu.tsx`
+- **MarkButton** — props: editor, mark, icon, label, shortcut, runCommand — `packages/views/editor/bubble-menu.tsx`
 - **CodeBlockView** — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **AttachmentCard** — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
@@ -162,10 +165,11 @@
 - **CodexLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
+- **KeepDiscardDialog** — props: open, onOpenChange, title, description, onKeep, onDiscard, discardVariant — `apps/web/features/wiki/components/KeepDiscardDialog.tsx`
 - **WikiEditor** — props: id, title, content, restoreKey, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile — `apps/web/features/wiki/components/WikiEditor.tsx`
 - **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
-- **BLOB_IMAGE_RE** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
-- **FileDropOverlay** — `packages/views/editor/file-drop-overlay.tsx`
+- **TABLE_BG_COLORS** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
+- **FileDropOverlay** — props: className — `packages/views/editor/file-drop-overlay.tsx`
 - **PriorityIcon** — props: priority, className, inheritColor — `packages/views/issues/components/priority-icon.tsx`
 - **ProgressRing** — props: done, total, size — `packages/views/issues/components/progress-ring.tsx`
 - **StatusIcon** — props: status, className, inheritColor — `packages/views/issues/components/status-icon.tsx`

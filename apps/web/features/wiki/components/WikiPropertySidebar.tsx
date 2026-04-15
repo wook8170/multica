@@ -64,6 +64,11 @@ function basename(url: string): string {
   catch { return url; }
 }
 
+function looksLikeHtmlContent(value: string): boolean {
+  const trimmed = value.trim();
+  return /^<\/?[a-z][^>]*>/i.test(trimmed);
+}
+
 interface RawAttachment {
   href: string;
   filename: string;
@@ -89,13 +94,51 @@ function extractAttachments(markdown: string): RawAttachment[] {
     });
   };
 
-  // ![alt](url) — images
-  for (const m of markdown.matchAll(/!\[([^\]]*)\]\(([^)\s]+)\)/g)) {
-    add(m[2]!, m[1]!);
+  if (looksLikeHtmlContent(markdown)) {
+    try {
+      const doc = new DOMParser().parseFromString(markdown, "text/html");
+
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT);
+      let node = walker.nextNode() as HTMLElement | null;
+      while (node) {
+        if (node.matches("div[data-type='fileCard']")) {
+          const href = node.getAttribute("data-href") || "";
+          const filename = node.getAttribute("data-filename") || basename(href);
+          add(href, filename);
+        } else if (node.matches("img[src]")) {
+          const src = node.getAttribute("src") || "";
+          const alt = node.getAttribute("alt") || "";
+          add(src, alt);
+        } else if (node.matches("a[href]")) {
+          const href = node.getAttribute("href") || "";
+          const text = (node.textContent || "").trim();
+          add(href, text);
+        }
+        node = walker.nextNode() as HTMLElement | null;
+      }
+    } catch {
+      return result;
+    }
+
+    return result;
   }
-  // [text](url) — file card links (non-image uploads)
-  for (const m of markdown.matchAll(/(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g)) {
-    add(m[2]!, m[1]!);
+
+  // Parse image/file links in one pass to preserve original document order.
+  const tokenRe = /!\[([^\]]*)\]\(([^)\s]+)\)|(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let match: RegExpExecArray | null = tokenRe.exec(markdown);
+  while (match) {
+    const imageAlt = match[1];
+    const imageHref = match[2];
+    const fileName = match[3];
+    const fileHref = match[4];
+
+    if (imageHref) {
+      add(imageHref, imageAlt || "");
+    } else if (fileHref) {
+      add(fileHref, fileName || "");
+    }
+
+    match = tokenRe.exec(markdown);
   }
 
   return result;

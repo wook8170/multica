@@ -133,6 +133,7 @@ export function useRealtimeSync(
       "issue_reaction:added", "issue_reaction:removed",
       "subscriber:added", "subscriber:removed",
       "daemon:heartbeat",
+      "wiki_comment:created", "wiki_comment:updated", "wiki_comment:deleted",
     ]);
 
     const unsubAny = ws.onAny((msg) => {

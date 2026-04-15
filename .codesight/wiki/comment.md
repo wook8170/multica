@@ -17,6 +17,7 @@ The Comment subsystem handles **3 routes** and touches: auth, db, queue.
 
 - **comment** (6 fields) → [database.md](./database.md)
 - **comment_reaction** (6 fields) → [database.md](./database.md)
+- **wiki_comment** (6 fields) → [database.md](./database.md)
 
 ## Source Files
 

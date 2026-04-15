@@ -10,6 +10,7 @@
   },
   "exports": {
     "./navigation": "./navigation/index.ts",
+    "./common/comment-input": "./common/comment-input.tsx",
     "./common/actor-avatar": "./common/actor-avatar.tsx",
     "./common/markdown": "./common/markdown.tsx",
     "./editor": "./editor/index.ts",

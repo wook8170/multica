@@ -34,18 +34,20 @@ const maxUploadSize = 100 << 20 // 100 MB
 // ---------------------------------------------------------------------------
 
 type AttachmentResponse struct {
-	ID           string  `json:"id"`
-	WorkspaceID  string  `json:"workspace_id"`
-	IssueID      *string `json:"issue_id"`
-	CommentID    *string `json:"comment_id"`
-	UploaderType string  `json:"uploader_type"`
-	UploaderID   string  `json:"uploader_id"`
-	Filename     string  `json:"filename"`
-	URL          string  `json:"url"`
-	DownloadURL  string  `json:"download_url"`
-	ContentType  string  `json:"content_type"`
-	SizeBytes    int64   `json:"size_bytes"`
-	CreatedAt    string  `json:"created_at"`
+	ID              string  `json:"id"`
+	WorkspaceID     string  `json:"workspace_id"`
+	IssueID         *string `json:"issue_id"`
+	CommentID       *string `json:"comment_id"`
+	WikiID          *string `json:"wiki_id"`
+	UploadSessionID *string `json:"upload_session_id"`
+	UploaderType    string  `json:"uploader_type"`
+	UploaderID      string  `json:"uploader_id"`
+	Filename        string  `json:"filename"`
+	URL             string  `json:"url"`
+	DownloadURL     string  `json:"download_url"`
+	ContentType     string  `json:"content_type"`
+	SizeBytes       int64   `json:"size_bytes"`
+	CreatedAt       string  `json:"created_at"`
 }
 
 func (h *Handler) attachmentToResponse(a db.Attachment) AttachmentResponse {
@@ -71,6 +73,14 @@ func (h *Handler) attachmentToResponse(a db.Attachment) AttachmentResponse {
 	if a.CommentID.Valid {
 		s := uuidToString(a.CommentID)
 		resp.CommentID = &s
+	}
+	if a.WikiID.Valid {
+		s := uuidToString(a.WikiID)
+		resp.WikiID = &s
+	}
+	if a.UploadSessionID.Valid {
+		s := uuidToString(a.UploadSessionID)
+		resp.UploadSessionID = &s
 	}
 	return resp
 }
@@ -187,7 +197,21 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 			SizeBytes:    int64(len(data)),
 		}
 
-		if issueID := r.FormValue("issue_id"); issueID != "" {
+		issueID := r.FormValue("issue_id")
+		commentID := r.FormValue("comment_id")
+		wikiID := r.FormValue("wiki_id")
+		uploadSessionID := r.FormValue("upload_session_id")
+
+		if wikiID != "" && (issueID != "" || commentID != "") {
+			writeError(w, http.StatusBadRequest, "wiki_id cannot be combined with issue_id/comment_id")
+			return
+		}
+		if uploadSessionID != "" && (issueID != "" || commentID != "" || wikiID != "") {
+			writeError(w, http.StatusBadRequest, "upload_session_id cannot be combined with issue_id/comment_id/wiki_id")
+			return
+		}
+
+		if issueID != "" {
 			issue, err := h.Queries.GetIssueInWorkspace(r.Context(), db.GetIssueInWorkspaceParams{
 				ID:          parseUUID(issueID),
 				WorkspaceID: parseUUID(workspaceID),
@@ -198,13 +222,36 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 			}
 			params.IssueID = issue.ID
 		}
-		if commentID := r.FormValue("comment_id"); commentID != "" {
+		if commentID != "" {
 			comment, err := h.Queries.GetComment(r.Context(), parseUUID(commentID))
 			if err != nil || uuidToString(comment.WorkspaceID) != workspaceID {
 				writeError(w, http.StatusForbidden, "invalid comment_id")
 				return
 			}
 			params.CommentID = comment.ID
+		}
+		if wikiID != "" {
+			var exists bool
+			if err := h.DB.QueryRow(r.Context(),
+				"SELECT EXISTS(SELECT 1 FROM wikis WHERE id = $1 AND workspace_id = $2)",
+				parseUUID(wikiID), parseUUID(workspaceID),
+			).Scan(&exists); err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to validate wiki_id")
+				return
+			}
+			if !exists {
+				writeError(w, http.StatusForbidden, "invalid wiki_id")
+				return
+			}
+			params.WikiID = parseUUID(wikiID)
+		}
+		if uploadSessionID != "" {
+			sessionUUID, err := uuid.Parse(uploadSessionID)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "invalid upload_session_id")
+				return
+			}
+			params.UploadSessionID = pgtype.UUID{Bytes: sessionUUID, Valid: true}
 		}
 
 		link, err := h.Storage.Upload(r.Context(), key, data, contentType, header.Filename)
@@ -380,6 +427,22 @@ func (h *Handler) linkAttachmentsByIDs(ctx context.Context, commentID, issueID p
 		Column3:   uuids,
 	}); err != nil {
 		slog.Error("failed to link attachments to comment", "error", err)
+	}
+}
+
+func (h *Handler) linkWikiAttachmentsBySession(ctx context.Context, wikiID, workspaceID, uploaderID pgtype.UUID, uploadSessionID string) {
+	sessionUUID, err := uuid.Parse(uploadSessionID)
+	if err != nil {
+		slog.Error("invalid upload session id", "error", err, "upload_session_id", uploadSessionID)
+		return
+	}
+	if err := h.Queries.LinkAttachmentsToWikiBySession(ctx, db.LinkAttachmentsToWikiBySessionParams{
+		WikiID:          wikiID,
+		WorkspaceID:     workspaceID,
+		UploaderID:      uploaderID,
+		UploadSessionID: pgtype.UUID{Bytes: sessionUUID, Valid: true},
+	}); err != nil {
+		slog.Error("failed to link attachments to wiki", "error", err)
 	}
 }
 

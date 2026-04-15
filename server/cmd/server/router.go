@@ -353,7 +353,15 @@ func NewRouter(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus) chi.Route
 					r.Delete("/", h.DeleteWiki)
 					r.Get("/history", h.GetWikiHistory)
 					r.Post("/history/compact", h.CompactWikiHistory)
+					r.Get("/comments", h.ListWikiComments)
+					r.Post("/comments", h.CreateWikiComment)
 				})
+			})
+
+			// Wiki Comments (update/delete by commentId)
+			r.Route("/api/wiki_comments/{commentId}", func(r chi.Router) {
+				r.Put("/", h.UpdateWikiComment)
+				r.Delete("/", h.DeleteWikiComment)
 			})
 		})
 	})

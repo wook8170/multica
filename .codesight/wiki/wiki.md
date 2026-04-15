@@ -6,7 +6,7 @@ The Wiki subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `X-Webhook-Secret` [auth, db, payment]
+- `GET` `X-Webhook-Secret` [auth, db, payment, upload]
   `server/internal/handler/wiki.go`
 
 ## Related Models
@@ -14,6 +14,7 @@ The Wiki subsystem handles **1 routes** and touches: auth, db, payment.
 - **wiki_versions** (6 fields) → [database.md](./database.md)
 - **wiki_tags** (4 fields) → [database.md](./database.md)
 - **wiki_drafts** (8 fields) → [database.md](./database.md)
+- **wiki_comment** (6 fields) → [database.md](./database.md)
 
 ## Source Files
 

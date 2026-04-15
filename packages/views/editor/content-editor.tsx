@@ -1,10 +1,10 @@
 import {
-  Bold, Italic, Strikethrough,
+  Bold, Italic, Strikethrough, Code,
   Heading1, Heading2, Heading3,
-  List, ListOrdered, CheckSquare, Plus,
+  List, ListOrdered, Plus,
   Quote, Minus, Link as LinkIcon, Paperclip, Table as TableIcon,
-  RotateCcw, Rows3, Columns3, Palette, Type, Trash2,
-  AlignLeft, AlignCenter, AlignRight, ChevronLeft, ChevronRight,
+  RotateCcw, Palette, Type, Trash2,
+  AlignLeft, AlignCenter, AlignRight, ChevronDown, ChevronLeft, ChevronRight, GripVertical,
 } from "lucide-react";
 import {
   forwardRef,
@@ -53,6 +53,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@multica/ui/components/ui/alert-dialog";
+import { EditorBubbleMenu, TableBubbleMenu } from "./bubble-menu";
 import "./content-editor.css";
 import type { AmbiguousPastePayload } from "./extensions/file-upload";
 
@@ -319,12 +320,15 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
     }, [editor]);
 
+    const inTableSelection = !!editor && (editor.state.selection as { constructor?: { name?: string } })?.constructor?.name === "CellSelection";
     const inTable = !!editor && (editor.isActive("table") || editor.isActive("tableCell") || editor.isActive("tableHeader"));
-    const canMutateTable = inTable && editable;
+    const canMutateTable = editable && (inTable || inTableSelection);
     const canMergeCells = canMutateTable && editor.can().chain().focus().mergeCells().run();
     const canSplitCell = canMutateTable && editor.can().chain().focus().splitCell().run();
     const applyCellAttribute = useCallback((attribute: "backgroundColor" | "textColor" | "textAlign", value: string | null) => {
-      if (!editor || !editor.isActive("table")) return;
+      if (!editor) return;
+      const isCellSelection = (editor.state.selection as { constructor?: { name?: string } })?.constructor?.name === "CellSelection";
+      if (!editor.isActive("table") && !isCellSelection) return;
       editor.chain().focus().setCellAttribute(attribute, value).run();
     }, [editor]);
     const currentCellTextAlign = (editor?.getAttributes("tableCell").textAlign
@@ -483,6 +487,38 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         syncTableEdgeControls(table, pointerX, pointerY);
       });
     }, [editor, hideTableEdgeControls, syncTableEdgeControls, tableEdgeControls.bottomX, tableEdgeControls.rightY]);
+
+    const startTableEdgeColumnResize = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!editor) return;
+
+      const targetCell = tableActionTargetsRef.current.colCell;
+      if (!targetCell) return;
+      const cellRect = targetCell.getBoundingClientRect();
+      const dispatchX = Math.round(Math.max(cellRect.left + 2, cellRect.right - 2));
+      const dispatchY = Math.round(
+        Math.max(cellRect.top + 2, Math.min(event.clientY, cellRect.bottom - 2)),
+      );
+
+      targetCell.dispatchEvent(new MouseEvent("mousemove", {
+        bubbles: true,
+        cancelable: true,
+        clientX: dispatchX,
+        clientY: dispatchY,
+        view: window,
+      }));
+
+      targetCell.dispatchEvent(new MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        buttons: 1,
+        clientX: dispatchX,
+        clientY: dispatchY,
+        view: window,
+      }));
+    }, [editor]);
 
     const handleFileClick = () => fileInputRef.current?.click();
     const updateToolbarOverflow = useCallback(() => {
@@ -834,7 +870,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                 onTouchStart={updateToolbarOverflow}
                 className="content-editor-toolbar-scroll flex flex-nowrap items-center gap-1 overflow-x-auto px-4 py-2 scrollbar-hide"
               >
-                {/* Inline Formatting */}
+                {/* Text formatting — aligned with bubble menu */}
                 <div className="flex shrink-0 items-center gap-0.5 pr-1.5 border-r border-border/60">
                   <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="Bold (Ctrl+B)">
                     <Bold className="size-3.5" />
@@ -845,52 +881,82 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                   <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} title="Strikethrough">
                     <Strikethrough className="size-3.5" />
                   </ToolbarButton>
-                  <ToolbarButton onClick={() => editor.chain().focus().unsetAllMarks().run()} title="Clear Formatting">
-                    <RotateCcw className="size-3.5" />
+                  <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} active={editor.isActive("code")} title="Code (Ctrl+E)">
+                    <Code className="size-3.5" />
+                  </ToolbarButton>
+
+                  <div className="mx-1 h-4 w-px shrink-0 bg-border/60" />
+
+                  <ToolbarButton onClick={setLink} active={editor.isActive("link")} title="Link">
+                    <LinkIcon className="size-3.5" />
                   </ToolbarButton>
                 </div>
 
-                {/* Headings */}
+                {/* Heading */}
                 <div className="flex shrink-0 items-center gap-0.5 px-1.5 border-r border-border/60">
-                  <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} title="Heading 1">
-                    <Heading1 className="size-3.5" />
-                  </ToolbarButton>
-                  <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} title="Heading 2">
-                    <Heading2 className="size-3.5" />
-                  </ToolbarButton>
-                  <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })} title="Heading 3">
-                    <Heading3 className="size-3.5" />
-                  </ToolbarButton>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      className="inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      {[1, 2, 3].find((l) => editor.isActive("heading", { level: l }))
+                        ? `H${[1, 2, 3].find((l) => editor.isActive("heading", { level: l }))}`
+                        : "Text"}
+                      <ChevronDown className="size-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-auto">
+                      <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()} className="gap-2 text-xs">
+                        <Type className="size-3.5" />
+                        Normal Text
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className="gap-2 text-xs">
+                        <Heading1 className="size-3.5" />
+                        Heading 1
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className="gap-2 text-xs">
+                        <Heading2 className="size-3.5" />
+                        Heading 2
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className="gap-2 text-xs">
+                        <Heading3 className="size-3.5" />
+                        Heading 3
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
-                {/* Lists */}
+                {/* List */}
                 <div className="flex shrink-0 items-center gap-0.5 px-1.5 border-r border-border/60">
-                  <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="Bullet List">
-                    <List className="size-3.5" />
-                  </ToolbarButton>
-                  <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Numbered List">
-                    <ListOrdered className="size-3.5" />
-                  </ToolbarButton>
-                  <ToolbarButton onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")} title="Task List">
-                    <CheckSquare className="size-3.5" />
-                  </ToolbarButton>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      className="inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <List className="size-3.5" />
+                      <ChevronDown className="size-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-auto">
+                      <DropdownMenuItem onClick={() => editor.chain().focus().toggleBulletList().run()} className="gap-2 text-xs">
+                        <List className="size-3.5" />
+                        Bullet List
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => editor.chain().focus().toggleOrderedList().run()} className="gap-2 text-xs">
+                        <ListOrdered className="size-3.5" />
+                        Ordered List
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
-                {/* Insert Blocks */}
+                {/* Quote */}
                 <div className="flex shrink-0 items-center gap-0.5 px-1.5 border-r border-border/60">
                   <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} title="Quote">
                     <Quote className="size-3.5" />
-                  </ToolbarButton>
-                  <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Separator">
-                    <Minus className="size-3.5" />
                   </ToolbarButton>
                 </div>
 
                 {/* Rich Media & Tools */}
                 <div className="flex shrink-0 items-center gap-0.5 pl-1.5">
-                  <ToolbarButton onClick={setLink} active={editor.isActive("link")} title="Hyperlink">
-                    <LinkIcon className="size-3.5" />
-                  </ToolbarButton>
                   <ToolbarButton onClick={handleFileClick} title="Attach image or file">
                     <Paperclip className="size-3.5" />
                   </ToolbarButton>
@@ -900,49 +966,38 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
 
                   <div className="mx-1 h-4 w-px shrink-0 bg-border/60" />
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger title="Row actions" className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                          <Rows3 className="size-3.5" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-44">
-                          <DropdownMenuGroup>
-                            <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Rows</div>
-                            <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().addRowBefore().run()}>
-                              Add row above
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().addRowAfter().run()}>
-                              Add row below
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().deleteRow().run()}>
-                            <TableActionIcon type="delete-row" className="mr-2 text-destructive" />
-                            Delete row
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                  <ToolbarButton onClick={() => editor.chain().focus().addRowBefore().run()} title="Add row above" disabled={!canMutateTable}>
+                    <TableActionIcon type="add-row-above" />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => editor.chain().focus().addRowAfter().run()} title="Add row below" disabled={!canMutateTable}>
+                    <TableActionIcon type="add-row-below" />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => editor.chain().focus().deleteRow().run()} title="Delete row" disabled={!canMutateTable}>
+                    <TableActionIcon type="delete-row" className="text-destructive" />
+                  </ToolbarButton>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger title="Column actions" className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                          <Columns3 className="size-3.5" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-44">
-                          <DropdownMenuGroup>
-                            <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Columns</div>
-                            <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().addColumnBefore().run()}>
-                              Add column left
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().addColumnAfter().run()}>
-                              Add column right
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem disabled={!inTable} onClick={() => editor.chain().focus().deleteColumn().run()}>
-                            <TableActionIcon type="delete-col" className="mr-2 text-destructive" />
-                            Delete column
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                  <div className="mx-1 h-4 w-px shrink-0 bg-border/60" />
+
+                  <ToolbarButton onClick={() => editor.chain().focus().addColumnBefore().run()} title="Add column left" disabled={!canMutateTable}>
+                    <TableActionIcon type="add-col-left" />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => editor.chain().focus().addColumnAfter().run()} title="Add column right" disabled={!canMutateTable}>
+                    <TableActionIcon type="add-col-right" />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => editor.chain().focus().deleteColumn().run()} title="Delete column" disabled={!canMutateTable}>
+                    <TableActionIcon type="delete-col" className="text-destructive" />
+                  </ToolbarButton>
+
+                  <div className="mx-1 h-4 w-px shrink-0 bg-border/60" />
+
+                  <ToolbarButton onClick={() => editor.chain().focus().mergeCells().run()} title="Merge cells" disabled={!canMergeCells}>
+                    <TableActionIcon type="merge" />
+                  </ToolbarButton>
+                  <ToolbarButton onClick={() => editor.chain().focus().splitCell().run()} title="Split cell" disabled={!canSplitCell}>
+                    <TableActionIcon type="split" />
+                  </ToolbarButton>
+
+                  <div className="mx-1 h-4 w-px shrink-0 bg-border/60" />
 
                       <DropdownMenu>
                         <DropdownMenuTrigger title="Cell background" className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
@@ -956,7 +1011,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                                 <button
                                   key={color}
                                   type="button"
-                                  disabled={!inTable}
+                                  disabled={!canMutateTable}
                                   className="h-6 w-6 rounded border border-border disabled:opacity-40"
                                   style={{ backgroundColor: color }}
                                   onClick={() => applyCellAttribute("backgroundColor", color)}
@@ -966,7 +1021,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                             </div>
                           </DropdownMenuGroup>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("backgroundColor", null)}>
+                          <DropdownMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("backgroundColor", null)}>
                             Clear background
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -984,7 +1039,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                                 <button
                                   key={color}
                                   type="button"
-                                  disabled={!inTable}
+                                  disabled={!canMutateTable}
                                   className="h-6 w-6 rounded border border-border disabled:opacity-40"
                                   style={{ backgroundColor: color }}
                                   onClick={() => applyCellAttribute("textColor", color)}
@@ -994,7 +1049,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                             </div>
                           </DropdownMenuGroup>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("textColor", null)}>
+                          <DropdownMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textColor", null)}>
                             Clear text color
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -1004,18 +1059,18 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                         <DropdownMenuTrigger title="Cell text align" className="flex h-7 items-center rounded-md px-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
                           {currentCellTextAlign === "center" ? <AlignCenter className="size-3.5" /> : currentCellTextAlign === "right" ? <AlignRight className="size-3.5" /> : <AlignLeft className="size-3.5" />}
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-48">
+                          <DropdownMenuContent align="start" className="w-48">
                           <DropdownMenuGroup>
                             <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Cell text align</div>
-                            <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("textAlign", "left")}>
+                            <DropdownMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textAlign", "left")}>
                               <AlignLeft className="mr-2 size-4" />
                               Left
                             </DropdownMenuItem>
-                            <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("textAlign", "center")}>
+                            <DropdownMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textAlign", "center")}>
                               <AlignCenter className="mr-2 size-4" />
                               Center
                             </DropdownMenuItem>
-                            <DropdownMenuItem disabled={!inTable} onClick={() => applyCellAttribute("textAlign", "right")}>
+                            <DropdownMenuItem disabled={!canMutateTable} onClick={() => applyCellAttribute("textAlign", "right")}>
                               <AlignRight className="mr-2 size-4" />
                               Right
                             </DropdownMenuItem>
@@ -1023,9 +1078,17 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                         </DropdownMenuContent>
                       </DropdownMenu>
 
-                      <ToolbarButton onClick={() => editor.chain().focus().deleteTable().run()} title="Delete table" active={false} disabled={!inTable}>
-                        <Trash2 className="size-3.5" />
-                      </ToolbarButton>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => editor.chain().focus().deleteTable().run()}
+                    title="Delete table"
+                    disabled={!canMutateTable}
+                    className="h-7 w-7 text-destructive hover:bg-destructive/12 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
                 </div>
 
                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} multiple />
@@ -1063,6 +1126,16 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
               onMouseMove={handleEditorMouseMove}
               onMouseLeave={handleEditorMouseLeave}
             >
+              <EditorBubbleMenu editor={editor} />
+              <TableBubbleMenu
+                editor={editor}
+                canMutateTable={canMutateTable}
+                canMergeCells={canMergeCells}
+                canSplitCell={canSplitCell}
+                applyCellAttribute={applyCellAttribute}
+                currentCellTextAlign={currentCellTextAlign}
+              />
+
               <EditorContent editor={editor} />
 
               {/* Remote user cursors (Presence layer, decoupled from Content) */}
@@ -1099,6 +1172,15 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
                         onClick={() => runTableEdgeAction("add-col")}
                       >
                         <Plus className="size-3" />
+                      </button>
+                      <button
+                        type="button"
+                        data-table-edge-resize="true"
+                        className="table-edge-resize-handle"
+                        title="Resize column"
+                        onMouseDown={startTableEdgeColumnResize}
+                      >
+                        <GripVertical className="size-3" />
                       </button>
                       <button
                         type="button"
@@ -1282,8 +1364,7 @@ type TableActionIconType =
 
 const TableActionIcon = ({ type, className }: { type: TableActionIconType; className?: string }) => {
   const stroke = "currentColor";
-  const highlightStrong = "color-mix(in srgb, #38bdf8 36%, transparent)";
-  const highlightSoft = "color-mix(in srgb, #38bdf8 24%, transparent)";
+  const highlightStrong = "color-mix(in srgb, #38bdf8 44%, transparent)";
   const deleteHighlight = "color-mix(in srgb, var(--destructive) 26%, transparent)";
 
   return (
@@ -1300,8 +1381,8 @@ const TableActionIcon = ({ type, className }: { type: TableActionIconType; class
         <>
           <path d="M2 6h12M2 10h12" stroke={stroke} strokeWidth="1.1" />
           {type === "add-row-above"
-            ? <rect x="2.2" y="2.2" width="11.6" height="2.8" rx="0.8" fill={highlightStrong} />
-            : <rect x="2.2" y="11" width="11.6" height="2.8" rx="0.8" fill={highlightStrong} />}
+            ? <rect x="2.2" y="2.2" width="11.6" height="3.8" rx="0.8" fill={highlightStrong} />
+            : <rect x="2.2" y="10" width="11.6" height="3.8" rx="0.8" fill={highlightStrong} />}
         </>
       )}
 
@@ -1309,8 +1390,8 @@ const TableActionIcon = ({ type, className }: { type: TableActionIconType; class
         <>
           <path d="M6 2v12M10 2v12" stroke={stroke} strokeWidth="1.1" />
           {type === "add-col-left"
-            ? <rect x="2.2" y="2.2" width="2.8" height="11.6" rx="0.8" fill={highlightStrong} />
-            : <rect x="11" y="2.2" width="2.8" height="11.6" rx="0.8" fill={highlightStrong} />}
+            ? <rect x="2.2" y="2.2" width="3.8" height="11.6" rx="0.8" fill={highlightStrong} />
+            : <rect x="10" y="2.2" width="3.8" height="11.6" rx="0.8" fill={highlightStrong} />}
         </>
       )}
 
@@ -1324,7 +1405,7 @@ const TableActionIcon = ({ type, className }: { type: TableActionIconType; class
       {type === "split" && (
         <>
           <path d="M2 8h12M8 2v12" stroke={stroke} strokeWidth="1.1" />
-          <rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1" fill={highlightSoft} />
+          <rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1" fill={highlightStrong} />
         </>
       )}
 

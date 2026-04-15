@@ -171,13 +171,13 @@ function MarkdownFilePreview({
 
   return (
     <div className="attachment-card-shell" contentEditable={false}>
-      <div className="attachment-card-header flex items-center gap-2 px-2.5 py-1 transition-colors hover:bg-muted">
+      <div className="attachment-card-header flex items-center gap-2 px-3 py-1 transition-colors hover:bg-muted">
         <div className="attachment-title flex-1">
           {editable && (
             <span className="attachment-drag-handle" data-drag-handle aria-hidden="true" />
           )}
-          <AttachmentFileIcon href={href} filename={filename} className="size-4" />
-          <p className="truncate text-sm">{filename || "Markdown"}</p>
+          <AttachmentFileIcon href={href} filename={filename} className="size-3" />
+          <p className="truncate text-xs">{filename || "Markdown"}</p>
         </div>
         <div className="attachment-actions">
           <Button
@@ -278,13 +278,13 @@ function TextFilePreview({
 
   return (
     <div className="attachment-card-shell" contentEditable={false}>
-      <div className="attachment-card-header flex items-center gap-2 px-2.5 py-1 transition-colors hover:bg-muted">
+      <div className="attachment-card-header flex items-center gap-2 px-3 py-1 transition-colors hover:bg-muted">
         <div className="attachment-title flex-1">
           {editable && (
             <span className="attachment-drag-handle" data-drag-handle aria-hidden="true" />
           )}
-          <AttachmentFileIcon href={href} filename={filename} className="size-4" />
-          <p className="truncate text-sm">{filename || (kind === "code" ? "Code file" : "Text file")}</p>
+          <AttachmentFileIcon href={href} filename={filename} className="size-3" />
+          <p className="truncate text-xs">{filename || (kind === "code" ? "Code file" : "Text file")}</p>
         </div>
         <div className="attachment-actions">
           <Button
@@ -405,19 +405,19 @@ export function AttachmentCard({
   return (
     <div className="file-card-node attachment-card-shell" data-type="fileCard" contentEditable={false}>
       <div
-        className="attachment-card-header flex items-center gap-2 px-2.5 py-0.5 transition-colors hover:bg-accent/20"
+        className="attachment-card-header flex items-center gap-2 px-3 py-1 transition-colors hover:bg-accent/20"
         contentEditable={false}
       >
         {editable && (
           <span className="attachment-drag-handle" data-drag-handle aria-hidden="true" />
         )}
         {uploading ? (
-          <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+          <Loader2 className="size-3 shrink-0 animate-spin text-muted-foreground" />
         ) : (
-          <AttachmentFileIcon href={href} filename={filename} className="size-4" />
+          <AttachmentFileIcon href={href} filename={filename} className="size-3" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm">{uploading ? `Uploading ${filename}` : filename}</p>
+          <p className="truncate text-xs">{uploading ? `Uploading ${filename}` : filename}</p>
         </div>
         <div className="attachment-actions">
           {!uploading && kind === "pdf" && href && (

@@ -10,6 +10,7 @@
   - interface Tab
   - const useTabStore
 - `apps/web/features/auth/auth-cookie.ts` — function setLoggedInCookie: () => void, function clearLoggedInCookie: () => void
+- `apps/web/features/wiki/hooks/use-wiki-comments.ts` — function useWikiComments: (wikiId) => void
 - `apps/web/proxy.ts` — function proxy: (_request) => void, const config
 - `e2e/fixtures.ts` — class TestApiClient
 - `e2e/helpers.ts`
@@ -133,6 +134,11 @@
   - function generateUUID: () => string
   - function createSafeId: () => string
   - function createRequestId: (length) => string
+- `packages/core/wiki/mutations.ts`
+  - function useCreateWikiComment: (wikiId) => void
+  - function useUpdateWikiComment: (wikiId) => void
+  - function useDeleteWikiComment: (wikiId) => void
+- `packages/core/wiki/queries.ts` — function wikiCommentListOptions: (wikiId) => void, const wikiCommentKeys
 - `packages/core/workspace/hooks.ts` — function useActorName: () => void
 - `packages/core/workspace/index.ts` — function registerWorkspaceStore: (store) => void, const useWorkspaceStore: WorkspaceStoreInstance
 - `packages/core/workspace/mutations.ts`
@@ -318,6 +324,7 @@
   - class WikiDraftResponse
   - class SearchWikiResult
   - _...2 more_
+- `server/internal/handler/wiki_comment.go` — class WikiCommentResponse, class CreateWikiCommentRequest
 - `server/internal/handler/wiki_history_policy.go` — class WikiHistoryCompactResult
 - `server/internal/handler/wiki_snapshot.go` — function NewWikiSnapshotScheduler: (db dbExecutor) *WikiSnapshotScheduler, class WikiSnapshotScheduler
 - `server/internal/handler/workspace.go`
@@ -408,11 +415,11 @@
 - `server/pkg/db/generated/attachment.sql.go`
   - class CreateAttachmentParams
   - class DeleteAttachmentParams
+  - class DeleteExpiredWikiTempAttachmentsRow
   - class GetAttachmentParams
   - class LinkAttachmentsToCommentParams
   - class LinkAttachmentsToIssueParams
-  - class ListAttachmentsByCommentParams
-  - _...2 more_
+  - _...7 more_
 - `server/pkg/db/generated/chat.sql.go`
   - class CreateChatMessageParams
   - class CreateChatSessionParams
@@ -463,7 +470,7 @@
   - class AgentSkill
   - class AgentTaskQueue
   - class Attachment
-  - _...25 more_
+  - _...30 more_
 - `server/pkg/db/generated/personal_access_token.sql.go` — class CreatePersonalAccessTokenParams, class RevokePersonalAccessTokenParams
 - `server/pkg/db/generated/pinned_item.sql.go`
   - class CreatePinnedItemParams
@@ -514,6 +521,19 @@
   - class UpsertTaskUsageParams
 - `server/pkg/db/generated/user.sql.go` — class CreateUserParams, class UpdateUserParams
 - `server/pkg/db/generated/verification_code.sql.go` — class CreateVerificationCodeParams
+- `server/pkg/db/generated/wiki.sql.go`
+  - class CreateWikiParams
+  - class CreateWikiTagParams
+  - class CreateWikiVersionParams
+  - class DeleteWikiParams
+  - class GetWikiParams
+  - class ListWikiTagsParams
+  - _...2 more_
+- `server/pkg/db/generated/wiki_comment.sql.go`
+  - class CreateWikiCommentParams
+  - class GetWikiCommentInWorkspaceParams
+  - class ListWikiCommentsParams
+  - class UpdateWikiCommentParams
 - `server/pkg/db/generated/workspace.sql.go` — class CreateWorkspaceParams, class UpdateWorkspaceParams
 - `server/pkg/protocol/messages.go`
   - class Message

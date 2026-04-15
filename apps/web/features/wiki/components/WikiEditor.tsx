@@ -2,10 +2,10 @@ import {
   Save, PanelRight, Trash2, Loader2, Check, AlertCircle, ChevronRight,
   Maximize2, Minimize2, FileText, Plus, Minus, Wifi, WifiOff
 } from "lucide-react";
-import { useRef, useState, useMemo, useEffect } from "react";
+import { useRef, useState, useMemo, useEffect, type ReactNode } from "react";
 import { Button } from "@multica/ui/components/ui/button";
 import { Badge } from "@multica/ui/components/ui/badge";
-import { ContentEditor, TitleEditor } from "@multica/views/editor";
+import { ContentEditor, TitleEditor, useFileDropZone, FileDropOverlay } from "@multica/views/editor";
 import { useWikiStore } from "../store";
 import { useAuthStore } from "@multica/core/auth";
 import { cn } from "@multica/ui/lib/utils";
@@ -28,8 +28,7 @@ interface WikiEditorProps {
   onUploadFile?: (file: File) => Promise<any>;
   onDelete: () => void;
   saveStatus: SaveStatus;
-  childPages?: ChildPage[];
-  onCreateChild?: () => void;
+  commentsSlot?: ReactNode;
   // Collaboration
   ydoc?: any;
   provider?: any;
@@ -51,8 +50,7 @@ export function WikiEditor({
   onUploadFile,
   onDelete,
   saveStatus,
-  childPages,
-  onCreateChild,
+  commentsSlot,
   ydoc,
   provider,
   user,
@@ -65,6 +63,10 @@ export function WikiEditor({
   const editorRef = useRef<any>(null);
   const contentViewportRef = useRef<HTMLDivElement | null>(null);
   const [contentViewportWidth, setContentViewportWidth] = useState(0);
+
+  const { isDragOver, dropZoneProps } = useFileDropZone({
+    onDrop: (files) => editorRef.current?.uploadFiles(files),
+  });
 
   const baseWidthRem = 48; // max-w-3xl
   const baseWidthPx = baseWidthRem * 16;
@@ -286,76 +288,60 @@ export function WikiEditor({
       {/* Editor area — pt-8 gives enough room for remote cursor name badges while moving content up */}
       <div ref={contentViewportRef} className="flex-1 overflow-y-auto overflow-x-hidden pt-8 pb-32 scrollbar-hide">
         <div
-          className="mx-auto w-full px-6 md:px-8 transition-all duration-300"
+          className="mx-auto w-full transition-all duration-300"
           style={{ maxWidth: isFullWidth ? "100%" : `${pageWidthRem}rem` }}
         >
-          <div className="mb-4">
-            <TitleEditor
-              key={`title-${id}`}
-              defaultValue={title}
-              placeholder="Document title..."
-              className="w-full text-3xl md:text-4xl font-bold tracking-tight border-none focus-within:ring-0 px-0 leading-tight text-foreground placeholder:text-muted-foreground/40"
-              onChange={onUpdateTitle}
-            />
-          </div>
+          <div className="px-6 md:px-8">
+            <div className="mb-4">
+              <TitleEditor
+                key={`title-${id}-${restoreKey}`}
+                defaultValue={title}
+                placeholder="Document title..."
+                className="w-full text-3xl md:text-4xl font-bold tracking-tight border-none focus-within:ring-0 px-0 leading-tight text-foreground placeholder:text-muted-foreground/40"
+                onChange={onUpdateTitle}
+              />
+            </div>
 
-          <div className="min-h-[600px]">
-            <ContentEditor
-              ref={editorRef}
-              key={`content-${id}-${ydoc?.clientID ?? "static"}-${restoreKey}`}
-              defaultValue={content}
-              forceDefault={restoreKey > 0}
-              placeholder="Start writing..."
-              onUpdate={onUpdateContent}
-              onUploadFile={onUploadFile}
-              showToolbar
-              className="prose prose-sm max-w-none dark:prose-invert focus:outline-none leading-relaxed"
-              ydoc={ydoc}
-              provider={provider}
-              user={user}
-              showRemoteCursors={showRemoteCursors}
-              field="content"
-            />
-          </div>
-
-          {/* Sub Pages */}
-          {((childPages && childPages.length > 0) || onCreateChild) && (
-            <div className="mt-12 border-t border-border/40 pt-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
-                  Sub Pages
-                  {childPages && childPages.length > 0 && (
-                    <span className="ml-2 text-xs font-normal normal-case text-muted-foreground/60">{childPages.length}</span>
-                  )}
-                </h2>
-                {onCreateChild && (
-                  <button
-                    type="button"
-                    onClick={onCreateChild}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    New
-                  </button>
-                )}
-              </div>
-              {childPages && childPages.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {childPages.map((child) => (
-                    <button
-                      key={child.id}
-                      type="button"
-                      onClick={() => onNavigateTo?.(child.id)}
-                      className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-muted/30 px-3 py-3 text-left hover:bg-accent hover:border-border transition-colors group"
-                    >
-                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground/50 group-hover:text-primary/60 transition-colors" />
-                      <span className="truncate text-sm text-foreground">
-                        {child.title || "Untitled"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+            {/* Content area only is the drop zone */}
+            <div
+              {...dropZoneProps}
+              className="relative min-h-[600px]"
+            >
+              <ContentEditor
+                ref={editorRef}
+                key={`content-${id}-${ydoc?.clientID ?? "static"}-${restoreKey}`}
+                defaultValue={content}
+                forceDefault={restoreKey > 0}
+                placeholder="Start writing..."
+                onUpdate={onUpdateContent}
+                onUploadFile={onUploadFile}
+                showToolbar
+                className="prose prose-sm max-w-none dark:prose-invert focus:outline-none leading-relaxed"
+                ydoc={ydoc}
+                provider={provider}
+                user={user}
+                showRemoteCursors={showRemoteCursors}
+                field="content"
+              />
+              {isDragOver && (
+                <FileDropOverlay 
+                  className="top-[42px] -inset-x-2 -bottom-2 rounded-xl border-brand/40 bg-brand/[0.04]" 
+                />
               )}
+            </div>
+
+            {commentsSlot && (
+              <div className="my-16 border-t" />
+            )}
+          </div>
+
+          {/* Comments slot — outside the drop zone */}
+          {commentsSlot && (
+            <div className="px-6 md:px-8">
+              <div className="my-16 border-t" />
+              <div className="pb-16">
+                {commentsSlot}
+              </div>
             </div>
           )}
         </div>

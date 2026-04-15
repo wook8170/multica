@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Restore subsystem handles **2 routes** and touches: auth, db.
+The Restore subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{id}/restore` params(id) [auth, db, upload]
+- `POST` `/{id}/restore` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/restore` [auth, db, upload]
+- `POST` `/restore` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

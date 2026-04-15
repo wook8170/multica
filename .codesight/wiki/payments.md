@@ -2,15 +2,17 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Payments subsystem handles **4 routes** and touches: auth, db, cache, payment.
+The Payments subsystem handles **5 routes** and touches: auth, db, payment, cache.
 
 ## Routes
 
-- `POST` `/api/issues/subscribe` [auth, db, upload]
+- `POST` `/api/issues/subscribe` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/{id}/subscribe` params(id) [auth, db, upload]
+- `POST` `/{id}/subscribe` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/subscribe` [auth, db, upload]
+- `POST` `/api/internal/collaboration/webhook` [auth, db, payment, upload]
+  `server/cmd/server/router.go`
+- `POST` `/subscribe` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `ALL` `/repo/checkout` [cache, payment]
   `server/internal/daemon/health.go`

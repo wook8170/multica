@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Active-task subsystem handles **2 routes** and touches: auth, db.
+The Active-task subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{id}/active-task` params(id) [auth, db, upload]
+- `GET` `/{id}/active-task` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/active-task` [auth, db, upload]
+- `GET` `/active-task` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Related Models

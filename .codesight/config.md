@@ -4,18 +4,18 @@
 
 - `ALLOWED_ORIGINS` **required** — .env.example
 - `APP_ENV` **required** — server/internal/auth/cookie.go
-- `APPLE_TEAM_ID` **required** — apps/desktop/scripts/package.mjs
-- `AWS_ACCESS_KEY_ID` (has default) — .env
+- `AWS_ACCESS_KEY_ID` (has default) — .env.example
 - `AWS_ENDPOINT_URL` **required** — server/internal/storage/s3.go
-- `AWS_SECRET_ACCESS_KEY` (has default) — .env
-- `BACKEND_URL` (has default) — .env
+- `AWS_SECRET_ACCESS_KEY` (has default) — .env.example
+- `BACKEND_URL` (has default) — .env.example
 - `CLAUDE_CONFIG_DIR` **required** — server/internal/daemon/usage/claude.go
 - `CLOUDFRONT_DOMAIN` **required** — .env.example
 - `CLOUDFRONT_KEY_PAIR_ID` **required** — .env.example
 - `CLOUDFRONT_PRIVATE_KEY` **required** — .env.example
 - `CLOUDFRONT_PRIVATE_KEY_SECRET` (has default) — .env.example
 - `CODEX_HOME` **required** — server/internal/daemon/execenv/codex_home.go
-- `COLLABORATION_PORT` (has default) — .env
+- `COLLABORATION_PORT` (has default) — .env.example
+- `COLLABORATION_WEBHOOK_SECRET` (has default) — .env.example
 - `COOKIE_DOMAIN` **required** — .env.example
 - `CORS_ALLOWED_ORIGINS` **required** — apps/web/next.config.ts
 - `DATABASE_URL` (has default) — .env.example
@@ -26,16 +26,15 @@
 - `GOOGLE_CLIENT_SECRET` **required** — .env.example
 - `GOOGLE_REDIRECT_URI` (has default) — .env.example
 - `HERMES_HOME` **required** — server/internal/daemon/usage/hermes.go
-- `HOME` **required** — server/internal/daemon/repocache/cache_test.go
 - `JWT_SECRET` (has default) — .env.example
 - `LOCAL_UPLOAD_BASE_URL` (has default) — .env.example
 - `LOCAL_UPLOAD_DIR` (has default) — .env.example
 - `LOG_LEVEL` **required** — server/internal/logger/logger.go
-- `MINIO_CONSOLE_PORT` (has default) — .env
-- `MINIO_DATA_DIR` (has default) — .env
-- `MINIO_PORT` (has default) — .env
-- `MINIO_ROOT_PASSWORD` (has default) — .env
-- `MINIO_ROOT_USER` (has default) — .env
+- `MINIO_CONSOLE_PORT` (has default) — .env.example
+- `MINIO_DATA_DIR` (has default) — .env.example
+- `MINIO_PORT` (has default) — .env.example
+- `MINIO_ROOT_PASSWORD` (has default) — .env.example
+- `MINIO_ROOT_USER` (has default) — .env.example
 - `MULTICA_AGENT_ID` **required** — server/cmd/multica/cmd_agent.go
 - `MULTICA_AGENT_NAME` **required** — server/cmd/multica/cmd_repo.go
 - `MULTICA_APP_URL` (has default) — .env.example
@@ -54,7 +53,6 @@
 - `MULTICA_GEMINI_MODEL` **required** — server/internal/daemon/config.go
 - `MULTICA_HERMES_MODEL` **required** — server/internal/daemon/config.go
 - `MULTICA_KEEP_ENV_AFTER_TASK` **required** — server/internal/daemon/config.go
-- `MULTICA_LAUNCHED_BY` **required** — server/cmd/multica/cmd_daemon.go
 - `MULTICA_OPENCLAW_MODEL` **required** — server/internal/daemon/config.go
 - `MULTICA_OPENCODE_MODEL` **required** — server/internal/daemon/config.go
 - `MULTICA_SERVER_URL` (has default) — .env.example
@@ -62,13 +60,13 @@
 - `MULTICA_TOKEN` **required** — server/cmd/multica/cmd_auth.go
 - `MULTICA_WORKSPACE_ID` **required** — .env.example
 - `MULTICA_WORKSPACES_ROOT` **required** — server/internal/daemon/config.go
-- `NEXT_PUBLIC_API_URL` **required** — .env.example
-- `NEXT_PUBLIC_COLLAB_URL` (has default) — .env
+- `NEXT_PUBLIC_API_URL` (has default) — .env.example
+- `NEXT_PUBLIC_COLLAB_URL` (has default) — .env.example
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` **required** — .env.example
-- `NEXT_PUBLIC_WS_URL` **required** — .env.example
+- `NEXT_PUBLIC_WS_URL` (has default) — .env.example
 - `NODE_ENV` **required** — apps/web/components/theme-provider.tsx
 - `OPENCLAW_HOME` **required** — server/internal/daemon/usage/openclaw.go
-- `PATH` **required** — apps/desktop/src/main/daemon-manager.ts
+- `PATH` **required** — server/internal/daemon/daemon.go
 - `PLAYWRIGHT_BASE_URL` **required** — playwright.config.ts
 - `PORT` (has default) — .env.example
 - `POSTGRES_DB` (has default) — .env.example
@@ -78,12 +76,12 @@
 - `REMOTE_API_URL` **required** — apps/web/next.config.ts
 - `RESEND_API_KEY` **required** — .env.example
 - `RESEND_FROM_EMAIL` (has default) — .env.example
-- `S3_BUCKET` **required** — .env.example
-- `S3_ENDPOINT` (has default) — .env
+- `S3_BUCKET` (has default) — .env.example
+- `S3_ENDPOINT` (has default) — .env.example
 - `S3_REGION` (has default) — .env.example
 - `STANDALONE` **required** — apps/web/next.config.ts
 - `VITE_API_URL` **required** — apps/desktop/src/renderer/src/App.tsx
-- `VITE_APP_URL` **required** — apps/desktop/src/renderer/src/platform/navigation.tsx
+- `VITE_REMOTE_API` **required** — apps/desktop/src/renderer/src/App.tsx
 - `VITE_WEB_URL` **required** — apps/desktop/src/renderer/src/pages/login.tsx
 - `VITE_WS_URL` **required** — apps/desktop/src/renderer/src/App.tsx
 - `XDG_DATA_HOME` **required** — server/internal/daemon/usage/opencode.go

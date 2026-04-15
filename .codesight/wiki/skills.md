@@ -2,33 +2,33 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Skills subsystem handles **12 routes** and touches: auth, db.
+The Skills subsystem handles **12 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{id}/skills` params(id) [auth, db, upload]
+- `GET` `/{id}/skills` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/{id}/skills` params(id) [auth, db, upload]
+- `PUT` `/{id}/skills` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/skills` [auth, db, upload]
+- `GET` `/api/skills` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/skills` [auth, db, upload]
+- `POST` `/api/skills` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/skills/import` [auth, db, upload]
+- `POST` `/api/skills/import` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/api/skills` [auth, db, upload]
+- `PUT` `/api/skills` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/skills` [auth, db, upload]
+- `DELETE` `/api/skills` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/skills/files` [auth, db, upload]
+- `GET` `/api/skills/files` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/api/skills/files` [auth, db, upload]
+- `PUT` `/api/skills/files` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/skills/files/{fileId}` params(fileId) [auth, db, upload]
+- `DELETE` `/api/skills/files/{fileId}` params(fileId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/skills` [auth, db, upload]
+- `GET` `/skills` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/skills` [auth, db, upload]
+- `PUT` `/skills` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

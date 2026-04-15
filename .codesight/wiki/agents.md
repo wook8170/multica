@@ -2,25 +2,25 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Agents subsystem handles **8 routes** and touches: auth, db.
+The Agents subsystem handles **8 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/api/agents` [auth, db, upload]
+- `GET` `/api/agents` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/agents` [auth, db, upload]
+- `POST` `/api/agents` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/api/agents` [auth, db, upload]
+- `PUT` `/api/agents` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/agents/archive` [auth, db, upload]
+- `POST` `/api/agents/archive` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/agents/restore` [auth, db, upload]
+- `POST` `/api/agents/restore` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/agents/tasks` [auth, db, upload]
+- `GET` `/api/agents/tasks` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/agents/skills` [auth, db, upload]
+- `GET` `/api/agents/skills` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/api/agents/skills` [auth, db, upload]
+- `PUT` `/api/agents/skills` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

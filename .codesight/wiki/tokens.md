@@ -2,15 +2,15 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Tokens subsystem handles **3 routes** and touches: auth, db.
+The Tokens subsystem handles **3 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/api/tokens` [auth, db, upload]
+- `GET` `/api/tokens` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/tokens` [auth, db, upload]
+- `POST` `/api/tokens` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/tokens/{id}` params(id) [auth, db, upload]
+- `DELETE` `/api/tokens/{id}` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

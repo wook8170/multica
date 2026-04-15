@@ -1,24 +1,22 @@
-# Autopilots
+# Draft
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Autopilots subsystem handles **7 routes** and touches: auth, db.
+The Draft subsystem handles **6 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/api/autopilots` [auth, db, upload]
+- `GET` `/{id}/draft` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/autopilots` [auth, db, upload]
+- `PUT` `/{id}/draft` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PATCH` `/api/autopilots` [auth, db, upload]
+- `DELETE` `/{id}/draft` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/autopilots` [auth, db, upload]
+- `GET` `/draft` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/autopilots/trigger` [auth, db, upload]
+- `PUT` `/draft` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/autopilots/runs` [auth, db, upload]
-  `server/cmd/server/router.go`
-- `POST` `/api/autopilots/triggers` [auth, db, upload]
+- `DELETE` `/draft` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

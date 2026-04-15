@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Schema shapes and field types extracted via AST. Read the actual schema source files before writing migrations or query logic.
 
-**unknown** — 36 models
+**unknown** — 37 models
 
 ### user
 
@@ -381,69 +381,60 @@ pk: `id` (uuid) · fk: workspace_id, user_id, item_id
 - `item_id`: uuid _(required, fk)_
 - `position`: float _(required)_
 
-### workspace_invitation
+### wikis
 
-pk: `id` (uuid) · fk: workspace_id, inviter_id, invitee_user_id
-
-- `id`: uuid _(pk)_
-- `workspace_id`: uuid _(required, fk)_
-- `inviter_id`: uuid _(required, fk)_
-- `invitee_email`: text _(required)_
-- `invitee_user_id`: uuid _(fk)_
-- `role`: text _(required)_
-- `status`: text _(required)_
-- `expires_at`: timestamp(tz) _(required)_
-
-### autopilot
-
-pk: `id` (uuid) · fk: workspace_id, project_id, assignee_id, created_by_id
+pk: `id` (uuid) · fk: workspace_id, parent_id
 
 - `id`: uuid _(pk)_
 - `workspace_id`: uuid _(required, fk)_
-- `project_id`: uuid _(fk)_
+- `parent_id`: uuid _(fk)_
 - `title`: text _(required)_
-- `description`: text
-- `assignee_id`: uuid _(required, fk)_
-- `priority`: text _(required)_
-- `status`: text _(required)_
-- `execution_mode`: text _(required)_
-- `issue_title_template`: text
-- `concurrency_policy`: text _(required)_
-- `created_by_type`: text _(required)_
-- `created_by_id`: uuid _(required, fk)_
-- `last_run_at`: timestamp(tz)
+- `content`: text _(required)_
+- `created_by`: uuid _(required)_
 
-### autopilot_trigger
+### wiki_versions
 
-pk: `id` (uuid) · fk: autopilot_id
+pk: `id` (uuid) · fk: wiki_id
 
 - `id`: uuid _(pk)_
-- `autopilot_id`: uuid _(required, fk)_
-- `kind`: text _(required)_
-- `enabled`: boolean _(required)_
-- `cron_expression`: text
-- `timezone`: text _(default)_
-- `next_run_at`: timestamp(tz)
-- `webhook_token`: text
-- `label`: text
-- `last_fired_at`: timestamp(tz)
+- `wiki_id`: uuid _(required, fk)_
+- `version_number`: integer _(required)_
+- `title`: text _(required)_
+- `content`: text _(required)_
+- `created_by`: uuid _(required)_
 
-### autopilot_run
+### wiki_tags
 
-pk: `id` (uuid) · fk: autopilot_id, trigger_id, issue_id, task_id
+pk: `id` (uuid) · fk: workspace_id, wiki_id
 
 - `id`: uuid _(pk)_
-- `autopilot_id`: uuid _(required, fk)_
-- `trigger_id`: uuid _(fk)_
-- `source`: text _(required)_
-- `status`: text _(required)_
-- `issue_id`: uuid _(fk)_
-- `task_id`: uuid _(fk)_
-- `triggered_at`: timestamp(tz) _(required)_
-- `completed_at`: timestamp(tz)
-- `failure_reason`: text
-- `trigger_payload`: jsonb
-- `result`: jsonb
+- `workspace_id`: uuid _(required, fk)_
+- `wiki_id`: uuid _(required, fk)_
+- `name`: text _(required)_
+
+### wiki_drafts
+
+pk: `id` (uuid) · fk: workspace_id, wiki_id, user_id
+
+- `id`: uuid _(pk)_
+- `workspace_id`: uuid _(required, fk)_
+- `wiki_id`: uuid _(required, fk)_
+- `user_id`: uuid _(required, fk)_
+- `title`: text _(required)_
+- `content`: text _(required)_
+- `binary_state`: bytes
+- `base_version`: integer _(required)_
+
+### wiki_comment
+
+pk: `id` (uuid) · fk: wiki_id, workspace_id, author_id
+
+- `id`: uuid _(pk)_
+- `wiki_id`: uuid _(required, fk)_
+- `workspace_id`: uuid _(required, fk)_
+- `author_type`: text _(required)_
+- `author_id`: uuid _(required, fk)_
+- `content`: text _(required)_
 
 ## Schema Source Files
 

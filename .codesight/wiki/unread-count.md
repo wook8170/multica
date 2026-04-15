@@ -2,11 +2,11 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Unread-count subsystem handles **1 routes** and touches: auth, db.
+The Unread-count subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/unread-count` [auth, db, upload]
+- `GET` `/unread-count` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

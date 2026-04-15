@@ -2,11 +2,11 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Batch-delete subsystem handles **1 routes** and touches: auth, db.
+The Batch-delete subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/batch-delete` [auth, db, upload]
+- `POST` `/batch-delete` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

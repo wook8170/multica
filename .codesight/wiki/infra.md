@@ -2,29 +2,29 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Infra subsystem handles **11 routes** and touches: auth, db, cache, payment.
+The Infra subsystem handles **11 routes** and touches: auth, db, payment, cache.
 
 ## Routes
 
-- `GET` `/health` [auth, db, upload]
+- `GET` `/health` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/` [auth, db, upload]
+- `GET` `/` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/` [auth, db, upload]
+- `POST` `/` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/` [auth, db, upload]
+- `PUT` `/` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PATCH` `/` [auth, db, upload]
+- `PATCH` `/` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/` [auth, db, upload]
+- `DELETE` `/` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/ping` [auth, db, upload]
+- `POST` `/ping` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/ping/{pingId}` params(pingId) [auth, db, upload]
+- `GET` `/ping/{pingId}` params(pingId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/messages` [auth, db, upload]
+- `POST` `/messages` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/messages` [auth, db, upload]
+- `GET` `/messages` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 - `ALL` `/health` [cache, payment]
   `server/internal/daemon/health.go`

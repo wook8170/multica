@@ -2,35 +2,35 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Runtimes subsystem handles **13 routes** and touches: auth, db.
+The Runtimes subsystem handles **13 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/api/runtimes` [auth, db, upload]
+- `GET` `/api/runtimes` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/runtimes/usage` [auth, db, upload]
+- `GET` `/api/runtimes/usage` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/runtimes/activity` [auth, db, upload]
+- `GET` `/api/runtimes/activity` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/runtimes/ping` [auth, db, upload]
+- `POST` `/api/runtimes/ping` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/runtimes/ping/{pingId}` params(pingId) [auth, db, upload]
+- `GET` `/api/runtimes/ping/{pingId}` params(pingId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/runtimes/update` [auth, db, upload]
+- `POST` `/api/runtimes/update` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/runtimes/update/{updateId}` params(updateId) [auth, db, upload]
+- `GET` `/api/runtimes/update/{updateId}` params(updateId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/runtimes` [auth, db, upload]
+- `DELETE` `/api/runtimes` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/runtimes/{runtimeId}/tasks/claim` params(runtimeId) [auth, db, upload]
+- `POST` `/runtimes/{runtimeId}/tasks/claim` params(runtimeId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/runtimes/{runtimeId}/tasks/pending` params(runtimeId) [auth, db, upload]
+- `GET` `/runtimes/{runtimeId}/tasks/pending` params(runtimeId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/runtimes/{runtimeId}/usage` params(runtimeId) [auth, db, upload]
+- `POST` `/runtimes/{runtimeId}/usage` params(runtimeId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/runtimes/{runtimeId}/ping/{pingId}/result` params(runtimeId, pingId) [auth, db, upload]
+- `POST` `/runtimes/{runtimeId}/ping/{pingId}/result` params(runtimeId, pingId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/runtimes/{runtimeId}/update/{updateId}/result` params(runtimeId, updateId) [auth, db, upload]
+- `POST` `/runtimes/{runtimeId}/update/{updateId}/result` params(runtimeId, updateId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

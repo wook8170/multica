@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Ping subsystem handles **2 routes** and touches: auth, db.
+The Ping subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{runtimeId}/ping` params(runtimeId) [auth, db, upload]
+- `POST` `/{runtimeId}/ping` params(runtimeId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/{runtimeId}/ping/{pingId}` params(runtimeId, pingId) [auth, db, upload]
+- `GET` `/{runtimeId}/ping/{pingId}` params(runtimeId, pingId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

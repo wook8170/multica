@@ -2,21 +2,19 @@
 
 > **Navigation aid.** Component inventory and prop signatures extracted via AST. Read the source files before adding props or modifying component logic.
 
-**182 components** (react)
+**178 components** (react)
 
 ## Client Components
 
-- **InviteAcceptPage** — `apps/web/app/(auth)/invite/[id]/page.tsx`
 - **Page** — `apps/web/app/(auth)/login/page.tsx`
 - **OnboardingPage** — `apps/web/app/(auth)/onboarding/page.tsx`
-- **Page** — props: params — `apps/web/app/(dashboard)/autopilots/[id]/page.tsx`
-- **Page** — `apps/web/app/(dashboard)/autopilots/page.tsx`
 - **IssueDetailPage** — props: params — `apps/web/app/(dashboard)/issues/[id]/page.tsx`
 - **Page** — `apps/web/app/(dashboard)/issues/page.tsx`
 - **Layout** — `apps/web/app/(dashboard)/layout.tsx`
 - **Page** — `apps/web/app/(dashboard)/my-issues/page.tsx`
 - **ProjectDetailPage** — props: params — `apps/web/app/(dashboard)/projects/[id]/page.tsx`
 - **Page** — `apps/web/app/(dashboard)/projects/page.tsx`
+- **WikiPage** — `apps/web/app/(dashboard)/wiki/page.tsx`
 - **CallbackPage** — `apps/web/app/auth/callback/page.tsx`
 - **LocaleSync** — `apps/web/components/locale-sync.tsx`
 - **WebProviders** — `apps/web/components/web-providers.tsx`
@@ -31,6 +29,11 @@
 - **MulticaLanding** — `apps/web/features/landing/components/multica-landing.tsx`
 - **OpenSourceSection** — `apps/web/features/landing/components/open-source-section.tsx`
 - **LocaleProvider** — props: initialLocale — `apps/web/features/landing/i18n/context.tsx`
+- **WikiCommentCard** — props: wikiId, comment, allReplies, currentUserId, onReply, onEdit, onDelete — `apps/web/features/wiki/components/WikiCommentCard.tsx`
+- **WikiCommentInput** — props: wikiId, onSubmit — `apps/web/features/wiki/components/WikiCommentInput.tsx`
+- **WikiPropertySidebar** — props: wikiId, currentContent, createdBy, updatedBy, createdAt, updatedAt, childPages, onNavigateTo, onRestore — `apps/web/features/wiki/components/WikiPropertySidebar.tsx`
+- **WikiSidebar** — props: nodes, isLoading, onCreateNew, onSelect, selectedId, collaboratingId, onDeleteMultiple, onDuplicateMultiple, onMove — `apps/web/features/wiki/components/WikiSidebar.tsx`
+- **WikiView** — props: initialSelectedId — `apps/web/features/wiki/components/WikiView.tsx`
 - **WebNavigationProvider** — `apps/web/platform/navigation.tsx`
 - **WorkspaceIdProvider** — props: wsId — `packages/core/hooks.tsx`
 - **ViewStoreProvider** — props: store — `packages/core/issues/stores/view-store-context.tsx`
@@ -38,43 +41,38 @@
 - **CoreProvider** — props: apiBaseUrl, wsUrl, storage, cookieAuth, onLogin, onLogout — `packages/core/platform/core-provider.tsx`
 - **QueryProvider** — `packages/core/provider.tsx`
 - **WSProvider** — props: wsUrl, authStore, workspaceStore, storage, cookieAuth, onToast — `packages/core/realtime/provider.tsx`
-- **AgentDetail** — props: agent, runtimes, members, currentUserId, onUpdate, onArchive, onRestore — `packages/views/agents/components/agent-detail.tsx`
+- **AgentDetail** — props: agent, runtimes, onUpdate, onArchive, onRestore — `packages/views/agents/components/agent-detail.tsx`
 - **AgentListItem** — props: agent, isSelected, onClick — `packages/views/agents/components/agent-list-item.tsx`
 - **AgentsPage** — `packages/views/agents/components/agents-page.tsx`
-- **CreateAgentDialog** — props: runtimes, runtimesLoading, members, currentUserId, onClose, onCreate — `packages/views/agents/components/create-agent-dialog.tsx`
-- **CustomArgsTab** — props: agent, onSave — `packages/views/agents/components/tabs/custom-args-tab.tsx`
-- **EnvTab** — props: agent, readOnly, onSave — `packages/views/agents/components/tabs/env-tab.tsx`
+- **CreateAgentDialog** — props: runtimes, runtimesLoading, onClose, onCreate — `packages/views/agents/components/create-agent-dialog.tsx`
 - **InstructionsTab** — props: agent, onSave — `packages/views/agents/components/tabs/instructions-tab.tsx`
-- **SettingsTab** — props: agent, runtimes, members, currentUserId, onSave — `packages/views/agents/components/tabs/settings-tab.tsx`
+- **SettingsTab** — props: agent, runtimes, onSave — `packages/views/agents/components/tabs/settings-tab.tsx`
 - **SkillsTab** — props: agent — `packages/views/agents/components/tabs/skills-tab.tsx`
 - **TasksTab** — props: agent — `packages/views/agents/components/tabs/tasks-tab.tsx`
 - **LoginPage** — props: logo, onSuccess, google, cliCallback, lastWorkspaceId, onTokenObtained, onGoogleLogin — `packages/views/auth/login-page.tsx`
-- **AutopilotDetailPage** — props: autopilotId — `packages/views/autopilots/components/autopilot-detail-page.tsx`
-- **AutopilotsPage** — `packages/views/autopilots/components/autopilots-page.tsx`
-- **TriggerConfigSection** — props: config, onChange — `packages/views/autopilots/components/trigger-config.tsx`
 - **ChatFab** — `packages/views/chat/components/chat-fab.tsx`
-- **ChatInput** — props: onSend, onStop, isRunning, disabled, agentName, leftAdornment — `packages/views/chat/components/chat-input.tsx`
-- **ChatMessageList** — props: messages, pendingTaskId, isWaiting — `packages/views/chat/components/chat-message-list.tsx`
-- **ChatMessageSkeleton** — `packages/views/chat/components/chat-message-list.tsx`
+- **ChatInput** — props: onSend, onStop, isRunning, disabled — `packages/views/chat/components/chat-input.tsx`
+- **ChatMessageList** — props: messages, timelineItems, isWaiting — `packages/views/chat/components/chat-message-list.tsx`
 - **ChatResizeHandles** — props: onDragStart — `packages/views/chat/components/chat-resize-handles.tsx`
 - **ChatSessionHistory** — `packages/views/chat/components/chat-session-history.tsx`
 - **ChatWindow** — `packages/views/chat/components/chat-window.tsx`
 - **ActorAvatar** — props: actorType, actorId, size, className — `packages/views/common/actor-avatar.tsx`
-- **CommentInput** — props: entityId, entityKey, placeholder, onSubmit, className — `packages/views/common/comment-input.tsx`
+- **CommentInput** — props: entityId, entityType, placeholder, onSubmit, className — `packages/views/common/comment-input.tsx`
 - **Markdown** — `packages/views/common/markdown.tsx`
-- **MarkButton** — props: editor, mark, icon, label, shortcut, isActive — `packages/views/editor/bubble-menu.tsx`
-- **CodeBlockView** — props: node — `packages/views/editor/extensions/code-block-view.tsx`
+- **AttachmentFileIcon** — props: href, filename, className — `packages/views/editor/attachment-file-icon.tsx`
+- **MarkButton** — props: editor, mark, icon, label, shortcut, runCommand — `packages/views/editor/bubble-menu.tsx`
+- **CodeBlockView** — props: node, editor — `packages/views/editor/extensions/code-block-view.tsx`
 - **AttachmentCard** — props: href, filename, uploading, editable, onDelete — `packages/views/editor/extensions/file-card.tsx`
 - **ImageLightbox** — props: src, alt, onClose — `packages/views/editor/extensions/image-view.tsx`
 - **MentionList** — props: items, command — `packages/views/editor/extensions/mention-suggestion.tsx`
 - **MentionView** — props: node — `packages/views/editor/extensions/mention-view.tsx`
-- **SHOW_DELAY** — `packages/views/editor/link-hover-card.tsx`
+- **LinkPreviewCard** — props: href, onMouseDown — `packages/views/editor/link-preview.tsx`
+- **MermaidViewer** — props: content — `packages/views/editor/mermaid-viewer.tsx`
 - **ReadonlyContent** — props: content, className — `packages/views/editor/readonly-content.tsx`
 - **SingleLineDocument** — props: defaultValue, placeholder, className, autoFocus, onSubmit, onBlur, onChange — `packages/views/editor/title-editor.tsx`
 - **InboxDetailLabel** — props: item — `packages/views/inbox/components/inbox-detail-label.tsx`
 - **InboxListItem** — props: item, isSelected, onClick, onArchive — `packages/views/inbox/components/inbox-list-item.tsx`
 - **InboxPage** — `packages/views/inbox/components/inbox-page.tsx`
-- **InvitePage** — props: invitationId — `packages/views/invite/invite-page.tsx`
 - **AgentLiveCard** — props: issueId — `packages/views/issues/components/agent-live-card.tsx`
 - **TaskRunHistory** — props: issueId — `packages/views/issues/components/agent-live-card.tsx`
 - **AgentTranscriptDialog** — props: open, onOpenChange, task, items, agentName, isLive — `packages/views/issues/components/agent-transcript-dialog.tsx`
@@ -120,7 +118,7 @@
 - **ProjectPicker** — props: projectId, onUpdate, triggerRender, align — `packages/views/projects/components/project-picker.tsx`
 - **ProjectsPage** — `packages/views/projects/components/projects-page.tsx`
 - **RuntimeDetail** — props: runtime — `packages/views/runtimes/components/runtime-detail.tsx`
-- **RuntimesPage** — props: topSlot — `packages/views/runtimes/components/runtimes-page.tsx`
+- **RuntimesPage** — `packages/views/runtimes/components/runtimes-page.tsx`
 - **UsageSection** — props: runtimeId — `packages/views/runtimes/components/usage-section.tsx`
 - **SearchCommand** — `packages/views/search/search-command.tsx`
 - **SearchTrigger** — `packages/views/search/search-trigger.tsx`
@@ -128,7 +126,7 @@
 - **AppearanceTab** — `packages/views/settings/components/appearance-tab.tsx`
 - **MembersTab** — `packages/views/settings/components/members-tab.tsx`
 - **RepositoriesTab** — `packages/views/settings/components/repositories-tab.tsx`
-- **SettingsPage** — props: extraAccountTabs — `packages/views/settings/components/settings-page.tsx`
+- **SettingsPage** — `packages/views/settings/components/settings-page.tsx`
 - **TokensTab** — `packages/views/settings/components/tokens-tab.tsx`
 - **WorkspaceTab** — `packages/views/settings/components/workspace-tab.tsx`
 - **FileTree** — props: filePaths, selectedPath, onSelect — `packages/views/skills/components/file-tree.tsx`
@@ -138,14 +136,10 @@
 ## Components
 
 - **App** — `apps/desktop/src/renderer/src/App.tsx`
-- **DaemonPanel** — props: open, onOpenChange, status — `apps/desktop/src/renderer/src/components/daemon-panel.tsx`
-- **DaemonRuntimeCard** — `apps/desktop/src/renderer/src/components/daemon-runtime-card.tsx`
-- **DaemonSettingsTab** — `apps/desktop/src/renderer/src/components/daemon-settings-tab.tsx`
 - **DesktopShell** — `apps/desktop/src/renderer/src/components/desktop-layout.tsx`
 - **TabBar** — `apps/desktop/src/renderer/src/components/tab-bar.tsx`
 - **TabContent** — `apps/desktop/src/renderer/src/components/tab-content.tsx`
 - **UpdateNotification** — `apps/desktop/src/renderer/src/components/update-notification.tsx`
-- **AutopilotDetailPage** — `apps/desktop/src/renderer/src/pages/autopilot-detail-page.tsx`
 - **IssueDetailPage** — `apps/desktop/src/renderer/src/pages/issue-detail-page.tsx`
 - **DesktopLoginPage** — `apps/desktop/src/renderer/src/pages/login.tsx`
 - **ProjectDetailPage** — `apps/desktop/src/renderer/src/pages/project-detail-page.tsx`
@@ -170,8 +164,10 @@
 - **ClaudeCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **CodexLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenClawLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
-- **GeminiCliLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
 - **OpenCodeLogo** — props: className — `apps/web/features/landing/components/shared.tsx`
+- **KeepDiscardDialog** — props: open, onOpenChange, title, description, onKeep, onDiscard, discardVariant — `apps/web/features/wiki/components/KeepDiscardDialog.tsx`
+- **WikiEditor** — props: id, title, content, restoreKey, ancestors, onNavigateTo, onUpdateTitle, onUpdateContent, onSave, onUploadFile — `apps/web/features/wiki/components/WikiEditor.tsx`
+- **PageListHeader** — props: title, count, actions, className — `packages/views/common/page-list-header.tsx`
 - **TABLE_BG_COLORS** — props: defaultValue, onUpdate, placeholder, editable, className, debounceMs, onSubmit, onBlur, onUploadFile, showToolbar — `packages/views/editor/content-editor.tsx`
 - **FileDropOverlay** — props: className — `packages/views/editor/file-drop-overlay.tsx`
 - **PriorityIcon** — props: priority, className, inheritColor — `packages/views/issues/components/priority-icon.tsx`
@@ -189,7 +185,7 @@
 - **StatusBadge** — props: status — `packages/views/runtimes/components/shared.tsx`
 - **InfoField** — props: label, value, mono — `packages/views/runtimes/components/shared.tsx`
 - **TokenCard** — props: label, value — `packages/views/runtimes/components/shared.tsx`
-- **UpdateSection** — props: runtimeId, currentVersion, isOnline, launchedBy — `packages/views/runtimes/components/update-section.tsx`
+- **UpdateSection** — props: runtimeId, currentVersion, isOnline — `packages/views/runtimes/components/update-section.tsx`
 - **WorkspaceAvatar** — props: name, size, className — `packages/views/workspace/workspace-avatar.tsx`
 
 ---

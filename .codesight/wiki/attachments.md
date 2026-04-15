@@ -2,17 +2,17 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Attachments subsystem handles **4 routes** and touches: auth, db.
+The Attachments subsystem handles **4 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{id}/attachments` params(id) [auth, db, upload]
+- `GET` `/{id}/attachments` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/attachments` [auth, db, upload]
+- `GET` `/attachments` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/attachments/{id}` params(id) [auth, db, upload]
+- `GET` `/api/attachments/{id}` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/attachments/{id}` params(id) [auth, db, upload]
+- `DELETE` `/api/attachments/{id}` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Subscribers subsystem handles **2 routes** and touches: auth, db.
+The Subscribers subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{id}/subscribers` params(id) [auth, db, upload]
+- `GET` `/{id}/subscribers` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/subscribers` [auth, db, upload]
+- `GET` `/subscribers` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

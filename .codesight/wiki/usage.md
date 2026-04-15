@@ -2,19 +2,19 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Usage subsystem handles **5 routes** and touches: auth, db.
+The Usage subsystem handles **5 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{id}/usage` params(id) [auth, db, upload]
+- `GET` `/{id}/usage` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/usage/daily` [auth, db, upload]
+- `GET` `/api/usage/daily` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/usage/summary` [auth, db, upload]
+- `GET` `/api/usage/summary` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/{runtimeId}/usage` params(runtimeId) [auth, db, upload]
+- `GET` `/{runtimeId}/usage` params(runtimeId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/usage` [auth, db, upload]
+- `GET` `/usage` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Related Models

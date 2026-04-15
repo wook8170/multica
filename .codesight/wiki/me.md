@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Me subsystem handles **2 routes** and touches: auth, db.
+The Me subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/api/me` [auth, db, upload]
+- `GET` `/api/me` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PATCH` `/api/me` [auth, db, upload]
+- `PATCH` `/api/me` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

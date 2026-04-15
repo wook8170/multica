@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Task-runs subsystem handles **2 routes** and touches: auth, db.
+The Task-runs subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{id}/task-runs` params(id) [auth, db, upload]
+- `GET` `/{id}/task-runs` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/task-runs` [auth, db, upload]
+- `GET` `/task-runs` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Related Models

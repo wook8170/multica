@@ -12,6 +12,8 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Database](./database.md)
 - [Auth](./auth.md)
 - [Payments](./payments.md)
+- [X-agent-id](./x-agent-id.md)
+- [X-task-id](./x-task-id.md)
 - [X-user-id](./x-user-id.md)
 - [Active-task](./active-task.md)
 - [Activity](./activity.md)
@@ -24,8 +26,6 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Assignee-frequency](./assignee-frequency.md)
 - [Attachments](./attachments.md)
 - [Auth_test](./auth_test.md)
-- [Autopilot](./autopilot.md)
-- [Autopilots](./autopilots.md)
 - [Batch-delete](./batch-delete.md)
 - [Batch-update](./batch-update.md)
 - [Chat](./chat.md)
@@ -37,19 +37,19 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Cmd_issue](./cmd_issue.md)
 - [Comment](./comment.md)
 - [Comments](./comments.md)
-- [Config](./config.md)
 - [Cookie](./cookie.md)
 - [Csp_test](./csp_test.md)
 - [Daemon](./daemon.md)
 - [Daily](./daily.md)
 - [Deregister](./deregister.md)
+- [Draft](./draft.md)
 - [Files](./files.md)
 - [Heartbeat](./heartbeat.md)
+- [History](./history.md)
 - [Hub](./hub.md)
 - [Hub_test](./hub_test.md)
 - [Import](./import.md)
 - [Inbox](./inbox.md)
-- [Invitations](./invitations.md)
 - [Issue](./issue.md)
 - [Issues](./issues.md)
 - [Leave](./leave.md)
@@ -57,7 +57,7 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Me](./me.md)
 - [Members](./members.md)
 - [Messages](./messages.md)
-- [Pending-task](./pending-task.md)
+- [Move](./move.md)
 - [Ping](./ping.md)
 - [Pins](./pins.md)
 - [Projects](./projects.md)
@@ -66,7 +66,6 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Reorder](./reorder.md)
 - [Restore](./restore.md)
 - [Route](./route.md)
-- [Runs](./runs.md)
 - [Runtime](./runtime.md)
 - [Runtimes](./runtimes.md)
 - [Search](./search.md)
@@ -77,8 +76,6 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Tasks](./tasks.md)
 - [Timeline](./timeline.md)
 - [Tokens](./tokens.md)
-- [Trigger](./trigger.md)
-- [Triggers](./triggers.md)
 - [Unread-count](./unread-count.md)
 - [Unsubscribe](./unsubscribe.md)
 - [Update](./update.md)
@@ -86,6 +83,9 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 - [Uploads](./uploads.md)
 - [Usage](./usage.md)
 - [Use-realtime-sync](./use-realtime-sync.md)
+- [Wiki](./wiki.md)
+- [Wiki-comments](./wiki-comments.md)
+- [Wikis](./wikis.md)
 - [Workspace-id](./workspace-id.md)
 - [Workspaces](./workspaces.md)
 - [Ws](./ws.md)
@@ -96,10 +96,10 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 
 ## Quick Stats
 
-- Routes: **323**
-- Models: **36**
-- Components: **182**
-- Env vars: **53** required, **32** with defaults
+- Routes: **309**
+- Models: **37**
+- Components: **178**
+- Env vars: **47** required, **36** with defaults
 
 ## How to Use
 

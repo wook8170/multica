@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Use-realtime-sync subsystem handles **27 routes**.
+The Use-realtime-sync subsystem handles **17 routes**.
 
 ## Routes
 
@@ -39,26 +39,6 @@ The Use-realtime-sync subsystem handles **27 routes**.
 - `WS` `member:removed` params(removed) `[inferred]`
   `packages/core/realtime/use-realtime-sync.ts`
 - `WS` `member:added` params(added) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `invitation:created` params(created) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `invitation:accepted` params(accepted) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `invitation:declined` params(declined) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `invitation:revoked` params(revoked) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `task:message` params(message) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `chat:message` params(message) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `chat:done` params(done) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `task:completed` params(completed) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `task:failed` params(failed) `[inferred]`
-  `packages/core/realtime/use-realtime-sync.ts`
-- `WS` `chat:session_read` params(session_read) `[inferred]`
   `packages/core/realtime/use-realtime-sync.ts`
 
 ## Source Files

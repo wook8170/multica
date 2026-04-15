@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Messages subsystem handles **2 routes** and touches: auth, db.
+The Messages subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{sessionId}/messages` params(sessionId) [auth, db, upload]
+- `POST` `/{sessionId}/messages` params(sessionId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/{sessionId}/messages` params(sessionId) [auth, db, upload]
+- `GET` `/{sessionId}/messages` params(sessionId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Client_test subsystem handles **5 routes** and touches: auth.
+The Client_test subsystem handles **3 routes** and touches: auth.
 
 ## Routes
 
@@ -11,10 +11,6 @@ The Client_test subsystem handles **5 routes** and touches: auth.
 - `GET` `Authorization` [auth]
   `server/internal/cli/client_test.go`
 - `GET` `X-Workspace-ID` [auth]
-  `server/internal/cli/client_test.go`
-- `GET` `X-Agent-ID` [auth]
-  `server/internal/cli/client_test.go`
-- `GET` `X-Task-ID` [auth]
   `server/internal/cli/client_test.go`
 
 ## Source Files

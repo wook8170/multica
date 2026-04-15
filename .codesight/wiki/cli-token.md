@@ -2,11 +2,11 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Cli-token subsystem handles **1 routes** and touches: auth, db.
+The Cli-token subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/api/cli-token` [auth, db, upload]
+- `POST` `/api/cli-token` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Related Models

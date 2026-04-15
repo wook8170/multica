@@ -2,25 +2,25 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Api subsystem handles **8 routes** and touches: auth, db.
+The Api subsystem handles **8 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{id}` params(id) [auth, db, upload]
+- `GET` `/{id}` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/{id}` params(id) [auth, db, upload]
+- `PUT` `/{id}` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PATCH` `/{id}` params(id) [auth, db, upload]
+- `PATCH` `/{id}` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/{id}` params(id) [auth, db, upload]
+- `DELETE` `/{id}` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/{runtimeId}` params(runtimeId) [auth, db, upload]
+- `DELETE` `/{runtimeId}` params(runtimeId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/{sessionId}` params(sessionId) [auth, db, upload]
+- `GET` `/{sessionId}` params(sessionId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/{sessionId}` params(sessionId) [auth, db, upload]
+- `DELETE` `/{sessionId}` params(sessionId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/{itemType}/{itemId}` params(itemType, itemId) [auth, db, upload]
+- `DELETE` `/{itemType}/{itemId}` params(itemType, itemId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

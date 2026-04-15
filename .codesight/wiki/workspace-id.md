@@ -12,7 +12,6 @@ The Workspace-id subsystem handles **1 routes** and touches: auth, db.
 ## Related Models
 
 - **workspace** (5 fields) → [database.md](./database.md)
-- **workspace_invitation** (8 fields) → [database.md](./database.md)
 
 ## Source Files
 

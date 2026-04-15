@@ -2,11 +2,11 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Mark-all-read subsystem handles **1 routes** and touches: auth, db.
+The Mark-all-read subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/mark-all-read` [auth, db, upload]
+- `POST` `/mark-all-read` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

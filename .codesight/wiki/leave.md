@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Leave subsystem handles **2 routes** and touches: auth, db.
+The Leave subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{id}/leave` params(id) [auth, db, upload]
+- `POST` `/{id}/leave` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/leave` [auth, db, upload]
+- `POST` `/leave` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

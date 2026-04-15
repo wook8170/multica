@@ -2,17 +2,17 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Pins subsystem handles **4 routes** and touches: auth, db.
+The Pins subsystem handles **4 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/api/pins` [auth, db, upload]
+- `GET` `/api/pins` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/pins` [auth, db, upload]
+- `POST` `/api/pins` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/api/pins/reorder` [auth, db, upload]
+- `PUT` `/api/pins/reorder` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/pins/{itemType}/{itemId}` params(itemType, itemId) [auth, db, upload]
+- `DELETE` `/api/pins/{itemType}/{itemId}` params(itemType, itemId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

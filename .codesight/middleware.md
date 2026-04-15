@@ -13,11 +13,13 @@
 - daemon_auth — `server/internal/middleware/daemon_auth.go`
 
 ## custom
+- 01_analysis_and_strategy — `docs/recovery-logs/01_analysis_and_strategy.md`
 - csp — `server/internal/middleware/csp.go`
 - csp_test — `server/internal/middleware/csp_test.go`
 - workspace — `server/internal/middleware/workspace.go`
 - 022_task_lifecycle_guards.down — `server/migrations/022_task_lifecycle_guards.down.sql`
 - 022_task_lifecycle_guards.up — `server/migrations/022_task_lifecycle_guards.up.sql`
+- migrate_binary — `server/scratch/migrate_binary.go`
 
 ## logging
 - request_logger — `server/internal/middleware/request_logger.go`

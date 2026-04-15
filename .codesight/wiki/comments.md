@@ -2,25 +2,25 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Comments subsystem handles **8 routes** and touches: auth, db.
+The Comments subsystem handles **8 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{id}/comments` params(id) [auth, db, upload]
+- `POST` `/{id}/comments` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/{id}/comments` params(id) [auth, db, upload]
+- `GET` `/{id}/comments` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/api/comments/{commentId}` params(commentId) [auth, db, upload]
+- `PUT` `/api/comments/{commentId}` params(commentId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/comments/{commentId}` params(commentId) [auth, db, upload]
+- `DELETE` `/api/comments/{commentId}` params(commentId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/comments/{commentId}/reactions` params(commentId) [auth, db, upload]
+- `POST` `/api/comments/{commentId}/reactions` params(commentId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/comments/{commentId}/reactions` params(commentId) [auth, db, upload]
+- `DELETE` `/api/comments/{commentId}/reactions` params(commentId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/comments` [auth, db, upload]
+- `POST` `/comments` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/comments` [auth, db, upload]
+- `GET` `/comments` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

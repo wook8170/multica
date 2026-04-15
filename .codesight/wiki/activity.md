@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Activity subsystem handles **2 routes** and touches: auth, db.
+The Activity subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{runtimeId}/activity` params(runtimeId) [auth, db, upload]
+- `GET` `/{runtimeId}/activity` params(runtimeId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/activity` [auth, db, upload]
+- `GET` `/activity` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Related Models

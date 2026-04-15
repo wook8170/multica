@@ -1,7 +1,7 @@
 # Test Coverage
 
-> **20%** of routes and models are covered by tests
-> 71 test files found
+> **19%** of routes and models are covered by tests
+> 69 test files found
 
 ## Covered Routes
 
@@ -54,7 +54,6 @@
 - WS:issue:created
 - WS:issue:deleted
 - WS:comment:deleted
-- WS:task:failed
 
 ## Covered Models
 
@@ -73,4 +72,3 @@
 - issue_subscriber
 - attachment
 - project
-- autopilot

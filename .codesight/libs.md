@@ -1,13 +1,6 @@
 # Libraries
 
-- `apps/desktop/scripts/package.mjs` — function normalizeGitVersion: (raw) => void
-- `apps/desktop/src/main/cli-bootstrap.ts` — function managedCliPath: () => string, function ensureManagedCli: () => Promise<string>
-- `apps/desktop/src/main/daemon-manager.ts` — function setupDaemonManager: (windowGetter) => void
 - `apps/desktop/src/main/updater.ts` — function setupAutoUpdater: (getMainWindow) => void
-- `apps/desktop/src/main/version-decision.ts`
-  - function decideVersionAction: (bundled, running) => VersionAction
-  - interface VersionCheckHealth
-  - type VersionAction
 - `apps/desktop/src/renderer/src/hooks/use-document-title.ts` — function useDocumentTitle: (title) => void
 - `apps/desktop/src/renderer/src/hooks/use-tab-history.ts` — function useTabHistory: () => void, const popDirectionHints
 - `apps/desktop/src/renderer/src/hooks/use-tab-router-sync.ts` — function useTabRouterSync: (tabId, router) => void
@@ -16,14 +9,8 @@
   - function resolveRouteIcon: (pathname) => string
   - interface Tab
   - const useTabStore
-- `apps/desktop/src/shared/daemon-types.ts`
-  - function formatUptime: (uptime?) => string
-  - interface DaemonStatus
-  - interface DaemonPrefs
-  - type DaemonState
-  - const DAEMON_STATE_COLORS: Record<DaemonState, string>
-  - const DAEMON_STATE_LABELS: Record<DaemonState, string>
 - `apps/web/features/auth/auth-cookie.ts` — function setLoggedInCookie: () => void, function clearLoggedInCookie: () => void
+- `apps/web/features/wiki/hooks/use-wiki-comments.ts` — function useWikiComments: (wikiId) => void
 - `apps/web/proxy.ts` — function proxy: (_request) => void, const config
 - `e2e/fixtures.ts` — class TestApiClient
 - `e2e/helpers.ts`
@@ -45,45 +32,22 @@
   - function createAuthStore: (options) => void
   - interface AuthStoreOptions
   - interface AuthState
-- `packages/core/autopilots/mutations.ts`
-  - function useCreateAutopilot: () => void
-  - function useUpdateAutopilot: () => void
-  - function useDeleteAutopilot: () => void
-  - function useTriggerAutopilot: () => void
-  - function useCreateAutopilotTrigger: () => void
-  - function useUpdateAutopilotTrigger: () => void
-  - _...1 more_
-- `packages/core/autopilots/queries.ts`
-  - function autopilotListOptions: (wsId) => void
-  - function autopilotDetailOptions: (wsId, id) => void
-  - function autopilotRunsOptions: (wsId, id) => void
-  - const autopilotKeys
 - `packages/core/chat/index.ts` — function registerChatStore: (store) => void, const useChatStore: ChatStoreInstance
-- `packages/core/chat/mutations.ts`
-  - function useCreateChatSession: () => void
-  - function useMarkChatSessionRead: () => void
-  - function useArchiveChatSession: () => void
+- `packages/core/chat/mutations.ts` — function useCreateChatSession: () => void, function useArchiveChatSession: () => void
 - `packages/core/chat/queries.ts`
   - function chatSessionsOptions: (wsId) => void
   - function allChatSessionsOptions: (wsId) => void
   - function chatSessionOptions: (wsId, id) => void
   - function chatMessagesOptions: (sessionId) => void
-  - function pendingChatTaskOptions: (sessionId) => void
-  - function taskMessagesOptions: (taskId) => void
-  - _...2 more_
+  - const chatKeys
 - `packages/core/chat/store.ts`
   - function createChatStore: (options) => void
   - interface ChatTimelineItem
   - interface ChatState
   - interface ChatStoreOptions
-  - const DRAFT_NEW_SESSION
   - const CHAT_MIN_W
-  - _...3 more_
-- `packages/core/config/index.ts`
-  - function useConfigStore: () => ConfigState;
-  - function useConfigStore: (selector) => void
-  - function useConfigStore: (selector?) => void
-  - const configStore
+  - const CHAT_MIN_H
+  - _...2 more_
 - `packages/core/hooks/use-file-upload.ts`
   - function useFileUpload: (api, onError?) => void
   - interface UploadResult
@@ -170,6 +134,11 @@
   - function generateUUID: () => string
   - function createSafeId: () => string
   - function createRequestId: (length) => string
+- `packages/core/wiki/mutations.ts`
+  - function useCreateWikiComment: (wikiId) => void
+  - function useUpdateWikiComment: (wikiId) => void
+  - function useDeleteWikiComment: (wikiId) => void
+- `packages/core/wiki/queries.ts` — function wikiCommentListOptions: (wikiId) => void, const wikiCommentKeys
 - `packages/core/workspace/hooks.ts` — function useActorName: () => void
 - `packages/core/workspace/index.ts` — function registerWorkspaceStore: (store) => void, const useWorkspaceStore: WorkspaceStoreInstance
 - `packages/core/workspace/mutations.ts`
@@ -181,18 +150,13 @@
   - function memberListOptions: (wsId) => void
   - function agentListOptions: (wsId) => void
   - function skillListOptions: (wsId) => void
-  - function invitationListOptions: (wsId) => void
-  - function myInvitationListOptions: () => void
-  - _...2 more_
+  - function assigneeFrequencyOptions: (wsId) => void
+  - const workspaceKeys
 - `packages/core/workspace/store.ts` — function createWorkspaceStore: (api, options?) => void, type WorkspaceStore
 - `packages/ui/hooks/use-auto-scroll.ts` — function useAutoScroll: (ref) => void
 - `packages/ui/hooks/use-mobile.ts` — function useIsMobile: () => void
 - `packages/ui/hooks/use-scroll-fade.ts` — function useScrollFade: (ref, fadeSize) => CSSProperties | undefined
 - `packages/ui/lib/utils.ts` — function cn: (...inputs) => void
-- `packages/ui/markdown/file-cards.ts`
-  - function isCdnUrl: (url, cdnDomain) => boolean
-  - function isFileCardUrl: (url, cdnDomain) => boolean
-  - function preprocessFileCards: (markdown, cdnDomain) => string
 - `packages/ui/markdown/linkify.ts`
   - function detectLinks: (text) => DetectedLink[]
   - function preprocessLinks: (text) => string
@@ -217,7 +181,7 @@
   - function LoadCLIConfig: () (CLIConfig, error)
   - function LoadCLIConfigForProfile: (profile string) (CLIConfig, error)
   - function SaveCLIConfig: (cfg CLIConfig) error
-  - _...2 more_
+  - _...3 more_
 - `server/internal/cli/flags.go` — function FlagOrEnv: (cmd *cobra.Command, flagName, envKey, fallback string) string
 - `server/internal/cli/output.go` — function PrintTable: (w io.Writer, headers []string, rows [][]string), function PrintJSON: (w io.Writer, v any) error
 - `server/internal/cli/update.go`
@@ -290,24 +254,13 @@
   - class VerifyCodeRequest
   - class UpdateMeRequest
   - class GoogleLoginRequest
-- `server/internal/handler/autopilot.go`
-  - class AutopilotResponse
-  - class AutopilotTriggerResponse
-  - class AutopilotRunResponse
-  - class CreateAutopilotRequest
-  - class UpdateAutopilotRequest
-  - class CreateAutopilotTriggerRequest
-  - _...1 more_
 - `server/internal/handler/chat.go`
   - class CreateChatSessionRequest
   - class SendChatMessageRequest
   - class SendChatMessageResponse
-  - class PendingChatTaskResponse
-  - class PendingChatTasksResponse
-  - class PendingChatTaskItem
-  - _...2 more_
+  - class ChatSessionResponse
+  - class ChatMessageResponse
 - `server/internal/handler/comment.go` — class CommentResponse, class CreateCommentRequest
-- `server/internal/handler/config.go` — class AppConfig
 - `server/internal/handler/daemon.go`
   - class DaemonRegisterRequest
   - class DaemonHeartbeatRequest
@@ -319,7 +272,6 @@
 - `server/internal/handler/file.go` — class AttachmentResponse
 - `server/internal/handler/handler.go` — function New: (queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *events.Bus, emailService *service.EmailService, store storage.Storage, cfSigner *auth.CloudFrontSigner) *Handler, class Handler
 - `server/internal/handler/inbox.go` — class InboxItemResponse
-- `server/internal/handler/invitation.go` — class InvitationResponse
 - `server/internal/handler/issue.go`
   - class IssueResponse
   - class SearchIssueResponse
@@ -364,6 +316,17 @@
   - class UpdateSkillRequest
   - _...2 more_
 - `server/internal/handler/subscriber.go` — class SubscriberResponse
+- `server/internal/handler/wiki.go`
+  - class WikiResponse
+  - class WikiVersionResponse
+  - class CreateWikiRequest
+  - class SaveWikiDraftRequest
+  - class WikiDraftResponse
+  - class SearchWikiResult
+  - _...2 more_
+- `server/internal/handler/wiki_comment.go` — class WikiCommentResponse, class CreateWikiCommentRequest
+- `server/internal/handler/wiki_history_policy.go` — class WikiHistoryCompactResult
+- `server/internal/handler/wiki_snapshot.go` — function NewWikiSnapshotScheduler: (db dbExecutor) *WikiSnapshotScheduler, class WikiSnapshotScheduler
 - `server/internal/handler/workspace.go`
   - class WorkspaceResponse
   - class MemberResponse
@@ -407,11 +370,6 @@
   - interface MembershipChecker
   - _...1 more_
 - `server/internal/sanitize/html.go` — function HTML: (input string) string
-- `server/internal/service/autopilot.go`
-  - function NewAutopilotService: (q *db.Queries, tx TxStarter, bus *events.Bus, taskSvc *TaskService) *AutopilotService
-  - class AutopilotService
-  - interface TxStarter
-- `server/internal/service/cron.go` — function ComputeNextRun: (cronExpr, timezone string) (time.Time, error), function ValidateTimezone: (timezone string) error
 - `server/internal/service/email.go` — function NewEmailService: () *EmailService, class EmailService
 - `server/internal/service/task.go`
   - function NewTaskService: (q *db.Queries, hub *realtime.Hub, bus *events.Bus) *TaskService
@@ -457,35 +415,27 @@
 - `server/pkg/db/generated/attachment.sql.go`
   - class CreateAttachmentParams
   - class DeleteAttachmentParams
+  - class DeleteExpiredWikiTempAttachmentsRow
   - class GetAttachmentParams
   - class LinkAttachmentsToCommentParams
   - class LinkAttachmentsToIssueParams
-  - class ListAttachmentsByCommentParams
-  - _...2 more_
-- `server/pkg/db/generated/autopilot.sql.go`
-  - class AdvanceTriggerNextRunParams
-  - class ClaimDueScheduleTriggersRow
-  - class CreateAutopilotParams
-  - class CreateAutopilotRunParams
-  - class CreateAutopilotTaskParams
-  - class CreateAutopilotTriggerParams
-  - _...10 more_
+  - _...7 more_
 - `server/pkg/db/generated/chat.sql.go`
   - class CreateChatMessageParams
   - class CreateChatSessionParams
   - class CreateChatTaskParams
   - class GetChatSessionInWorkspaceParams
   - class GetLastChatTaskSessionRow
-  - class GetPendingChatTaskRow
-  - _...8 more_
+  - class ListAllChatSessionsByCreatorParams
+  - _...3 more_
 - `server/pkg/db/generated/comment.sql.go`
   - class CountCommentsParams
   - class CreateCommentParams
   - class GetCommentInWorkspaceParams
   - class HasAgentCommentedSinceParams
-  - class HasAgentRepliedInThreadParams
   - class ListCommentsParams
-  - _...4 more_
+  - class ListCommentsPaginatedParams
+  - _...3 more_
 - `server/pkg/db/generated/daemon_token.sql.go` — class CreateDaemonTokenParams, class DeleteDaemonTokensByWorkspaceAndDaemonParams
 - `server/pkg/db/generated/db.go`
   - function New: (db DBTX) *Queries
@@ -499,20 +449,14 @@
   - class CountUnreadInboxParams
   - class CreateInboxItemParams
   - _...4 more_
-- `server/pkg/db/generated/invitation.sql.go`
-  - class CreateInvitationParams
-  - class GetPendingInvitationByEmailParams
-  - class ListPendingInvitationsByWorkspaceRow
-  - class ListPendingInvitationsForUserParams
-  - class ListPendingInvitationsForUserRow
 - `server/pkg/db/generated/issue.sql.go`
   - class ChildIssueProgressRow
   - class CountCreatedIssueAssigneesParams
   - class CountCreatedIssueAssigneesRow
   - class CountIssuesParams
   - class CreateIssueParams
-  - class CreateIssueWithOriginParams
-  - _...8 more_
+  - class GetIssueByNumberParams
+  - _...7 more_
 - `server/pkg/db/generated/issue_reaction.sql.go` — class AddIssueReactionParams, class RemoveIssueReactionParams
 - `server/pkg/db/generated/member.sql.go`
   - class CreateMemberParams
@@ -526,7 +470,7 @@
   - class AgentSkill
   - class AgentTaskQueue
   - class Attachment
-  - _...29 more_
+  - _...30 more_
 - `server/pkg/db/generated/personal_access_token.sql.go` — class CreatePersonalAccessTokenParams, class RevokePersonalAccessTokenParams
 - `server/pkg/db/generated/pinned_item.sql.go`
   - class CreatePinnedItemParams
@@ -577,6 +521,19 @@
   - class UpsertTaskUsageParams
 - `server/pkg/db/generated/user.sql.go` — class CreateUserParams, class UpdateUserParams
 - `server/pkg/db/generated/verification_code.sql.go` — class CreateVerificationCodeParams
+- `server/pkg/db/generated/wiki.sql.go`
+  - class CreateWikiParams
+  - class CreateWikiTagParams
+  - class CreateWikiVersionParams
+  - class DeleteWikiParams
+  - class GetWikiParams
+  - class ListWikiTagsParams
+  - _...2 more_
+- `server/pkg/db/generated/wiki_comment.sql.go`
+  - class CreateWikiCommentParams
+  - class GetWikiCommentInWorkspaceParams
+  - class ListWikiCommentsParams
+  - class UpdateWikiCommentParams
 - `server/pkg/db/generated/workspace.sql.go` — class CreateWorkspaceParams, class UpdateWorkspaceParams
 - `server/pkg/protocol/messages.go`
   - class Message
@@ -585,5 +542,5 @@
   - class TaskCompletedPayload
   - class TaskMessagePayload
   - class DaemonRegisterPayload
-  - _...5 more_
+  - _...4 more_
 - `server/pkg/redact/redact.go` — function InputMap: (m map[string]any) map[string]any, function Text: (s string) string

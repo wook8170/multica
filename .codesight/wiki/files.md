@@ -2,21 +2,21 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Files subsystem handles **6 routes** and touches: auth, db.
+The Files subsystem handles **6 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/{id}/files` params(id) [auth, db, upload]
+- `GET` `/{id}/files` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/{id}/files` params(id) [auth, db, upload]
+- `PUT` `/{id}/files` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/{id}/files/{fileId}` params(id, fileId) [auth, db, upload]
+- `DELETE` `/{id}/files/{fileId}` params(id, fileId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/files` [auth, db, upload]
+- `GET` `/files` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/files` [auth, db, upload]
+- `PUT` `/files` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/files/{fileId}` params(fileId) [auth, db, upload]
+- `DELETE` `/files/{fileId}` params(fileId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

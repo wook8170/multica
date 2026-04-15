@@ -2,21 +2,21 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Auth subsystem handles **6 routes** and touches: auth, db.
+The Auth subsystem handles **6 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/api/daemon/register` [auth, db, upload]
+- `POST` `/api/daemon/register` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/auth/send-code` [auth, db, upload]
+- `POST` `/auth/send-code` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/auth/verify-code` [auth, db, upload]
+- `POST` `/auth/verify-code` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/auth/google` [auth, db, upload]
+- `POST` `/auth/google` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/auth/logout` [auth, db, upload]
+- `POST` `/auth/logout` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/register` [auth, db, upload]
+- `POST` `/register` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Middleware

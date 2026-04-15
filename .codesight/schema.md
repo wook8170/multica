@@ -281,54 +281,42 @@
 - item_id: uuid (required, fk)
 - position: float (required)
 
-### workspace_invitation
+### wikis
 - id: uuid (pk)
 - workspace_id: uuid (required, fk)
-- inviter_id: uuid (required, fk)
-- invitee_email: text (required)
-- invitee_user_id: uuid (fk)
-- role: text (required)
-- status: text (required)
-- expires_at: timestamp(tz) (required)
-
-### autopilot
-- id: uuid (pk)
-- workspace_id: uuid (required, fk)
-- project_id: uuid (fk)
+- parent_id: uuid (fk)
 - title: text (required)
-- description: text
-- assignee_id: uuid (required, fk)
-- priority: text (required)
-- status: text (required)
-- execution_mode: text (required)
-- issue_title_template: text
-- concurrency_policy: text (required)
-- created_by_type: text (required)
-- created_by_id: uuid (required, fk)
-- last_run_at: timestamp(tz)
+- content: text (required)
+- created_by: uuid (required)
 
-### autopilot_trigger
+### wiki_versions
 - id: uuid (pk)
-- autopilot_id: uuid (required, fk)
-- kind: text (required)
-- enabled: boolean (required)
-- cron_expression: text
-- timezone: text (default)
-- next_run_at: timestamp(tz)
-- webhook_token: text
-- label: text
-- last_fired_at: timestamp(tz)
+- wiki_id: uuid (required, fk)
+- version_number: integer (required)
+- title: text (required)
+- content: text (required)
+- created_by: uuid (required)
 
-### autopilot_run
+### wiki_tags
 - id: uuid (pk)
-- autopilot_id: uuid (required, fk)
-- trigger_id: uuid (fk)
-- source: text (required)
-- status: text (required)
-- issue_id: uuid (fk)
-- task_id: uuid (fk)
-- triggered_at: timestamp(tz) (required)
-- completed_at: timestamp(tz)
-- failure_reason: text
-- trigger_payload: jsonb
-- result: jsonb
+- workspace_id: uuid (required, fk)
+- wiki_id: uuid (required, fk)
+- name: text (required)
+
+### wiki_drafts
+- id: uuid (pk)
+- workspace_id: uuid (required, fk)
+- wiki_id: uuid (required, fk)
+- user_id: uuid (required, fk)
+- title: text (required)
+- content: text (required)
+- binary_state: bytes
+- base_version: integer (required)
+
+### wiki_comment
+- id: uuid (pk)
+- wiki_id: uuid (required, fk)
+- workspace_id: uuid (required, fk)
+- author_type: text (required)
+- author_id: uuid (required, fk)
+- content: text (required)

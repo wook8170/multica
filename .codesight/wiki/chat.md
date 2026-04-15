@@ -2,26 +2,22 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Chat subsystem handles **8 routes** and touches: auth, db.
+The Chat subsystem handles **6 routes** and touches: auth, db, payment, queue.
 
 ## Routes
 
-- `POST` `/api/chat/sessions` [auth, db, upload]
+- `POST` `/api/chat/sessions` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/chat/sessions` [auth, db, upload]
+- `GET` `/api/chat/sessions` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/chat/sessions` [auth, db, upload]
+- `DELETE` `/api/chat/sessions` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/chat/sessions/messages` [auth, db, upload]
+- `POST` `/api/chat/sessions/messages` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/chat/sessions/messages` [auth, db, upload]
+- `GET` `/api/chat/sessions/messages` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/chat/sessions/pending-task` [auth, db, upload]
-  `server/cmd/server/router.go`
-- `POST` `/api/chat/sessions/read` [auth, db, upload]
-  `server/cmd/server/router.go`
-- `GET` `/api/chat/pending-tasks` [auth, db, upload]
-  `server/cmd/server/router.go`
+- `GET` `status` [auth, db, queue]
+  `server/internal/handler/chat.go`
 
 ## Related Models
 
@@ -32,6 +28,7 @@ The Chat subsystem handles **8 routes** and touches: auth, db.
 
 Read these before implementing or modifying this subsystem:
 - `server/cmd/server/router.go`
+- `server/internal/handler/chat.go`
 
 ---
 _Back to [overview.md](./overview.md)_

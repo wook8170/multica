@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Unsubscribe subsystem handles **2 routes** and touches: auth, db.
+The Unsubscribe subsystem handles **2 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{id}/unsubscribe` params(id) [auth, db, upload]
+- `POST` `/{id}/unsubscribe` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/unsubscribe` [auth, db, upload]
+- `POST` `/unsubscribe` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

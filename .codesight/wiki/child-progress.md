@@ -2,11 +2,11 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Child-progress subsystem handles **1 routes** and touches: auth, db.
+The Child-progress subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/child-progress` [auth, db, upload]
+- `GET` `/child-progress` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

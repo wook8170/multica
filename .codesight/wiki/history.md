@@ -1,18 +1,18 @@
-# Triggers
+# History
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Triggers subsystem handles **4 routes** and touches: auth, db.
+The History subsystem handles **4 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{id}/triggers` params(id) [auth, db, upload]
+- `GET` `/{id}/history` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PATCH` `/triggers/{triggerId}` params(triggerId) [auth, db, upload]
+- `POST` `/{id}/history/compact` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/triggers/{triggerId}` params(triggerId) [auth, db, upload]
+- `GET` `/history` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/triggers` [auth, db, upload]
+- `POST` `/history/compact` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

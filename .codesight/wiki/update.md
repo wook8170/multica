@@ -2,17 +2,17 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Update subsystem handles **4 routes** and touches: auth, db.
+The Update subsystem handles **4 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{runtimeId}/update` params(runtimeId) [auth, db, upload]
+- `POST` `/{runtimeId}/update` params(runtimeId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/{runtimeId}/update/{updateId}` params(runtimeId, updateId) [auth, db, upload]
+- `GET` `/{runtimeId}/update/{updateId}` params(runtimeId, updateId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/update` [auth, db, upload]
+- `POST` `/update` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/update/{updateId}` params(updateId) [auth, db, upload]
+- `GET` `/update/{updateId}` params(updateId) [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

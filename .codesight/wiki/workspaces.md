@@ -2,29 +2,25 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Workspaces subsystem handles **10 routes** and touches: auth, db.
+The Workspaces subsystem handles **8 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/api/workspaces` [auth, db, upload]
+- `GET` `/api/workspaces` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/workspaces` [auth, db, upload]
+- `POST` `/api/workspaces` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/workspaces/members` [auth, db, upload]
+- `GET` `/api/workspaces/members` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/workspaces/leave` [auth, db, upload]
+- `POST` `/api/workspaces/leave` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/workspaces/invitations` [auth, db, upload]
+- `PUT` `/api/workspaces` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/api/workspaces` [auth, db, upload]
+- `PATCH` `/api/workspaces` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PATCH` `/api/workspaces` [auth, db, upload]
+- `POST` `/api/workspaces/members` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/workspaces/members` [auth, db, upload]
-  `server/cmd/server/router.go`
-- `DELETE` `/api/workspaces` [auth, db, upload]
-  `server/cmd/server/router.go`
-- `DELETE` `/api/workspaces/invitations/{invitationId}` params(invitationId) [auth, db, upload]
+- `DELETE` `/api/workspaces` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

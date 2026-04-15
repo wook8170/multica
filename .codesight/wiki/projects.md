@@ -2,19 +2,19 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Projects subsystem handles **5 routes** and touches: auth, db.
+The Projects subsystem handles **5 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/api/projects/search` [auth, db, upload]
+- `GET` `/api/projects/search` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `GET` `/api/projects` [auth, db, upload]
+- `GET` `/api/projects` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/api/projects` [auth, db, upload]
+- `POST` `/api/projects` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `PUT` `/api/projects` [auth, db, upload]
+- `PUT` `/api/projects` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/api/projects` [auth, db, upload]
+- `DELETE` `/api/projects` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

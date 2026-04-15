@@ -2,10 +2,14 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Comment subsystem handles **1 routes** and touches: auth, db, queue.
+The Comment subsystem handles **3 routes** and touches: auth, db, queue.
 
 ## Routes
 
+- `GET` `limit` [auth, db, queue, upload]
+  `server/internal/handler/comment.go`
+- `GET` `offset` [auth, db, queue, upload]
+  `server/internal/handler/comment.go`
 - `GET` `since` [auth, db, queue, upload]
   `server/internal/handler/comment.go`
 
@@ -13,6 +17,7 @@ The Comment subsystem handles **1 routes** and touches: auth, db, queue.
 
 - **comment** (6 fields) → [database.md](./database.md)
 - **comment_reaction** (6 fields) → [database.md](./database.md)
+- **wiki_comment** (6 fields) → [database.md](./database.md)
 
 ## Source Files
 

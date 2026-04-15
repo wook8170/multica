@@ -2,11 +2,11 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Daily subsystem handles **1 routes** and touches: auth, db.
+The Daily subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/daily` [auth, db, upload]
+- `GET` `/daily` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

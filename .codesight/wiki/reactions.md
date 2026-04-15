@@ -2,17 +2,17 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Reactions subsystem handles **4 routes** and touches: auth, db.
+The Reactions subsystem handles **4 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/{id}/reactions` params(id) [auth, db, upload]
+- `POST` `/{id}/reactions` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/{id}/reactions` params(id) [auth, db, upload]
+- `DELETE` `/{id}/reactions` params(id) [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `POST` `/reactions` [auth, db, upload]
+- `POST` `/reactions` [auth, db, payment, upload]
   `server/cmd/server/router.go`
-- `DELETE` `/reactions` [auth, db, upload]
+- `DELETE` `/reactions` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

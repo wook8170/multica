@@ -2,11 +2,11 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Archive-completed subsystem handles **1 routes** and touches: auth, db.
+The Archive-completed subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `POST` `/archive-completed` [auth, db, upload]
+- `POST` `/archive-completed` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files

@@ -2,11 +2,11 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Uploads subsystem handles **1 routes** and touches: auth, db.
+The Uploads subsystem handles **1 routes** and touches: auth, db, payment.
 
 ## Routes
 
-- `GET` `/uploads/*` [auth, db, upload]
+- `GET` `/uploads/*` [auth, db, payment, upload]
   `server/cmd/server/router.go`
 
 ## Source Files
